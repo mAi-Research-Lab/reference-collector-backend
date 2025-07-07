@@ -16,23 +16,24 @@ datasource db {
 
 // ========= USER =========
 model User {
-  id                  String            @id @default(uuid()) @db.Uuid
-  email               String            @unique
-  passwordHash        String            @map("password_hash")
-  fullName            String            @map("full_name")
-  userType            UserType          @map("user_type") @default(individual)
-  institution         String?           
-  fieldOfStudy        String?           @map("field_of_study") 
-  orcidId             String?           @map("orcid_id") 
-  subscriptionPlan    SubscriptionPlan? @map("subscription_plan") // nullable enum
-  subscriptionStatus  SubscriptionStatus @map("subscription_status") @default(inactive)
-  avatarUrl           String?           @map("avatar_url") 
-  preferences         Json?             @db.JsonB 
-  emailVerified       Boolean           @map("email_verified") @default(false)
-  isActive            Boolean           @map("is_active") @default(true)
-  lastLogin           DateTime?         @map("last_login") 
-  createdAt           DateTime          @map("created_at") @default(now())
-  updatedAt           DateTime          @map("updated_at") @updatedAt
+  id                 String             @id @default(uuid()) @db.Uuid
+  email              String             @unique
+  passwordHash       String             @map("password_hash")
+  fullName           String             @map("full_name")
+  userType           UserType           @default(individual) @map("user_type")
+  institutionId      String?            @map("institution_id") @db.Uuid // Foreign key
+  institution        Institution?       @relation(fields: [institutionId], references: [id])
+  fieldOfStudy       String?            @map("field_of_study")
+  orcidId            String?            @map("orcid_id")
+  subscriptionPlan   SubscriptionPlan?  @map("subscription_plan") // nullable enum
+  subscriptionStatus SubscriptionStatus @default(inactive) @map("subscription_status")
+  avatarUrl          String?            @map("avatar_url")
+  preferences        Json?              @db.JsonB
+  emailVerified      Boolean            @default(false) @map("email_verified")
+  isActive           Boolean            @default(true) @map("is_active")
+  lastLogin          DateTime?          @map("last_login")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
 }
 
 enum SubscriptionStatus {
@@ -45,6 +46,7 @@ enum UserType {
   admin
   individual
   institutional
+  institutional_admin
 }
 
 enum SubscriptionPlan {
@@ -55,19 +57,33 @@ enum SubscriptionPlan {
 
 // ======= EMAIL VERIFICATION =========
 model EmailVerification {
-  id                String           @id @default(uuid()) @db.Uuid
-  userId            String           @map("password_hash") 
-  token             String
-  createdAt         DateTime         @map("created_at") @default(now())
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String
+  createdAt DateTime @default(now()) @map("created_at")
 }
-
 
 // ======= PASSWORD RESET =========
 model PasswordReset {
-  id                String           @id @default(uuid()) @db.Uuid
-  userId            String           @map("password_hash") 
-  token             String
-  createdAt         DateTime         @map("created_at") @default(now())
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String
+  createdAt DateTime @default(now()) @map("created_at")
 }
 
+// ======= INSTITUTION =========
+model Institution {
+  id                 String             @id @default(uuid()) @db.Uuid
+  name               String             @unique
+  domain             String             @unique
+  subscriptionPlan   SubscriptionPlan?  @map("subscription_plan") // nullable enum
+  subscriptionStatus SubscriptionStatus @default(inactive) @map("subscription_status")
+  isActive           Boolean            @default(true) @map("is_active")
+  country            String
+  city               String
+  address            String
+  postalCode         String             @map("postal_code")
+  state              String
 
+  users              User[]             
+}
