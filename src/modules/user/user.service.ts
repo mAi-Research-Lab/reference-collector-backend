@@ -8,11 +8,13 @@ import * as bcrypt from 'bcrypt';
 import { Prisma, User, UserType } from 'generated/prisma';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { formatPreferences, formatUserResponse } from 'src/common/utils/format-user-response';
+import { PrismaService } from 'src/database/prisma/prisma.service';
 
 @Injectable()
 export class UserService {
     constructor(
-        private readonly userRepository: UserRepository
+        private readonly userRepository: UserRepository,
+        private readonly prisma: PrismaService
     ) { }
 
     async create(data: CreateUserDto): Promise<UserResponse> {
@@ -24,10 +26,10 @@ export class UserService {
 
         const hashedPassword = await bcrypt.hash(data.password, 10);
 
-        const createUserData: Prisma.UserCreateInput = {
+        const createUserData  = {
             email: data.email,
             fullName: data.fullName,
-            institution: data.institution,
+            institutionId: data.institutionId,
             fieldOfStudy: data.fieldOfStudy,
             orcidId: data.orcidId,
             userType: data.userType as UserType || UserType.individual,
@@ -41,7 +43,7 @@ export class UserService {
             lastLogin: new Date(),
         };
 
-        const newUser = await this.userRepository.create(createUserData);
+        const newUser = await this.userRepository.create(createUserData as Prisma.UserCreateInput);
 
         return formatUserResponse(newUser);
     }
@@ -79,6 +81,12 @@ export class UserService {
         }
 
         return user
+    }
+
+    async findAllByInstitutionId(institutionId: string): Promise<UserResponse[]> {
+        const users = await this.prisma.user.findMany({ where: { institutionId } });
+
+        return users.map(formatUserResponse);
     }
 
 }
