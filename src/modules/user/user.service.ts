@@ -5,8 +5,9 @@ import { UserResponse } from './dto/user.response';
 import { CustomHttpException } from 'src/common/exceptions/custom-http-exception';
 import { COMMON_MESSAGES } from 'src/common/constants/common.messages';
 import * as bcrypt from 'bcrypt';
-import { Prisma, User } from 'generated/prisma';
+import { Prisma, User, UserType } from 'generated/prisma';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { formatPreferences, formatUserResponse } from 'src/common/utils/format-user-response';
 
 @Injectable()
 export class UserService {
@@ -29,9 +30,11 @@ export class UserService {
             institution: data.institution,
             fieldOfStudy: data.fieldOfStudy,
             orcidId: data.orcidId,
-            subscriptionPlan: data.subscriptionPlan as any,
+            userType: data.userType as UserType || UserType.individual,
+            subscriptionPlan: null,
+            subscriptionStatus: 'inactive',
             avatarUrl: data.avatarUrl || '',
-            preferences: this.formatPreferences(data.preferences) || {},
+            preferences: formatPreferences(data.preferences) || {},
             emailVerified: false,
             isActive: false,
             passwordHash: hashedPassword,
@@ -40,29 +43,10 @@ export class UserService {
 
         const newUser = await this.userRepository.create(createUserData);
 
-        return this.formatUserResponse(newUser);
+        return formatUserResponse(newUser);
     }
 
-    private formatPreferences(preferences?: any): Record<string, any> | null {
-        if (!preferences) {
-            return null;
-        }
 
-        if (typeof preferences === 'object') {
-            return preferences;
-        } else {
-            return { value: preferences };
-        }
-    }
-
-    private formatUserResponse(user: User): UserResponse {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { passwordHash, ...userResponse } = user;
-        return {
-            ...userResponse,
-            preferences: this.formatPreferences(user.preferences) || {},
-        };
-    }
 
     async findById(id: string): Promise<UserResponse> {
         const user = await this.userRepository.findById(id);
@@ -71,7 +55,7 @@ export class UserService {
             throw new CustomHttpException(COMMON_MESSAGES.USER_NOT_FOUND, 404, COMMON_MESSAGES.USER_NOT_FOUND);
         }
 
-        return this.formatUserResponse(user);
+        return formatUserResponse(user);
     }
 
     async update(id: string, data: UpdateUserDto): Promise<UserResponse> {
@@ -83,8 +67,18 @@ export class UserService {
 
         const updatedUser = await this.userRepository.update(id, data);
 
-        return this.formatUserResponse(updatedUser);
+        return formatUserResponse(updatedUser);
 
+    }
+
+    async findByEmail(email: string): Promise<User | null> {
+        const user = await this.userRepository.findByEmail(email);
+
+        if (!user) {
+            throw new CustomHttpException(COMMON_MESSAGES.USER_NOT_FOUND, 404, COMMON_MESSAGES.USER_NOT_FOUND);
+        }
+
+        return user
     }
 
 }

@@ -8,6 +8,7 @@ import { UserRepository } from 'src/database/repositories/user/user.repository';
     UserRepository,
     UserService,
   ],
-  controllers: [UserController]
+  controllers: [UserController],
+  exports: [UserService]
 })
 export class UserModule {}

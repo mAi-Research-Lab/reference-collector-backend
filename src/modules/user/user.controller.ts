@@ -1,14 +1,17 @@
-import { Body, Controller, Get, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import { UserResponse } from './dto/user.response';
 import { COMMON_MESSAGES } from 'src/common/constants/common.messages';
 import { User as UserDecorator } from './decorators/user.decorator';
 import { ErrorDto } from 'src/common/dto/error.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('user')
+@ApiSecurity('bearer')
+@UseGuards(JwtAuthGuard)
 export class UserController {
     constructor(
         private readonly userService: UserService
@@ -57,7 +60,7 @@ export class UserController {
         description: COMMON_MESSAGES.USER_NOT_FOUND,
         type: ErrorDto
     })
-    getCurrent(@UserDecorator('id') id: string): Promise<UserResponse> {
+    getCurrent(@UserDecorator('id') id: string): Promise<UserResponse> {        
         return this.userService.findById(id);
     }
 

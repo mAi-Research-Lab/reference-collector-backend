@@ -1,41 +1,90 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsJSON, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsBoolean, IsObject, IsOptional, IsString, ValidateNested } from "class-validator";
+import { UserPreferencesDto } from "./create-user.dto";
+import { Type } from "class-transformer";
 
 export class UpdateUserDto {
-    @ApiProperty()
-    @IsNotEmpty()
-    @IsString()
-    fullName: string
-
-    @ApiProperty()
-    @IsNotEmpty()
-    @IsString()
-    institution: string
-
-    @ApiProperty()
-    @IsNotEmpty()
-    @IsString()
-    fieldOfStudy: string
-
-    @ApiProperty()
-    @IsNotEmpty()
-    @IsString()
-    orcidId: string
-
-    @ApiProperty()
-    @IsNotEmpty()
-    @IsString()
-    subscriptionPlan: string
-
-    @ApiPropertyOptional()
+    @ApiPropertyOptional({
+        type: String,
+        description: 'Full name of the user',
+        example: 'John Doe'
+    })
     @IsOptional()
     @IsString()
-    avatarUrl: string
+    fullName?: string
 
-    @ApiPropertyOptional()
+    @ApiPropertyOptional({
+        type: String,
+        description: 'Institution name',
+        example: 'Sabancı University',
+        nullable: true
+    })
     @IsOptional()
-    @IsJSON()
-    preferences: {
-        [key: string]: any
-    }
+    @IsString()
+    institution?: string | null 
+
+    @ApiPropertyOptional({
+        type: String,
+        description: 'Field of study',
+        example: 'Computer Science',
+        nullable: true
+    })
+    @IsOptional()
+    @IsString()
+    fieldOfStudy?: string | null 
+
+    @ApiPropertyOptional({
+        type: String,
+        description: 'ORCID ID',
+        example: '0000-0000-0000-0000',
+        nullable: true
+    })
+    @IsOptional()
+    @IsString()
+    orcidId?: string | null 
+
+    @ApiPropertyOptional({
+        type: String,
+        description: 'Subscription plan',
+        example: 'MONTHLY',
+        nullable: true
+    })
+    @IsOptional()
+    @IsString()
+    subscriptionPlan?: string | null 
+
+    @ApiPropertyOptional({
+        type: String,
+        description: 'Avatar URL',
+        example: 'https://example.com/avatar.jpg',
+        nullable: true
+    })
+    @IsOptional()
+    @IsString()
+    avatarUrl?: string | null
+
+    @ApiPropertyOptional({
+        description: 'User preferences',
+        type: UserPreferencesDto,
+        example: {
+            language: 'en',
+            theme: 'dark',
+            notifications: true,
+            timezone: 'Europe/Istanbul'
+        }
+    })
+    @IsOptional()
+    @IsObject()
+    @ValidateNested()
+    @Type(() => UserPreferencesDto)
+    preferences?: UserPreferencesDto;
+
+    @ApiPropertyOptional({
+        type: Boolean,
+        description: 'Email verification status',
+        example: true
+    })
+    @IsOptional()
+    @IsBoolean()
+    emailVerified?: boolean
 }

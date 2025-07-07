@@ -53,14 +53,14 @@ export class CreateUserDto {
     @IsString()
     orcidId: string
 
-    @ApiProperty({
-        description: 'Subscription plan',
-        example: 'FREE',
-        enum: ['FREE', 'PREMIUM', 'ENTERPRISE']
-    })
-    @IsNotEmpty()
-    @IsString()
-    subscriptionPlan: string;
+    // @ApiProperty({
+    //     description: 'Subscription plan',
+    //     example: 'FREE',
+    //     enum: ['FREE', 'PREMIUM', 'ENTERPRISE']
+    // })
+    // @IsNotEmpty()
+    // @IsString()
+    // subscriptionPlan: string;
 
     @ApiPropertyOptional()
     @IsOptional()
@@ -82,4 +82,9 @@ export class CreateUserDto {
     @ValidateNested()
     @Type(() => UserPreferencesDto)
     preferences?: UserPreferencesDto;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    userType: string
 }

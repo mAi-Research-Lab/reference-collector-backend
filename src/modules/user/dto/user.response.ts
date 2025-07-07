@@ -11,19 +11,25 @@ export class UserResponse {
     fullName: string
 
     @ApiProperty()
-    institution: string
+    userType: string
 
     @ApiProperty()
-    fieldOfStudy: string
-
-    @ApiProperty()
-    orcidId: string
-
-    @ApiProperty()
-    subscriptionPlan: string
+    institution?: string | null
 
     @ApiPropertyOptional()
-    avatarUrl: string
+    fieldOfStudy?: string | null
+
+    @ApiPropertyOptional()
+    orcidId: string | null 
+
+    @ApiPropertyOptional()
+    subscriptionPlan: string | null 
+
+    @ApiProperty()
+    subscriptionStatus: string
+
+    @ApiPropertyOptional()
+    avatarUrl: string | null
 
     @ApiPropertyOptional()
     preferences: Record<string, any> | null;
@@ -34,8 +40,8 @@ export class UserResponse {
     @ApiProperty()
     isActive: boolean
     
-    @ApiProperty()
-    lastLogin: Date
+    @ApiPropertyOptional()
+    lastLogin: Date | null 
 
     @ApiProperty()
     createdAt: Date
