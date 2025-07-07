@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========= USER =========
+model User {
+  id                  String            @id @default(uuid()) @db.Uuid
+  email               String            @unique
+  passwordHash        String            @map("password_hash")
+  fullName            String            @map("full_name")
+  userType            UserType          @map("user_type") @default(individual)
+  institution         String?           
+  fieldOfStudy        String?           @map("field_of_study") 
+  orcidId             String?           @map("orcid_id") 
+  subscriptionPlan    SubscriptionPlan? @map("subscription_plan") // nullable enum
+  subscriptionStatus  SubscriptionStatus @map("subscription_status") @default(inactive)
+  avatarUrl           String?           @map("avatar_url") 
+  preferences         Json?             @db.JsonB 
+  emailVerified       Boolean           @map("email_verified") @default(false)
+  isActive            Boolean           @map("is_active") @default(true)
+  lastLogin           DateTime?         @map("last_login") 
+  createdAt           DateTime          @map("created_at") @default(now())
+  updatedAt           DateTime          @map("updated_at") @updatedAt
+}
+
+enum SubscriptionStatus {
+  active
+  inactive
+  trial
+}
+
+enum UserType {
+  admin
+  individual
+  institutional
+}
+
+enum SubscriptionPlan {
+  MONTHLY
+  YEARLY
+  INSTITUTIONAL
+}
+
+// ======= EMAIL VERIFICATION =========
+model EmailVerification {
+  id                String           @id @default(uuid()) @db.Uuid
+  userId            String           @map("password_hash") 
+  token             String
+  createdAt         DateTime         @map("created_at") @default(now())
+}
+
+
+// ======= PASSWORD RESET =========
+model PasswordReset {
+  id                String           @id @default(uuid()) @db.Uuid
+  userId            String           @map("password_hash") 
+  token             String
+  createdAt         DateTime         @map("created_at") @default(now())
+}
+
+

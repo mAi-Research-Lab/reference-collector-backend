@@ -1,0 +1,23 @@
+export const AUTH_MESSAGES = {
+    USER_NOT_FOUND: 'User not found',
+    INVALID_PASSWORD: 'Invalid password',
+    SAME_PASSWORD: 'New password is same as current password',
+    PASSWORD_CHANGED_SUCCESS: 'Password changed successfully',
+    INVALID_RESET_TOKEN: 'Invalid reset token',
+    PASSWORD_RESET_EMAIL_SENT: 'Password reset email sent',
+    INVALID_VERIFICATION_TOKEN: 'Invalid verification token',
+    VERIFICATION_EMAIL_SENT: 'Verification email sent',
+    EMAIL_ALREADY_VERIFIED: 'Email already verified',
+    CANNOT_CHANGE_PASSWORD_FOR_PROVIDER: 'Cannot change password for provider {provider}',
+    EMAIL_VERIFIED_SUCCESSFULLY: 'Email verified successfully',
+    SOMETHING_WENT_WRONG: 'Something went wrong',
+    INVALID_CREDENTIALS: 'Invalid credentials',
+    PASSWORD_RESET_SUCCESSFULLY: 'Password reset successfully',
+    USER_CREATED_SUCCESSFULLY: 'User created successfully',
+    EMAIL_ALREADY_REGISTERED: 'Email already registered',
+    EMAIL_VERIFIED_SUCCESS: 'Email verified successfully',
+    UNAUTHORIZED_ACCESS: 'Unauthorized access',
+    LOGIN_SUCCESS: 'Login successful',
+    TOKEN_VALID:'Token is valid',
+    PASSWORD_RESET_SUCCESS:'Password reset successfully'
+}
