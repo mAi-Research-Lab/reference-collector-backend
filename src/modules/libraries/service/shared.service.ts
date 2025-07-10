@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/database/prisma/prisma.service";
-import { LibraryResponse } from "../dto/libraries.response";
+import { LibraryResponse } from "../dto/response/libraries.response";
 import { LibraryTypes, LibraryVisibility, MembershipRole } from "generated/prisma";
 import { UserResponse } from "src/modules/user/dto/user.response";
 import { CustomHttpException } from "src/common/exceptions/custom-http-exception";
@@ -95,17 +95,24 @@ export class SharedService {
             throw new CustomHttpException(LIBRARY_MESSAGES.LIBRARY_NOT_FOUND, 404, LIBRARY_MESSAGES.LIBRARY_NOT_FOUND);
         }
 
-        const existingMembership = await this.prisma.libraryMemberships.findUnique({
-            where: {
-                libraryId_userId: {
-                    libraryId,
-                    userId: invitedBy
-                }
-            }
+        const invitedUser = await this.prisma.user.findUnique({
+            where: { email },
+            select: { id: true }
         });
 
-        if (existingMembership) {
-            throw new CustomHttpException(LIBRARY_MESSAGES.USER_ALREADY_MEMBER, 409, LIBRARY_MESSAGES.USER_ALREADY_MEMBER);
+        if (invitedUser) {
+            const existingMembership = await this.prisma.libraryMemberships.findUnique({
+                where: {
+                    libraryId_userId: {
+                        libraryId,
+                        userId: invitedUser.id
+                    }
+                }
+            });
+
+            if (existingMembership) {
+                throw new CustomHttpException(LIBRARY_MESSAGES.USER_ALREADY_MEMBER, 409, LIBRARY_MESSAGES.USER_ALREADY_MEMBER);
+            }
         }
 
         const existingInvitation = await this.prisma.libraryInvitations.findFirst({
