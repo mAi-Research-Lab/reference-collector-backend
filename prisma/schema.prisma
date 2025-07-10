@@ -34,6 +34,12 @@ model User {
   lastLogin          DateTime?          @map("last_login")
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  libraries       Libraries[]
+  memberships     LibraryMemberships[] @relation
+  sentInvitations LibraryMemberships[] @relation("UserInvites")
+
+  LibraryInvitations LibraryInvitations[]
 }
 
 enum SubscriptionStatus {
@@ -84,6 +90,95 @@ model Institution {
   address            String
   postalCode         String             @map("postal_code")
   state              String
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at")
 
-  users              User[]             
+  users User[]
+
+  Libraries Libraries[]
+}
+
+// ======= LIBRARIES =============
+model Libraries {
+  id            String            @id @default(uuid()) @db.Uuid
+  name          String
+  description   String?           @default("")
+  ownerId       String?           @map("owner_id") @db.Uuid // Foreign key
+  owner         User?             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  type          LibraryTypes      @default(personal)
+  visibility    LibraryVisibility @default(private)
+  institutionId String?           @map("institution_id") @db.Uuid
+  institution   Institution?      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  settings      Json?
+  storageUsed   BigInt            @default(0) @map("storage_used")
+  maxStorage    BigInt            @default(0) @map("max_storage")
+  itemCount     Int               @default(0) @map("item_count")
+  isDeleted     Boolean           @default(false) @map("is_deleted")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  memberships LibraryMemberships[]
+
+  LibraryInvitations LibraryInvitations[]
+}
+
+enum LibraryTypes {
+  personal
+  shared
+  group
+  institutional
+  project
+  template
+}
+
+enum LibraryVisibility {
+  private
+  members_only
+  public
+}
+
+// ======= LIBRARY MEMBERSHIPS =============
+model LibraryMemberships {
+  id          String         @id @default(uuid()) @db.Uuid
+  libraryId   String         @map("library_id") @db.Uuid // Foreign key
+  library     Libraries      @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  userId      String         @map("user_id") @db.Uuid // Foreign key
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        MembershipRole @default(member)
+  permissions Json?
+  invitedBy   String?        @map("invited_by") @db.Uuid // Foreign key
+  inviter     User?          @relation("UserInvites", fields: [invitedBy], references: [id], onDelete: SetNull)
+  acceptedAt  DateTime?      @map("accepted_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@unique([libraryId, userId])
+  @@map("library_memberships")
+}
+
+enum MembershipRole {
+  owner
+  admin
+  editor
+  viewer
+  member
+}
+
+// ======= LIBRARY INVITATIONS =============
+model LibraryInvitations {
+  id          String   @id @default(uuid()) @db.Uuid
+  token       String   @unique @default(uuid())
+  libraryId   String   @map("library_id") @db.Uuid
+  library     Libraries @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  email       String
+  role        MembershipRole @default(member)
+  permissions Json?
+  invitedBy   String   @map("invited_by") @db.Uuid
+  inviter     User     @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+  expiresAt   DateTime @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  isExpired   Boolean  @default(false) @map("is_expired")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("library_invitations")
 }
