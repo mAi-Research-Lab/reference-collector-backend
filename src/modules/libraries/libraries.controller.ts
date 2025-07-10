@@ -5,7 +5,7 @@ import { RoleGuard } from 'src/common/guard/role.guard';
 import { LibrariesService } from './libraries.service';
 import { CreateLibrariesDto } from './dto/create-libraries.dto';
 import { LIBRARY_MESSAGES } from './constants/library.messages';
-import { LibraryResponse } from './dto/libraries.response';
+import { LibraryResponse } from './dto/response/libraries.response';
 import { ErrorDto } from 'src/common/dto/error.dto';
 import { COMMON_MESSAGES } from 'src/common/constants/common.messages';
 import { UpdateLibrariesDto } from './dto/update-libraries.dto';

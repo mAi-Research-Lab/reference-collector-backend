@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma/prisma.service';
 import { CreateLibrariesDto } from './dto/create-libraries.dto';
-import { LibraryResponse } from './dto/libraries.response';
+import { LibraryResponse } from './dto/response/libraries.response';
 import { CustomHttpException } from 'src/common/exceptions/custom-http-exception';
 import { LIBRARY_MESSAGES } from './constants/library.messages';
 import { UpdateLibrariesDto } from './dto/update-libraries.dto';
