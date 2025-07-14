@@ -16,23 +16,30 @@ datasource db {
 
 // ========= USER =========
 model User {
-  id                  String            @id @default(uuid()) @db.Uuid
-  email               String            @unique
-  passwordHash        String            @map("password_hash")
-  fullName            String            @map("full_name")
-  userType            UserType          @map("user_type") @default(individual)
-  institution         String?           
-  fieldOfStudy        String?           @map("field_of_study") 
-  orcidId             String?           @map("orcid_id") 
-  subscriptionPlan    SubscriptionPlan? @map("subscription_plan") // nullable enum
-  subscriptionStatus  SubscriptionStatus @map("subscription_status") @default(inactive)
-  avatarUrl           String?           @map("avatar_url") 
-  preferences         Json?             @db.JsonB 
-  emailVerified       Boolean           @map("email_verified") @default(false)
-  isActive            Boolean           @map("is_active") @default(true)
-  lastLogin           DateTime?         @map("last_login") 
-  createdAt           DateTime          @map("created_at") @default(now())
-  updatedAt           DateTime          @map("updated_at") @updatedAt
+  id                 String             @id @default(uuid()) @db.Uuid
+  email              String             @unique
+  passwordHash       String             @map("password_hash")
+  fullName           String             @map("full_name")
+  userType           UserType           @default(individual) @map("user_type")
+  institutionId      String?            @map("institution_id") @db.Uuid // Foreign key
+  institution        Institution?       @relation(fields: [institutionId], references: [id])
+  fieldOfStudy       String?            @map("field_of_study")
+  orcidId            String?            @map("orcid_id")
+  subscriptionPlan   SubscriptionPlan?  @map("subscription_plan") // nullable enum
+  subscriptionStatus SubscriptionStatus @default(inactive) @map("subscription_status")
+  avatarUrl          String?            @map("avatar_url")
+  preferences        Json?              @db.JsonB
+  emailVerified      Boolean            @default(false) @map("email_verified")
+  isActive           Boolean            @default(true) @map("is_active")
+  lastLogin          DateTime?          @map("last_login")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  libraries       Libraries[]
+  memberships     LibraryMemberships[] @relation
+  sentInvitations LibraryMemberships[] @relation("UserInvites")
+
+  LibraryInvitations LibraryInvitations[]
 }
 
 enum SubscriptionStatus {
@@ -45,6 +52,7 @@ enum UserType {
   admin
   individual
   institutional
+  institutional_admin
 }
 
 enum SubscriptionPlan {
@@ -55,19 +63,143 @@ enum SubscriptionPlan {
 
 // ======= EMAIL VERIFICATION =========
 model EmailVerification {
-  id                String           @id @default(uuid()) @db.Uuid
-  userId            String           @map("password_hash") 
-  token             String
-  createdAt         DateTime         @map("created_at") @default(now())
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String
+  createdAt DateTime @default(now()) @map("created_at")
 }
-
 
 // ======= PASSWORD RESET =========
 model PasswordReset {
-  id                String           @id @default(uuid()) @db.Uuid
-  userId            String           @map("password_hash") 
-  token             String
-  createdAt         DateTime         @map("created_at") @default(now())
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String
+  createdAt DateTime @default(now()) @map("created_at")
 }
 
+// ======= INSTITUTION =========
+model Institution {
+  id                 String             @id @default(uuid()) @db.Uuid
+  name               String             @unique
+  domain             String             @unique
+  subscriptionPlan   SubscriptionPlan?  @map("subscription_plan") // nullable enum
+  subscriptionStatus SubscriptionStatus @default(inactive) @map("subscription_status")
+  isActive           Boolean            @default(true) @map("is_active")
+  country            String
+  city               String
+  address            String
+  postalCode         String             @map("postal_code")
+  state              String
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at")
 
+  users User[]
+
+  Libraries Libraries[]
+}
+
+// ======= LIBRARIES =============
+model Libraries {
+  id            String            @id @default(uuid()) @db.Uuid
+  name          String
+  description   String?           @default("")
+  ownerId       String?           @map("owner_id") @db.Uuid // Foreign key
+  owner         User?             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  type          LibraryTypes      @default(personal)
+  visibility    LibraryVisibility @default(private)
+  institutionId String?           @map("institution_id") @db.Uuid
+  institution   Institution?      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  settings      Json?
+  storageUsed   BigInt            @default(0) @map("storage_used")
+  maxStorage    BigInt            @default(0) @map("max_storage")
+  itemCount     Int               @default(0) @map("item_count")
+  isDeleted     Boolean           @default(false) @map("is_deleted")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  memberships LibraryMemberships[]
+
+  LibraryInvitations LibraryInvitations[]
+
+  Collections Collections[]
+}
+
+enum LibraryTypes {
+  personal
+  shared
+  group
+  institutional
+  project
+  template
+}
+
+enum LibraryVisibility {
+  private
+  members_only
+  public
+}
+
+// ======= LIBRARY MEMBERSHIPS =============
+model LibraryMemberships {
+  id          String         @id @default(uuid()) @db.Uuid
+  libraryId   String         @map("library_id") @db.Uuid // Foreign key
+  library     Libraries      @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  userId      String         @map("user_id") @db.Uuid // Foreign key
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        MembershipRole @default(member)
+  permissions Json?
+  invitedBy   String?        @map("invited_by") @db.Uuid // Foreign key
+  inviter     User?          @relation("UserInvites", fields: [invitedBy], references: [id], onDelete: SetNull)
+  acceptedAt  DateTime?      @map("accepted_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@unique([libraryId, userId])
+  @@map("library_memberships")
+}
+
+enum MembershipRole {
+  owner
+  admin
+  editor
+  viewer
+  member
+}
+
+// ======= LIBRARY INVITATIONS =============
+model LibraryInvitations {
+  id          String         @id @default(uuid()) @db.Uuid
+  token       String         @unique @default(uuid())
+  libraryId   String         @map("library_id") @db.Uuid
+  library     Libraries      @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  email       String
+  role        MembershipRole @default(member)
+  permissions Json?
+  invitedBy   String         @map("invited_by") @db.Uuid
+  inviter     User           @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+  expiresAt   DateTime       @map("expires_at")
+  acceptedAt  DateTime?      @map("accepted_at")
+  isExpired   Boolean        @default(false) @map("is_expired")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  @@map("library_invitations")
+}
+
+// ======= COLLECTIONS =============
+model Collections {
+  id          String       @id @default(uuid()) @db.Uuid
+  libraryId   String       @map("library_id") @db.Uuid
+  library     Libraries    @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  parentId    String?      @map("parent_id") @db.Uuid
+  parent      Collections? @relation("CollectionHierarchy", fields: [parentId], references: [id])
+  name        String       @unique
+  description String?
+  color       String?
+  sortOrder   Int?         @map("sort_order")
+  isDeleted   Boolean      @default(false) @map("is_deleted")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @default(now()) @map("updated_at")
+
+  Collections Collections[] @relation("CollectionHierarchy")
+
+}

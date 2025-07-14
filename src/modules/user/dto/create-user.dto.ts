@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsEmail, IsNotEmpty, IsObject, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsEmail, IsEnum, IsNotEmpty, IsObject, IsOptional, IsString, ValidateNested } from "class-validator";
+import { UserType } from "generated/prisma";
 
 export class UserPreferencesDto {
     @ApiPropertyOptional({ description: 'User language preference', example: 'en' })
@@ -38,10 +39,10 @@ export class CreateUserDto {
     @IsString()
     fullName: string
 
-    @ApiProperty()
-    @IsNotEmpty()
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
-    institution: string
+    institutionId?: string
 
     @ApiProperty()
     @IsNotEmpty()
@@ -86,5 +87,6 @@ export class CreateUserDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    @IsEnum(UserType)
     userType: string
 }
