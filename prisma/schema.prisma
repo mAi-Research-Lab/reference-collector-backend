@@ -252,7 +252,7 @@ model References {
   dateAdded     DateTime                 @default(now()) @map("date_added")
   dateModified  DateTime                 @default(now()) @updatedAt @map("date_modified")
   addedBy       String                   @map("added_by") @db.Uuid
-  modifiedBy    String                   @map("modified_by") @db.Uuid
+  modifiedBy    String?                  @map("modified_by") @db.Uuid
   citationCount Int                      @default(0) @map("citation_count")
   isDeleted     Boolean                  @default(false) @map("is_deleted")
   searchVector  Unsupported("tsvector")? @map("search_vector")
@@ -260,7 +260,7 @@ model References {
   updatedAt     DateTime                 @default(now()) @map("updated_at")
 
   addedByUser     User              @relation("ReferencesAddedBy", fields: [addedBy], references: [id])
-  modifiedByUser  User              @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
+  modifiedByUser  User?             @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
   CollectionItems CollectionItems[]
 
   @@map("references")
