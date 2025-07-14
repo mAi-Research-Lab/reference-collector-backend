@@ -207,6 +207,22 @@ model Collections {
   updatedAt   DateTime     @default(now()) @map("updated_at")
 
   Collections Collections[] @relation("CollectionHierarchy")
+
+  CollectionItems CollectionItems[]
+}
+
+// ======= COLLECTION_ITEMS =============
+model CollectionItems {
+ id           String      @id @default(uuid()) @db.Uuid
+ collectionId String      @map("collection_id") @db.Uuid
+ collection   Collections @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+ referenceId  String      @map("reference_id") @db.Uuid
+ reference    References  @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+ sortOrder    Int?        @map("sort_order")
+ createdAt    DateTime    @default(now()) @map("created_at")
+
+ @@unique([collectionId, referenceId])
+ @@map("collection_items")
 }
 
 // ======= REFERENCES =============
@@ -245,4 +261,5 @@ model References {
   modifiedByUser User @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
 
   @@map("references")
+  CollectionItems CollectionItems[]
 }
