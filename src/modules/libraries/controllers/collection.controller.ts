@@ -7,7 +7,7 @@ import { CollectionResponse } from "../dto/collections/collection.response";
 import { CreateCollectionDto } from "../dto/collections/create-collection.dto";
 import { UpdateCollectionDto } from "../dto/collections/update-collection.dto";
 import { CollectionItemsResponse } from "../dto/collections/collection-items.response";
-import { ReferencesResponse } from "../dto/references/references.response";
+import { ReferencesResponse } from "../../references/dto/references.response";
 
 @Controller('libraries/:libraryId/collections')
 @ApiTags('Library Collections')

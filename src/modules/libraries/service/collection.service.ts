@@ -6,7 +6,7 @@ import { CustomHttpException } from "src/common/exceptions/custom-http-exception
 import { LIBRARY_MESSAGES } from "../constants/library.messages";
 import { UpdateCollectionDto } from "../dto/collections/update-collection.dto";
 import { CollectionItemsResponse } from "../dto/collections/collection-items.response";
-import { ReferencesResponse } from "../dto/references/references.response";
+import { ReferencesResponse } from "../../references/dto/references.response";
 
 @Injectable()
 export class CollectionService {
