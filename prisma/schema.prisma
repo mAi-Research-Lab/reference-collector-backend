@@ -213,16 +213,16 @@ model Collections {
 
 // ======= COLLECTION_ITEMS =============
 model CollectionItems {
- id           String      @id @default(uuid()) @db.Uuid
- collectionId String      @map("collection_id") @db.Uuid
- collection   Collections @relation(fields: [collectionId], references: [id], onDelete: Cascade)
- referenceId  String      @map("reference_id") @db.Uuid
- reference    References  @relation(fields: [referenceId], references: [id], onDelete: Cascade)
- sortOrder    Int?        @map("sort_order")
- createdAt    DateTime    @default(now()) @map("created_at")
+  id           String      @id @default(uuid()) @db.Uuid
+  collectionId String      @map("collection_id") @db.Uuid
+  collection   Collections @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  referenceId  String      @map("reference_id") @db.Uuid
+  reference    References  @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  sortOrder    Int?        @map("sort_order")
+  createdAt    DateTime    @default(now()) @map("created_at")
 
- @@unique([collectionId, referenceId])
- @@map("collection_items")
+  @@unique([collectionId, referenceId])
+  @@map("collection_items")
 }
 
 // ======= REFERENCES =============
@@ -256,10 +256,12 @@ model References {
   citationCount Int                      @default(0) @map("citation_count")
   isDeleted     Boolean                  @default(false) @map("is_deleted")
   searchVector  Unsupported("tsvector")? @map("search_vector")
+  createdAt     DateTime                 @default(now()) @map("created_at")
+  updatedAt     DateTime                 @default(now()) @map("updated_at")
 
-  addedByUser    User @relation("ReferencesAddedBy", fields: [addedBy], references: [id])
-  modifiedByUser User @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
+  addedByUser     User              @relation("ReferencesAddedBy", fields: [addedBy], references: [id])
+  modifiedByUser  User              @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
+  CollectionItems CollectionItems[]
 
   @@map("references")
-  CollectionItems CollectionItems[]
 }
