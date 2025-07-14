@@ -5,17 +5,21 @@ import { SharedService } from './service/shared.service';
 import { SharedController } from './controllers/shared.controller';
 import { PermissionService } from './service/permission.service';
 import { PermissionController } from './controllers/permission.controller';
+import { CollectionService } from './service/collection.service';
+import { CollectionController } from './controllers/collection.controller';
 
 @Module({
   providers: [
     LibrariesService, 
     SharedService,
-    PermissionService
+    PermissionService,
+    CollectionService
   ],
   controllers: [
     LibrariesController, 
     SharedController,
-    PermissionController
+    PermissionController,
+    CollectionController
   ]
 })
 export class LibrariesModule { }
