@@ -3,9 +3,9 @@ import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiSecurity, Ap
 import { RoleGuard } from "src/common/guard/role.guard";
 import { JwtAuthGuard } from "src/modules/auth/guards/jwt-auth.guard";
 import { ReferencesService } from "./references.service";
-import { CreateReferenceDto } from "./dto/create-reference.dto";
-import { ReferencesResponse } from "./dto/references.response";
-import { UpdateReferenceDto } from "./dto/update-reference.dto";
+import { CreateReferenceDto } from "./dto/reference/create-reference.dto";
+import { ReferencesResponse } from "./dto/reference/references.response";
+import { UpdateReferenceDto } from "./dto/reference/update-reference.dto";
 
 @Controller('references')
 @ApiTags('References')

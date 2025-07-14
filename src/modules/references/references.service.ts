@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma/prisma.service';
-import { CreateReferenceDto } from './dto/create-reference.dto';
-import { ReferencesResponse } from './dto/references.response';
+import { CreateReferenceDto } from './dto/reference/create-reference.dto';
+import { ReferencesResponse } from './dto/reference/references.response';
 import { CustomHttpException } from 'src/common/exceptions/custom-http-exception';
 import { REFERENCES_MESSAGES } from './constants/references.message';
-import { UpdateReferenceDto } from './dto/update-reference.dto';
+import { UpdateReferenceDto } from './dto/reference/update-reference.dto';
 import { Prisma } from 'generated/prisma';
 
 @Injectable()
