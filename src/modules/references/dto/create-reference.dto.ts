@@ -2,12 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsString, IsNotEmpty, IsOptional, IsInt, IsArray, IsUUID, Min, Max } from "class-validator";
 
 export class CreateReferenceDto {
-   @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
-   @IsString()
-   @IsNotEmpty()
-   @IsUUID()
-   libraryId: string;
-
    @ApiProperty({ example: 'journal', description: 'Type of reference (journal, book, conference, etc.)' })
    @IsString()
    @IsNotEmpty()
@@ -135,13 +129,7 @@ export class CreateReferenceDto {
    @IsNotEmpty()
    @IsUUID()
    addedBy: string;
-
-   @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
-   @IsString()
-   @IsNotEmpty()
-   @IsUUID()
-   modifiedBy: string;
-
+   
    @ApiPropertyOptional({ example: 145, description: 'Number of citations' })
    @IsInt()
    @Min(0)

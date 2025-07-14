@@ -13,10 +13,25 @@ export class ReferencesService {
         private readonly prismaService: PrismaService
     ) { }
 
-    async create(data: CreateReferenceDto): Promise<ReferencesResponse> {
+    async create(libraryId: string, data: CreateReferenceDto): Promise<ReferencesResponse> {        
+        const { addedBy, ...referenceData } = data;
+
         return await this.prismaService.references.create({
-            data
-        })
+            data: {
+                ...referenceData,
+                library: {
+                    connect: {
+                        id: libraryId
+                    }
+                },
+                addedByUser: {
+                    connect: {
+                        id: addedBy
+                    }
+                }
+            }
+        });
+
     }
 
     async getReference(id: string): Promise<ReferencesResponse> {
@@ -102,14 +117,22 @@ export class ReferencesService {
         const skip = (page - 1) * limit;
 
         const searchConditions = {
-            libraryId,
-            OR: [
-                { title: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-                { authors: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-                { journal: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-                { doi: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } }
-            ]
-        };
+        libraryId,
+        OR: [
+            { title: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+            { publication: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+            { publisher: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+            { doi: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+            { isbn: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+            { abstractText: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+            {
+                authors: {
+                    path: [],
+                    string_contains: searchTerm
+                }
+            }
+        ]
+    };
 
         const [data, total] = await Promise.all([
             this.prismaService.references.findMany({

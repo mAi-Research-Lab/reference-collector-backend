@@ -89,7 +89,7 @@ export class ReferencesResponse {
    addedBy: string;
 
    @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
-   modifiedBy: string;
+   modifiedBy: string | null;
 
    @ApiProperty({ example: 145 })
    citationCount: number;
