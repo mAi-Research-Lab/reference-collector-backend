@@ -41,4 +41,6 @@ export const LIBRARY_MESSAGES = {
     COLLECTIONS_UPDATED_SUCCESSFULLY: 'Collections updated successfully',
     COLLECTIONS_FETCHED_SUCCESSFULLY: 'Collections fetched successfully',
     COLLECTION_FETCHED_SUCCESSFULLY: 'Collection fetched successfully',
+    REFERENCE_ALREADY_EXISTS: 'Reference already exists',
+    REFERENCE_DELETED_SUCCESSFULLY: 'Reference deleted successfully',
 }
