@@ -120,6 +120,8 @@ model Libraries {
   memberships LibraryMemberships[]
 
   LibraryInvitations LibraryInvitations[]
+
+  Collections Collections[]
 }
 
 enum LibraryTypes {
@@ -166,19 +168,38 @@ enum MembershipRole {
 
 // ======= LIBRARY INVITATIONS =============
 model LibraryInvitations {
-  id          String   @id @default(uuid()) @db.Uuid
-  token       String   @unique @default(uuid())
-  libraryId   String   @map("library_id") @db.Uuid
-  library     Libraries @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  id          String         @id @default(uuid()) @db.Uuid
+  token       String         @unique @default(uuid())
+  libraryId   String         @map("library_id") @db.Uuid
+  library     Libraries      @relation(fields: [libraryId], references: [id], onDelete: Cascade)
   email       String
   role        MembershipRole @default(member)
   permissions Json?
-  invitedBy   String   @map("invited_by") @db.Uuid
-  inviter     User     @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
-  expiresAt   DateTime @map("expires_at")
-  acceptedAt  DateTime? @map("accepted_at")
-  isExpired   Boolean  @default(false) @map("is_expired")
-  createdAt   DateTime @default(now()) @map("created_at")
+  invitedBy   String         @map("invited_by") @db.Uuid
+  inviter     User           @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+  expiresAt   DateTime       @map("expires_at")
+  acceptedAt  DateTime?      @map("accepted_at")
+  isExpired   Boolean        @default(false) @map("is_expired")
+  createdAt   DateTime       @default(now()) @map("created_at")
 
   @@map("library_invitations")
+}
+
+// ======= COLLECTIONS =============
+model Collections {
+  id          String       @id @default(uuid()) @db.Uuid
+  libraryId   String       @map("library_id") @db.Uuid
+  library     Libraries    @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  parentId    String?      @map("parent_id") @db.Uuid
+  parent      Collections? @relation("CollectionHierarchy", fields: [parentId], references: [id])
+  name        String       @unique
+  description String?
+  color       String?
+  sortOrder   Int?         @map("sort_order")
+  isDeleted   Boolean      @default(false) @map("is_deleted")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @default(now()) @map("updated_at")
+
+  Collections Collections[] @relation("CollectionHierarchy")
+
 }
