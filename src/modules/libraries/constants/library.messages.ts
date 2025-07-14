@@ -33,4 +33,12 @@ export const LIBRARY_MESSAGES = {
     INVITATION_EXPIRED: 'Invitation expired',
     INVITATION_ALREADY_ACCEPTED: 'Invitation already accepted',
     INVITATION_EMAIL_MISMATCH: 'Invitation email mismatch',
+
+    COLLECTIONS_ALREADY_EXISTS: 'Collections already exists',
+    COLLECTIONS_NOT_FOUND: 'Collections not found',
+    COLLECTIONS_DELETED_SUCCESSFULLY: 'Collections deleted successfully',
+    COLLECTIONS_CREATED_SUCCESSFULLY: 'Collections created successfully',
+    COLLECTIONS_UPDATED_SUCCESSFULLY: 'Collections updated successfully',
+    COLLECTIONS_FETCHED_SUCCESSFULLY: 'Collections fetched successfully',
+    COLLECTION_FETCHED_SUCCESSFULLY: 'Collection fetched successfully',
 }
