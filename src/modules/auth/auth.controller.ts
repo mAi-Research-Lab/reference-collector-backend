@@ -142,12 +142,12 @@ export class AuthController {
                 email: {
                     type: 'string',
                     format: 'email',
-                    example: 'ycevik@live.com'
+                    example: 'a@hotmail.com'
                 },
                 password: {
                     type: 'string',
                     format: 'password',
-                    example: '709332Ysn*'
+                    example: '123123'
                 }
             }
         }
