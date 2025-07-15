@@ -40,6 +40,10 @@ model User {
   sentInvitations LibraryMemberships[] @relation("UserInvites")
 
   LibraryInvitations LibraryInvitations[]
+
+  ReferencesModifiedBy References[] @relation("ReferencesModifiedBy")
+
+  ReferencesAddedBy References[] @relation("ReferencesAddedBy")
 }
 
 enum SubscriptionStatus {
@@ -122,6 +126,8 @@ model Libraries {
   LibraryInvitations LibraryInvitations[]
 
   Collections Collections[]
+
+  References References[]
 }
 
 enum LibraryTypes {
@@ -202,4 +208,60 @@ model Collections {
 
   Collections Collections[] @relation("CollectionHierarchy")
 
+  CollectionItems CollectionItems[]
+}
+
+// ======= COLLECTION_ITEMS =============
+model CollectionItems {
+  id           String      @id @default(uuid()) @db.Uuid
+  collectionId String      @map("collection_id") @db.Uuid
+  collection   Collections @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  referenceId  String      @map("reference_id") @db.Uuid
+  reference    References  @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  sortOrder    Int?        @map("sort_order")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@unique([collectionId, referenceId])
+  @@map("collection_items")
+}
+
+// ======= REFERENCES =============
+model References {
+  id            String                   @id @default(uuid()) @db.Uuid
+  libraryId     String                   @map("library_id") @db.Uuid
+  library       Libraries                @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  type          String
+  title         String
+  authors       Json?                    @db.JsonB
+  editors       Json?                    @db.JsonB
+  publication   String?
+  publisher     String?
+  year          Int?
+  volume        String?
+  issue         String?
+  pages         String?
+  doi           String?
+  isbn          String?
+  issn          String?
+  url           String?
+  abstractText  String?                  @map("abstract_text")
+  language      String?
+  metadata      Json?                    @db.JsonB
+  tags          String[]
+  notes         String?
+  dateAdded     DateTime                 @default(now()) @map("date_added")
+  dateModified  DateTime                 @default(now()) @updatedAt @map("date_modified")
+  addedBy       String                   @map("added_by") @db.Uuid
+  modifiedBy    String?                  @map("modified_by") @db.Uuid
+  citationCount Int                      @default(0) @map("citation_count")
+  isDeleted     Boolean                  @default(false) @map("is_deleted")
+  searchVector  Unsupported("tsvector")? @map("search_vector")
+  createdAt     DateTime                 @default(now()) @map("created_at")
+  updatedAt     DateTime                 @default(now()) @map("updated_at")
+
+  addedByUser     User              @relation("ReferencesAddedBy", fields: [addedBy], references: [id])
+  modifiedByUser  User?             @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
+  CollectionItems CollectionItems[]
+
+  @@map("references")
 }
