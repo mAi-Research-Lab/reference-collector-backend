@@ -16,7 +16,7 @@ export class ReferencesController {
         private readonly referencesService: ReferencesService
     ) { }
 
-    @Post(':libraryId')
+    @Post()
     @ApiOperation({ summary: 'Create new reference' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
     @ApiBody({ type: CreateReferenceDto })
