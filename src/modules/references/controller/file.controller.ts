@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UseInterceptors, UploadedFile, Res } from "@nestjs/common";
-import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiResponse, ApiSecurity, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UseInterceptors, UploadedFile, Res, BadRequestException } from "@nestjs/common";
+import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiProduces, ApiResponse, ApiSecurity, ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Response } from "express";
 import { RoleGuard } from "src/common/guard/role.guard";
@@ -8,6 +8,8 @@ import { FileService } from "../services/file.service";
 import { CreateFileDto } from "../dto/file/create-file.dto";
 import { FileResponse } from "../dto/file/file.response";
 import { UpdateFileDto } from "../dto/file/update-file.dto";
+import { CustomHttpException } from "src/common/exceptions/custom-http-exception";
+import { memoryStorage } from "multer";
 
 @Controller('references/files')
 @ApiTags('References Files')
@@ -40,15 +42,50 @@ export class FileController {
         }
     })
     @ApiResponse({ status: 201, description: 'File uploaded successfully', type: FileResponse })
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('file', {
+        storage: memoryStorage(),
+        limits: {
+            fileSize: 50 * 1024 * 1024,
+        },
+        fileFilter: (req, file, cb) => {
+            const allowedTypes = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'text/plain',
+                'text/csv'
+            ];
+
+            if (allowedTypes.includes(file.mimetype)) {
+                cb(null, true);
+            } else {
+                cb(new BadRequestException(`Invalid file type: ${file.mimetype}. Allowed types: ${allowedTypes.join(', ')}`), false);
+            }
+        }
+    }))
     async uploadFile(
         @Param('referenceId') referenceId: string,
         @UploadedFile() file: Express.Multer.File,
         @Body() createFileDto: CreateFileDto
     ): Promise<FileResponse> {
-        console.log(file);
-        
-        return await this.fileService.create(file, referenceId, createFileDto);
+        if (!file) {
+            throw new CustomHttpException('No file uploaded', 400, 'NO_FILE');
+        }
+
+        if (!file.buffer || file.buffer.length === 0) {
+            throw new CustomHttpException('Uploaded file is empty', 400, 'EMPTY_FILE');
+        }
+
+        if (file.size === 0) {
+            throw new CustomHttpException('Uploaded file has zero size', 400, 'ZERO_SIZE_FILE');
+        }
+        try {
+            return await this.fileService.create(file, referenceId, createFileDto);
+        } catch (error) {
+            console.error('File upload error:', error);
+            throw error;
+        }
     }
 
     @Get(':fileId')
@@ -64,15 +101,43 @@ export class FileController {
     @Get(':fileId/download')
     @ApiOperation({ summary: 'Download file' })
     @ApiParam({ name: 'fileId', description: 'File ID' })
-    @ApiResponse({ status: 200, description: 'File downloaded successfully' })
+    @ApiResponse({
+        status: 200,
+        description: 'File downloaded successfully',
+        schema: {
+            type: 'string',
+            format: 'binary'
+        },
+        headers: {
+            'Content-Type': {
+                description: 'MIME type of the file',
+                schema: {
+                    type: 'string'
+                }
+            },
+            'Content-Disposition': {
+                description: 'Attachment header with filename',
+                schema: {
+                    type: 'string'
+                }
+            }
+        }
+    })
+    @ApiProduces('application/octet-stream')
     async downloadFile(
         @Param('fileId') fileId: string,
         @Res() response: Response
     ): Promise<void> {
         const { buffer, originalName, contentType } = await this.fileService.downloadFile(fileId);
+        
+        const encodedFilename = encodeURIComponent(originalName);
 
-        response.setHeader('Content-Type', contentType);
-        response.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
+        response.setHeader('Content-Type', contentType || 'application/octet-stream');
+        response.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
+        response.setHeader('Content-Length', buffer.length.toString());
+
+        response.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+
         response.send(buffer);
     }
 
