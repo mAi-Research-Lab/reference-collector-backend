@@ -44,6 +44,8 @@ model User {
   ReferencesModifiedBy References[] @relation("ReferencesModifiedBy")
 
   ReferencesAddedBy References[] @relation("ReferencesAddedBy")
+
+  Files Files[]
 }
 
 enum SubscriptionStatus {
@@ -262,6 +264,34 @@ model References {
   addedByUser     User              @relation("ReferencesAddedBy", fields: [addedBy], references: [id])
   modifiedByUser  User?             @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
   CollectionItems CollectionItems[]
+  Files           Files[]
 
   @@map("references")
+}
+
+// ======= FILES =============
+model Files {
+  id               String          @id @default(uuid()) @db.Uuid
+  referenceId      String          @map("reference_id") @db.Uuid
+  reference        References      @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  filename         String
+  originalFilename String          @map("original_filename")
+  fileType         String          @map("file_type")
+  fileSize         BigInt          @default(0) @map("file_size")
+  mimeType         String?         @map("mime_type")
+  storagePath      String          @map("storage_path")
+  storageProvider  StorageProvider @default(local) @map("storage_provider")
+  version          Int?            @default(1)
+  checksum         String?
+  downloadCount    Int             @default(0)
+  isPrimary        Boolean         @default(false) @map("is_primary")
+  uploadedBy       String          @map("uploaded_by") @db.Uuid
+  uploader         User            @relation(fields: [uploadedBy], references: [id])
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @default(now()) @map("updated_at")
+}
+
+enum StorageProvider {
+  s3
+  local
 }
