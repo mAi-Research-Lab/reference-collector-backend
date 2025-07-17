@@ -50,8 +50,8 @@ export function ApiResponseArrayWrapper(dataType: any, status: number = 200, des
 }
 
 
-export function ApiSuccessResponse(dataType: any, statusCode?: number, description?: string) {
-  return ApiResponseWrapper(dataType, statusCode || 200, description || 'Operation successful');
+export function ApiSuccessResponse(dataType: any, statusCode: number, description: string) {
+  return ApiResponseWrapper(dataType, statusCode || 200, description);
 }
 
 export function ApiSuccessArrayResponse(dataType: any, statusCode?: number, description?: string) {
