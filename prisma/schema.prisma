@@ -46,6 +46,8 @@ model User {
   ReferencesAddedBy References[] @relation("ReferencesAddedBy")
 
   Files Files[]
+
+  Annotations Annotations[]
 }
 
 enum SubscriptionStatus {
@@ -289,9 +291,38 @@ model Files {
   uploader         User            @relation(fields: [uploadedBy], references: [id])
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @default(now()) @map("updated_at")
+
+  Annotations Annotations[]
 }
 
 enum StorageProvider {
   s3
   local
+}
+
+// ====== ANNOTATIONS ==========
+model Annotations {
+  id           String          @id @default(uuid()) @db.Uuid
+  fileId       String          @map("file_id") @db.Uuid
+  file         Files           @relation(fields: [fileId], references: [id])
+  userId       String          @map("user_id") @db.Uuid
+  user         User            @relation(fields: [userId], references: [id])
+  type         AnnotationsType @default(note)
+  content      String
+  positionData Json            @map("position_data")
+  color        String?         @default("#ffffff")
+  tags         String[]
+  isShared     Boolean         @default(false)
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @default(now()) @map("updated_at")
+}
+
+enum AnnotationsType {
+  highlight
+  note
+  strikethrough
+  underline
+  drawing
+  text
+  link
 }
