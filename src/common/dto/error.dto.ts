@@ -8,16 +8,29 @@ export class ErrorDto {
   success: boolean;
 
   @ApiProperty({ 
-    description: 'Error message',
-    example: 'User not found' 
+    description: 'Error message(s)',
+    oneOf: [
+      { type: 'string', example: 'User not found' },
+      { 
+        type: 'array', 
+        items: { type: 'string' },
+        example: ['state must be a string', 'state should not be empty']
+      }
+    ]
   })
-  message: string;
+  message: string | string[];
 
   @ApiProperty({ 
     description: 'Error code',
-    example: 'USER_NOT_FOUND' 
+    example: 'BAD_REQUEST' 
   })
   errorCode: string;
+
+  @ApiProperty({ 
+    description: 'HTTP status code',
+    example: 400 
+  })
+  statusCode: number;
 
   @ApiProperty({ 
     description: 'Detailed error information',
@@ -28,18 +41,12 @@ export class ErrorDto {
 
   @ApiProperty({ 
     description: 'Timestamp',
-    example: '2024-01-15T10:30:00Z' 
+    example: '2025-07-17T12:56:38.669Z' 
   })
   timestamp: string;
 
-  @ApiProperty({ 
-    description: 'HTTP status code',
-    example: 404 
-  })
-  statusCode: number;
-
   constructor(
-    message: string,
+    message: string | string[],
     errorCode: string,
     statusCode: number,
     details?: any
