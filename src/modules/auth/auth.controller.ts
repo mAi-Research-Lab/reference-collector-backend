@@ -8,7 +8,8 @@ import { CreateUserDto } from '../user/dto/create-user.dto';
 import { AuthResponse } from './dto/auth.response';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { User } from '../user/decorators/user.decorator';
-import { ErrorDto } from 'src/common/dto/error.dto';
+import { ApiErrorResponse } from 'src/common/decorators/api-response-wrapper.decorator';
+import { COMMON_MESSAGES } from 'src/common/constants/common.messages';
 
 @Controller('auth')
 export class AuthController {
@@ -28,7 +29,7 @@ export class AuthController {
         description: AUTH_MESSAGES.USER_CREATED_SUCCESSFULLY,
         type: CreateUserDto
     })
-    @ApiResponse({ status: 400, type:ErrorDto,  description: AUTH_MESSAGES.EMAIL_ALREADY_REGISTERED })
+    @ApiErrorResponse(400, COMMON_MESSAGES.EMAIL_ALREADY_EXISTS || COMMON_MESSAGES.INVALID_CREDENTIALS)
     @ApiBody({
         type: CreateUserDto,
         description: 'User registration data'
@@ -88,7 +89,7 @@ export class AuthController {
             ]
         }
     })
-    @ApiResponse({ status: 400, description: AUTH_MESSAGES.INVALID_VERIFICATION_TOKEN })
+    @ApiErrorResponse(400, COMMON_MESSAGES.EMAIL_ALREADY_EXISTS || COMMON_MESSAGES.INVALID_CREDENTIALS)
     @ApiQuery({
         name: 'token',
         required: true,
@@ -116,8 +117,8 @@ export class AuthController {
             }
         }
     })
-    @ApiResponse({ status: 400, description: `${AUTH_MESSAGES.EMAIL_ALREADY_VERIFIED} or ${AUTH_MESSAGES.USER_NOT_FOUND}` })
-    @ApiResponse({ status: 401, description: `${AUTH_MESSAGES.UNAUTHORIZED_ACCESS}` })
+    @ApiErrorResponse(400, COMMON_MESSAGES.EMAIL_ALREADY_EXISTS || COMMON_MESSAGES.INVALID_CREDENTIALS)
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
     async resendVerificationEmail(@User('id') userId: string) {
         return await this.emailVerificationService.resendVerificationEmail(userId);
     }
@@ -133,7 +134,7 @@ export class AuthController {
         description: AUTH_MESSAGES.LOGIN_SUCCESS,
         type: AuthResponse
     })
-    @ApiResponse({ status: 401, type:ErrorDto, description: AUTH_MESSAGES.INVALID_CREDENTIALS })
+    @ApiErrorResponse(401, COMMON_MESSAGES.INVALID_CREDENTIALS)
     @ApiBody({
         schema: {
             type: 'object',
@@ -196,8 +197,8 @@ export class AuthController {
             }
         }
     })
-    @ApiResponse({ status: 400, description: AUTH_MESSAGES.INVALID_PASSWORD })
-    @ApiResponse({ status: 401, description: AUTH_MESSAGES.UNAUTHORIZED_ACCESS })
+    @ApiErrorResponse(400, AUTH_MESSAGES.INVALID_PASSWORD)
+    @ApiErrorResponse(401, AUTH_MESSAGES.UNAUTHORIZED_ACCESS)
     @ApiBody({
         schema: {
             type: 'object',
@@ -229,7 +230,7 @@ export class AuthController {
     @Post('forgot-password')
     @ApiOperation({ summary: 'Request password reset email' })
     @ApiResponse({ status: 200, description: AUTH_MESSAGES.PASSWORD_RESET_EMAIL_SENT })
-    @ApiResponse({ status: 404, description: AUTH_MESSAGES.USER_NOT_FOUND })
+    @ApiErrorResponse(404, AUTH_MESSAGES.USER_NOT_FOUND)
     async forgotPassword(@Body('email') email: string) {
         return await this.passwordService.forgotPassword(email);
     }
@@ -237,7 +238,7 @@ export class AuthController {
     @Get('verify-reset-token')
     @ApiOperation({ summary: 'Verify reset password token' })
     @ApiResponse({ status: 200, description: AUTH_MESSAGES.TOKEN_VALID })
-    @ApiResponse({ status: 401, description: AUTH_MESSAGES.INVALID_RESET_TOKEN })
+    @ApiErrorResponse(401, AUTH_MESSAGES.INVALID_RESET_TOKEN)
     async verifyResetToken(@Query('token') token: string) {
         return await this.passwordService.verifyResetToken(token);
     }
@@ -245,7 +246,7 @@ export class AuthController {
     @Post('reset-password')
     @ApiOperation({ summary: 'Reset password with token' })
     @ApiResponse({ status: 200, description: AUTH_MESSAGES.PASSWORD_RESET_SUCCESS })
-    @ApiResponse({ status: 401, description: AUTH_MESSAGES.INVALID_RESET_TOKEN })
+    @ApiErrorResponse(401, AUTH_MESSAGES.INVALID_RESET_TOKEN)
     async resetPassword(@Body('token') token: string, @Body('password') password: string) {
         return await this.passwordService.resetPassword(token, password);
     }

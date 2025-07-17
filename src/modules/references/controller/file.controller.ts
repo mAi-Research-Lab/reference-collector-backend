@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UseInterceptors, UploadedFile, Res, BadRequestException } from "@nestjs/common";
-import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiProduces, ApiResponse, ApiSecurity, ApiTags } from "@nestjs/swagger";
+import { ApiConsumes, ApiOperation, ApiParam, ApiProduces, ApiResponse, ApiSecurity, ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Response } from "express";
 import { RoleGuard } from "src/common/guard/role.guard";
@@ -10,6 +10,9 @@ import { FileResponse } from "../dto/file/file.response";
 import { UpdateFileDto } from "../dto/file/update-file.dto";
 import { CustomHttpException } from "src/common/exceptions/custom-http-exception";
 import { memoryStorage } from "multer";
+import { ApiSuccessResponse, ApiErrorResponse } from "src/common/decorators/api-response-wrapper.decorator";
+import { ResponseDto } from "src/common/dto/api-response.dto";
+import { COMMON_MESSAGES } from "src/common/constants/common.messages";
 
 @Controller('references/files')
 @ApiTags('References Files')
@@ -24,24 +27,10 @@ export class FileController {
     @ApiOperation({ summary: 'Upload file to reference' })
     @ApiParam({ name: 'referenceId', description: 'Reference ID' })
     @ApiConsumes('multipart/form-data')
-    @ApiBody({
-        schema: {
-            type: 'object',
-            properties: {
-                file: {
-                    type: 'string',
-                    format: 'binary',
-                    description: 'File to upload'
-                },
-                uploadedBy: {
-                    type: 'string',
-                    description: 'User ID who uploaded the file'
-                },
-            },
-            required: ['file', 'uploadedBy']
-        }
-    })
-    @ApiResponse({ status: 201, description: 'File uploaded successfully', type: FileResponse })
+    @ApiSuccessResponse(FileResponse, 201, "File uploaded successfully")
+    @ApiErrorResponse(400, "Bad request - Invalid file or file data")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Reference not found")
     @UseInterceptors(FileInterceptor('file', {
         storage: memoryStorage(),
         limits: {
@@ -68,7 +57,7 @@ export class FileController {
         @Param('referenceId') referenceId: string,
         @UploadedFile() file: Express.Multer.File,
         @Body() createFileDto: CreateFileDto
-    ): Promise<FileResponse> {
+    ): Promise<ResponseDto> {
         if (!file) {
             throw new CustomHttpException('No file uploaded', 400, 'NO_FILE');
         }
@@ -81,7 +70,15 @@ export class FileController {
             throw new CustomHttpException('Uploaded file has zero size', 400, 'ZERO_SIZE_FILE');
         }
         try {
-            return await this.fileService.create(file, referenceId, createFileDto);
+            const uploadedFile = await this.fileService.create(file, referenceId, createFileDto);
+
+            return {
+                message: "File uploaded successfully",
+                statusCode: 201,
+                success: true,
+                timestamp: new Date().toISOString(),
+                data: uploadedFile
+            };
         } catch (error) {
             console.error('File upload error:', error);
             throw error;
@@ -91,11 +88,21 @@ export class FileController {
     @Get(':fileId')
     @ApiOperation({ summary: 'Get file by ID' })
     @ApiParam({ name: 'fileId', description: 'File ID' })
-    @ApiResponse({ status: 200, description: 'File retrieved successfully', type: FileResponse })
+    @ApiSuccessResponse(FileResponse, 200, "File retrieved successfully")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "File not found")
     async getFile(
         @Param('fileId') fileId: string
-    ): Promise<FileResponse> {
-        return await this.fileService.getFile(fileId);
+    ): Promise<ResponseDto> {
+        const file = await this.fileService.getFile(fileId);
+
+        return {
+            message: "File retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: file
+        };
     }
 
     @Get(':fileId/download')
@@ -124,6 +131,8 @@ export class FileController {
         }
     })
     @ApiProduces('application/octet-stream')
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "File not found")
     async downloadFile(
         @Param('fileId') fileId: string,
         @Res() response: Response
@@ -144,32 +153,62 @@ export class FileController {
     @Put(':fileId')
     @ApiOperation({ summary: 'Update file' })
     @ApiParam({ name: 'fileId', description: 'File ID' })
-    @ApiBody({ type: UpdateFileDto })
-    @ApiResponse({ status: 200, description: 'File updated successfully', type: FileResponse })
+    @ApiSuccessResponse(FileResponse, 200, "File updated successfully")
+    @ApiErrorResponse(400, "Bad request - Invalid file data")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "File not found")
     async updateFile(
         @Param('fileId') fileId: string,
         @Body() updateFileDto: UpdateFileDto
-    ): Promise<FileResponse> {
-        return await this.fileService.update(fileId, updateFileDto);
+    ): Promise<ResponseDto> {
+        const file = await this.fileService.update(fileId, updateFileDto);
+
+        return {
+            message: "File updated successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: file
+        };
     }
 
     @Delete(':fileId')
     @ApiOperation({ summary: 'Delete file' })
     @ApiParam({ name: 'fileId', description: 'File ID' })
     @ApiResponse({ status: 200, description: 'File deleted successfully' })
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "File not found")
     async deleteFile(
         @Param('fileId') fileId: string
-    ): Promise<{ message: string }> {
-        return await this.fileService.delete(fileId);
+    ): Promise<ResponseDto> {
+        const result = await this.fileService.delete(fileId);
+
+        return {
+            message: result.message,
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: { message: "File deleted successfully" }
+        };
     }
 
     @Put(':fileId/set-primary')
     @ApiOperation({ summary: 'Set file as primary' })
     @ApiParam({ name: 'fileId', description: 'File ID' })
-    @ApiResponse({ status: 200, description: 'File set as primary successfully', type: FileResponse })
+    @ApiSuccessResponse(FileResponse, 200, "File set as primary successfully")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "File not found")
     async setPrimaryFile(
         @Param('fileId') fileId: string
-    ): Promise<FileResponse> {
-        return await this.fileService.setPrimary(fileId);
+    ): Promise<ResponseDto> {
+        const file = await this.fileService.setPrimary(fileId);
+
+        return {
+            message: "File set as primary successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: file
+        };
     }
 }

@@ -8,6 +8,9 @@ import { CreateCollectionDto } from "../dto/collections/create-collection.dto";
 import { UpdateCollectionDto } from "../dto/collections/update-collection.dto";
 import { CollectionItemsResponse } from "../dto/collections/collection-items.response";
 import { ReferencesResponse } from "../../references/dto/reference/references.response";
+import { ApiSuccessArrayResponse, ApiSuccessResponse } from "src/common/decorators/api-response-wrapper.decorator";
+import { LIBRARY_MESSAGES } from "../constants/library.messages";
+import { ResponseDto } from "src/common/dto/api-response.dto";
 
 @Controller('libraries/:libraryId/collections')
 @ApiTags('Library Collections')
@@ -21,58 +24,99 @@ export class CollectionController {
     @Get()
     @ApiOperation({ summary: 'Get all collections in library' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
-    @ApiResponse({ status: 200, description: 'Collections retrieved successfully', type: [CollectionResponse] })
+    @ApiSuccessArrayResponse(CollectionResponse, 200, LIBRARY_MESSAGES.COLLECTIONS_FETCHED_SUCCESSFULLY)
     async getCollections(
         @Param('libraryId') libraryId: string
-    ): Promise<CollectionResponse[]> {
-        return await this.collectionService.getCollections(libraryId);
+    ): Promise<ResponseDto> {
+        const collections = await this.collectionService.getCollections(libraryId);
+
+        return {
+            message: LIBRARY_MESSAGES.COLLECTIONS_FETCHED_SUCCESSFULLY,
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: collections
+        }
     }
 
     @Post()
     @ApiOperation({ summary: 'Create new collection' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
     @ApiBody({ type: CreateCollectionDto })
-    @ApiResponse({ status: 201, description: 'Collection created successfully', type: CollectionResponse })
+    @ApiSuccessResponse(CollectionResponse, 201, "Collection created successfully")
+    @ApiSecurity('bearer')
     async createCollection(
         @Param('libraryId') libraryId: string,
         @Body() createCollectionDto: CreateCollectionDto
-    ): Promise<CollectionResponse> {
+    ): Promise<ResponseDto> {
         const collectionData = { ...createCollectionDto, libraryId };
-        return await this.collectionService.create(collectionData);
+        const collection = await this.collectionService.create(collectionData);
+
+        return {
+            message: "Collection created successfully",
+            statusCode: 201,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: collection
+        }
     }
 
     // @Get('tree')
     // @ApiOperation({ summary: 'Get hierarchical collection tree' })
     // @ApiParam({ name: 'libraryId', description: 'Library ID' })
-    // @ApiResponse({ status: 200, description: 'Collection tree retrieved successfully', type: [CollectionResponse] })
+    // @ApiSuccessArrayResponse(CollectionResponse, 200, LIBRARY_MESSAGES.COLLECTIONS_FETCHED_SUCCESSFULLY)
     // async getCollectionTree(
     //     @Param('libraryId') libraryId: string
-    // ): Promise<CollectionResponse[]> {
-    //     return await this.collectionService.getCollectionTree(libraryId);
+    // ): Promise<ResponseDto> {
+    //     const collections = await this.collectionService.getCollectionTree(libraryId);
+    //     
+    //     return {
+    //         message: LIBRARY_MESSAGES.COLLECTIONS_FETCHED_SUCCESSFULLY,
+    //         statusCode: 200,
+    //         success: true,
+    //         timestamp: new Date().toISOString(),
+    //         data: collections
+    //     }
     // }
 
     @Get('search')
     @ApiOperation({ summary: 'Search collections by name' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
     @ApiQuery({ name: 'q', description: 'Search term', required: true })
-    @ApiResponse({ status: 200, description: 'Search results retrieved successfully', type: [CollectionResponse] })
+    @ApiSuccessArrayResponse(CollectionResponse, 200, LIBRARY_MESSAGES.COLLECTIONS_FETCHED_SUCCESSFULLY)
     async searchCollections(
         @Param('libraryId') libraryId: string,
         @Query('q') searchTerm: string
-    ): Promise<CollectionResponse[]> {
-        return await this.collectionService.searchCollections(searchTerm);
+    ): Promise<ResponseDto> {
+        const collections = await this.collectionService.searchCollections(searchTerm);
+
+        return {
+            message: LIBRARY_MESSAGES.COLLECTIONS_FETCHED_SUCCESSFULLY,
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: collections
+        }
     }
 
     @Get(':id')
     @ApiOperation({ summary: 'Get collection by ID' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
     @ApiParam({ name: 'id', description: 'Collection ID' })
-    @ApiResponse({ status: 200, description: 'Collection retrieved successfully', type: CollectionResponse })
+    @ApiSuccessResponse(CollectionResponse, 200, LIBRARY_MESSAGES.COLLECTION_FETCHED_SUCCESSFULLY)
     async getCollection(
         @Param('libraryId') libraryId: string,
         @Param('id') collectionId: string
-    ): Promise<CollectionResponse> {
-        return await this.collectionService.getCollection(collectionId);
+    ): Promise<ResponseDto> {
+        const collection = await this.collectionService.getCollection(collectionId);
+
+        return {
+            message: LIBRARY_MESSAGES.COLLECTION_FETCHED_SUCCESSFULLY,
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: collection
+        }
     }
 
     @Put(':id')
@@ -80,13 +124,21 @@ export class CollectionController {
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
     @ApiParam({ name: 'id', description: 'Collection ID' })
     @ApiBody({ type: UpdateCollectionDto })
-    @ApiResponse({ status: 200, description: 'Collection updated successfully', type: CollectionResponse })
+    @ApiSuccessResponse(CollectionResponse, 200, "Collection updated successfully")
     async updateCollection(
         @Param('libraryId') libraryId: string,
         @Param('id') collectionId: string,
         @Body() updateCollectionDto: UpdateCollectionDto
-    ): Promise<CollectionResponse> {
-        return await this.collectionService.updateCollection(collectionId, updateCollectionDto);
+    ): Promise<ResponseDto> {
+        const collection = await this.collectionService.updateCollection(collectionId, updateCollectionDto);
+
+        return {
+            message: "Collection updated successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: collection
+        }
     }
 
     @Delete(':id')
@@ -97,20 +149,36 @@ export class CollectionController {
     async deleteCollection(
         @Param('libraryId') libraryId: string,
         @Param('id') collectionId: string
-    ): Promise<{ message: string }> {
-        return await this.collectionService.deleteCollection(collectionId);
+    ): Promise<ResponseDto> {
+        await this.collectionService.deleteCollection(collectionId);
+
+        return {
+            message: "Collection deleted successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: null
+        }
     }
 
     @Get(':id/items')
     @ApiOperation({ summary: 'Get references in collection' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
     @ApiParam({ name: 'id', description: 'Collection ID' })
-    @ApiResponse({ status: 200, description: 'Collection items retrieved successfully', type: [ReferencesResponse] })
+    @ApiSuccessArrayResponse(ReferencesResponse, 200, "Collection items retrieved successfully")
     async getCollectionItems(
         @Param('libraryId') libraryId: string,
         @Param('id') collectionId: string
-    ): Promise<ReferencesResponse[]> {
-        return await this.collectionService.getCollectionItems(collectionId);
+    ): Promise<ResponseDto> {
+        const items = await this.collectionService.getCollectionItems(collectionId);
+
+        return {
+            message: "Collection items retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: items
+        }
     }
 
     @Post(':id/items')
@@ -126,13 +194,21 @@ export class CollectionController {
             required: ['referenceId']
         }
     })
-    @ApiResponse({ status: 201, description: 'Reference added to collection successfully', type: CollectionItemsResponse })
+    @ApiSuccessResponse(CollectionItemsResponse, 201, "Reference added to collection successfully")
     async addReferenceToCollection(
         @Param('libraryId') libraryId: string,
         @Param('id') collectionId: string,
         @Body('referenceId') referenceId: string
-    ): Promise<CollectionItemsResponse> {
-        return await this.collectionService.addReference(collectionId, referenceId);
+    ): Promise<ResponseDto> {
+        const collectionItem = await this.collectionService.addReference(collectionId, referenceId);
+
+        return {
+            message: "Reference added to collection successfully",
+            statusCode: 201,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: collectionItem
+        }
     }
 
     @Delete(':id/items/:referenceId')
@@ -145,20 +221,36 @@ export class CollectionController {
         @Param('libraryId') libraryId: string,
         @Param('id') collectionId: string,
         @Param('referenceId') referenceId: string
-    ): Promise<{ message: string }> {
-        return await this.collectionService.deleteReference(collectionId, referenceId);
+    ): Promise<ResponseDto> {
+        await this.collectionService.deleteReference(collectionId, referenceId);
+
+        return {
+            message: "Reference removed from collection successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: null
+        }
     }
 
     @Get(':id/subcollections')
     @ApiOperation({ summary: 'Get subcollections' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
     @ApiParam({ name: 'id', description: 'Parent Collection ID' })
-    @ApiResponse({ status: 200, description: 'Subcollections retrieved successfully', type: [CollectionResponse] })
+    @ApiSuccessArrayResponse(CollectionResponse, 200, "Subcollections retrieved successfully")
     async getSubCollections(
         @Param('libraryId') libraryId: string,
         @Param('id') collectionId: string
-    ): Promise<CollectionResponse[]> {
-        return await this.collectionService.getSubCollections(collectionId);
+    ): Promise<ResponseDto> {
+        const subcollections = await this.collectionService.getSubCollections(collectionId);
+
+        return {
+            message: "Subcollections retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: subcollections
+        }
     }
 
     @Post(':id/subcollections')
@@ -166,14 +258,22 @@ export class CollectionController {
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
     @ApiParam({ name: 'id', description: 'Parent Collection ID' })
     @ApiBody({ type: CreateCollectionDto })
-    @ApiResponse({ status: 201, description: 'Subcollection created successfully', type: CollectionResponse })
+    @ApiSuccessResponse(CollectionResponse, 201, "Subcollection created successfully")
     async createSubCollection(
         @Param('libraryId') libraryId: string,
         @Param('id') parentId: string,
         @Body() createCollectionDto: CreateCollectionDto
-    ): Promise<CollectionResponse> {
+    ): Promise<ResponseDto> {
         const collectionData = { ...createCollectionDto, libraryId, parentId };
-        return await this.collectionService.create(collectionData);
+        const subcollection = await this.collectionService.create(collectionData);
+
+        return {
+            message: "Subcollection created successfully",
+            statusCode: 201,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: subcollection
+        }
     }
 
     @Post(':id/move')
@@ -189,24 +289,40 @@ export class CollectionController {
             required: ['parentId']
         }
     })
-    @ApiResponse({ status: 200, description: 'Collection moved successfully', type: CollectionResponse })
+    @ApiSuccessResponse(CollectionResponse, 200, "Collection moved successfully")
     async moveCollection(
         @Param('libraryId') libraryId: string,
         @Param('id') collectionId: string,
         @Body('parentId') parentId: string
-    ): Promise<CollectionResponse> {
-        return await this.collectionService.moveCollection(collectionId, parentId);
+    ): Promise<ResponseDto> {
+        const collection = await this.collectionService.moveCollection(collectionId, parentId);
+
+        return {
+            message: "Collection moved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: collection
+        }
     }
 
     @Post(':id/copy')
     @ApiOperation({ summary: 'Copy collection' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
     @ApiParam({ name: 'id', description: 'Collection ID to copy' })
-    @ApiResponse({ status: 201, description: 'Collection copied successfully', type: CollectionResponse })
+    @ApiSuccessResponse(CollectionResponse, 201, "Collection copied successfully")
     async copyCollection(
         @Param('libraryId') libraryId: string,
         @Param('id') collectionId: string
-    ): Promise<CollectionResponse> {
-        return await this.collectionService.copyCollection(collectionId);
+    ): Promise<ResponseDto> {
+        const collection = await this.collectionService.copyCollection(collectionId);
+
+        return {
+            message: "Collection copied successfully",
+            statusCode: 201,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: collection
+        }
     }
 }

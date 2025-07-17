@@ -21,7 +21,7 @@ export class UpdateUserDto {
     })
     @IsOptional()
     @IsString()
-    institution?: string | null 
+    institutionId?: string | null 
 
     @ApiPropertyOptional({
         type: String,
