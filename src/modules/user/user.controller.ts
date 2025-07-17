@@ -8,6 +8,8 @@ import { User as UserDecorator } from './decorators/user.decorator';
 import { ErrorDto } from 'src/common/dto/error.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ResponseDto } from 'src/common/dto/api-response.dto';
+import { ApiErrorResponse, ApiSuccessResponse } from 'src/common/decorators/api-response-wrapper.decorator';
 
 @Controller('user')
 @ApiSecurity('bearer')
@@ -19,23 +21,20 @@ export class UserController {
 
     @Post()
     @ApiOperation({ summary: 'Create user', description: 'return created user' })
-    @ApiResponse({
-        status: 201,
-        description: 'Returns created user',
-        type: UserResponse
-    })
-    @ApiResponse({ 
-        status: 409, 
-        description: COMMON_MESSAGES.EMAIL_ALREADY_EXISTS,
-        type: ErrorDto
-    })
-    @ApiResponse({ 
-        status: 500, 
-        description: COMMON_MESSAGES.INTERNAL_SERVER_ERROR,
-        type: ErrorDto
-    })
-    async create(@Body() data: CreateUserDto) {
-        return await this.userService.create(data);
+    @ApiSuccessResponse(UserResponse, 201, "User created successfully")
+    @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
+    @ApiErrorResponse(409, COMMON_MESSAGES.EMAIL_ALREADY_EXISTS)
+    @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
+    async create(@Body() data: CreateUserDto): Promise<ResponseDto> {
+        const user = await this.userService.create(data);
+
+        return {
+            message: "User created successfully",
+            statusCode: 201,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: user
+        }
     }
 
     @Get('current')
@@ -45,53 +44,43 @@ export class UserController {
         description: 'Returns current user information',
         type: UserResponse
     })
-    @ApiResponse({ 
+    @ApiResponse({
         status: 401,
-        type: ErrorDto, 
-        description: COMMON_MESSAGES.UNAUTHORIZED 
+        type: ErrorDto,
+        description: COMMON_MESSAGES.UNAUTHORIZED
     })
-    @ApiResponse({ 
-        status: 403, 
+    @ApiResponse({
+        status: 403,
         description: COMMON_MESSAGES.UNAUTHORIZED,
         type: ErrorDto
     })
-    @ApiResponse({ 
-        status: 404, 
+    @ApiResponse({
+        status: 404,
         description: COMMON_MESSAGES.USER_NOT_FOUND,
         type: ErrorDto
     })
-    getCurrent(@UserDecorator('id') id: string): Promise<UserResponse> {        
+    getCurrent(@UserDecorator('id') id: string): Promise<UserResponse> {
         return this.userService.findById(id);
     }
 
     @Put('current')
     @ApiOperation({ summary: 'Update current user', description: 'Returns the updated user\'s information' })
-    @ApiResponse({
-        status: 200,
-        description: 'Returns updated user information',
-        type: UserResponse
-    })
-    @ApiResponse({ 
-        status: 401,
-        type: ErrorDto, 
-        description: COMMON_MESSAGES.UNAUTHORIZED 
-    })
-    @ApiResponse({ 
-        status: 403, 
-        description: COMMON_MESSAGES.UNAUTHORIZED,
-        type: ErrorDto
-    })
-    @ApiResponse({ 
-        status: 404, 
-        description: COMMON_MESSAGES.USER_NOT_FOUND,
-        type: ErrorDto
-    })
-    @ApiResponse({
-        status: 500,
-        description: COMMON_MESSAGES.INTERNAL_SERVER_ERROR,
-        type: ErrorDto
-    })
-    updateCurrent(@UserDecorator('id') id: string, @Body() data: UpdateUserDto): Promise<UserResponse> {
-        return this.userService.update(id, data);
+    @ApiSuccessResponse(UserResponse, 200, "User updated successfully")
+    @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(403, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, COMMON_MESSAGES.USER_NOT_FOUND)
+    @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
+    async updateCurrent(@UserDecorator('id') id: string, @Body() data: UpdateUserDto): Promise<ResponseDto> {
+        const user = await this.userService.update(id, data);
+        console.log(user);
+        
+        return {
+            message: "User updated successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: user
+        } as any
     }
 }

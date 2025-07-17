@@ -14,7 +14,7 @@ export class UserResponse {
     userType: string
 
     @ApiProperty()
-    institution?: string | null
+    institutionId?: string | null
 
     @ApiPropertyOptional()
     fieldOfStudy?: string | null
