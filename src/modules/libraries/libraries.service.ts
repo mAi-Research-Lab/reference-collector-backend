@@ -48,14 +48,16 @@ export class LibrariesService {
         return await this.prisma.libraries.update({ where: { id }, data });
     }
 
-    async delete(id: string): Promise<LibraryResponse> {
+    async delete(id: string): Promise<{ message: string }> {
         const library = await this.prisma.libraries.findUnique({ where: { id } });
 
         if (!library) {
             throw new CustomHttpException(LIBRARY_MESSAGES.LIBRARY_NOT_FOUND, 404, LIBRARY_MESSAGES.LIBRARY_NOT_FOUND);
         }
 
-        return await this.prisma.libraries.delete({ where: { id } });
+        await this.prisma.libraries.delete({ where: { id } });
+
+        return { message: LIBRARY_MESSAGES.LIBRARY_DELETED_SUCCESSFULLY };
     }
 
     async getUserLibraries(userId: string): Promise<LibraryResponse[]> {

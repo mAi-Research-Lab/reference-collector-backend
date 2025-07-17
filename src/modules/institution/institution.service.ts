@@ -58,13 +58,15 @@ export class InstitutionService {
         return await this.prisma.institution.update({ where: { id: id }, data });
     }
 
-    async delete(id: string): Promise<InstitutionResponse> {
+    async delete(id: string): Promise<{ message: string }> {
         const institution = await this.prisma.institution.findUnique({ where: { id: id } })
 
         if (!institution) {
             throw new CustomHttpException(INSTUTION_MESSAGES.INSTITUTION_NOT_FOUND, 404, INSTUTION_MESSAGES.INSTITUTION_NOT_FOUND);
         }
 
-        return await this.prisma.institution.delete({ where: { id: id } });
+        await this.prisma.institution.delete({ where: { id: id } });
+
+        return { message: INSTUTION_MESSAGES.INSTITUTION_DELETED_SUCCESSFULLY };
     }
 }

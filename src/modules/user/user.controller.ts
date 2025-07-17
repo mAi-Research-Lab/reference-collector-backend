@@ -73,7 +73,7 @@ export class UserController {
     @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
     async updateCurrent(@UserDecorator('id') id: string, @Body() data: UpdateUserDto): Promise<ResponseDto> {
         const user = await this.userService.update(id, data);
-        console.log(user);
+        
         
         return {
             message: "User updated successfully",

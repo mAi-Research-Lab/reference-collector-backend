@@ -1,13 +1,15 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, Query } from "@nestjs/common";
-import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiSecurity, ApiTags } from "@nestjs/swagger";
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiSecurity, ApiTags } from "@nestjs/swagger";
 import { RoleGuard } from "src/common/guard/role.guard";
 import { JwtAuthGuard } from "src/modules/auth/guards/jwt-auth.guard";
 import { AnnotationService } from "../services/annotation.service";
 import { CreateAnnotationDto } from "../dto/annotations/create-annotation.dto";
 import { AnnotationResponse } from "../dto/annotations/annotation.response";
 import { UpdateAnnotationDto } from "../dto/annotations/update-annotation.dto";
-import { ErrorDto } from "src/common/dto/error.dto";
 import { AnnotationsType } from "generated/prisma";
+import { ApiSuccessArrayResponse, ApiSuccessResponse, ApiErrorResponse } from "src/common/decorators/api-response-wrapper.decorator";
+import { ResponseDto } from "src/common/dto/api-response.dto";
+import { COMMON_MESSAGES } from "src/common/constants/common.messages";
 
 @Controller('references/files/:fileId/annotations')
 @ApiTags('References Files Annotations')
@@ -27,33 +29,25 @@ export class AnnotationController {
         name: 'fileId',
         type: 'string',
     })
-    @ApiResponse({
-        status: 201,
-        description: 'Annotation created successfully',
-        type: AnnotationResponse
-    })
-    @ApiResponse({
-        status: 400,
-        description: 'Bad request - Invalid annotation data',
-        type: ErrorDto
-    })
-    @ApiResponse({
-        status: 401,
-        description: 'Unauthorized - Invalid or missing authentication token',
-        type: ErrorDto
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'File not found',
-        type: ErrorDto
-    })
+    @ApiSuccessResponse(AnnotationResponse, 201, "Annotation created successfully")
+    @ApiErrorResponse(400, "Bad request - Invalid annotation data")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "File not found")
     async createAnnotation(
         @Param('fileId') fileId: string,
         @Body() createAnnotationDto: CreateAnnotationDto
-    ): Promise<AnnotationResponse> {
+    ): Promise<ResponseDto> {
         console.log(createAnnotationDto);
 
-        return await this.annotationService.create(fileId, createAnnotationDto);
+        const annotation = await this.annotationService.create(fileId, createAnnotationDto);
+
+        return {
+            message: "Annotation created successfully",
+            statusCode: 201,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: annotation
+        };
     }
 
     @Post('bulk')
@@ -61,32 +55,29 @@ export class AnnotationController {
         summary: 'Create multiple annotations',
         description: 'Create multiple annotations at once for better performance. Useful for importing annotations or batch operations.'
     })
-    @ApiBody({
-        type: [CreateAnnotationDto],
-        description: 'Array of annotation data to create'
+    @ApiParam({
+        name: 'fileId',
+        type: 'string',
+        description: 'File ID'
     })
-    @ApiResponse({
-        status: 201,
-        description: 'Annotations created successfully',
-        type: [AnnotationResponse]
-    })
-    @ApiResponse({
-        status: 400,
-        description: 'Bad request - Invalid annotation data in array',
-        type: ErrorDto
-    })
-    @ApiResponse({
-        status: 401,
-        description: 'Unauthorized - Invalid or missing authentication token',
-        type: ErrorDto
-    })
+    @ApiSuccessArrayResponse(AnnotationResponse, 201, "Annotations created successfully")
+    @ApiErrorResponse(400, "Bad request - Invalid annotation data in array")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "File not found")
     async bulkCreateAnnotations(
         @Param('fileId') fileId: string,
         @Body() createAnnotationDtos: CreateAnnotationDto[]
-    ): Promise<AnnotationResponse[]> {
-        return await this.annotationService.bulkCreate(fileId, createAnnotationDtos);
-    }
+    ): Promise<ResponseDto> {
+        const annotations = await this.annotationService.bulkCreate(fileId, createAnnotationDtos);
 
+        return {
+            message: "Annotations created successfully",
+            statusCode: 201,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: annotations
+        };
+    }
 
     @Get(':id')
     @ApiOperation({
@@ -103,27 +94,22 @@ export class AnnotationController {
         description: 'Annotation ID',
         example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d'
     })
-    @ApiResponse({
-        status: 200,
-        description: 'Annotation retrieved successfully',
-        type: AnnotationResponse
-    })
-    @ApiResponse({
-        status: 401,
-        description: 'Unauthorized - Invalid or missing authentication token',
-        type: ErrorDto
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'Annotation not found',
-        type: ErrorDto
-
-    })
+    @ApiSuccessResponse(AnnotationResponse, 200, "Annotation retrieved successfully")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Annotation not found")
     async getAnnotationById(
         @Param('fileId') fileId: string,
         @Param('id') id: string
-    ): Promise<AnnotationResponse> {
-        return await this.annotationService.getById(fileId, id);
+    ): Promise<ResponseDto> {
+        const annotation = await this.annotationService.getById(fileId, id);
+
+        return {
+            message: "Annotation retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: annotation
+        };
     }
 
     @Put(':id')
@@ -141,37 +127,24 @@ export class AnnotationController {
         description: 'Annotation ID to update',
         example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d'
     })
-    @ApiBody({
-        type: UpdateAnnotationDto,
-        description: 'Updated annotation data'
-    })
-    @ApiResponse({
-        status: 200,
-        description: 'Annotation updated successfully',
-        type: AnnotationResponse
-    })
-    @ApiResponse({
-        status: 400,
-        description: 'Bad request - Invalid update data',
-        type: ErrorDto
-
-    })
-    @ApiResponse({
-        status: 401,
-        description: 'Unauthorized - Invalid or missing authentication token',
-        type: ErrorDto
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'Annotation not found',
-        type: ErrorDto
-    })
+    @ApiSuccessResponse(AnnotationResponse, 200, "Annotation updated successfully")
+    @ApiErrorResponse(400, "Bad request - Invalid update data")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Annotation not found")
     async updateAnnotation(
         @Param('fileId') fileId: string,
         @Param('id') id: string,
         @Body() updateAnnotationDto: UpdateAnnotationDto
-    ): Promise<AnnotationResponse> {
-        return await this.annotationService.update(fileId, id, updateAnnotationDto);
+    ): Promise<ResponseDto> {
+        const annotation = await this.annotationService.update(fileId, id, updateAnnotationDto);
+
+        return {
+            message: "Annotation updated successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: annotation
+        };
     }
 
     @Delete(':id')
@@ -202,21 +175,21 @@ export class AnnotationController {
             }
         }
     })
-    @ApiResponse({
-        status: 401,
-        description: 'Unauthorized - Invalid or missing authentication token',
-        type: ErrorDto
-    })
-    @ApiResponse({
-        status: 404,
-        description: 'Annotation not found',
-        type: ErrorDto
-    })
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Annotation not found")
     async deleteAnnotation(
         @Param('fileId') fileId: string,
         @Param('id') id: string
-    ): Promise<{ message: string }> {
-        return await this.annotationService.delete(fileId, id);
+    ): Promise<ResponseDto> {
+        const result = await this.annotationService.delete(fileId, id);
+
+        return {
+            message: result.message,
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: null
+        };
     }
 
     @Get()
@@ -251,19 +224,43 @@ export class AnnotationController {
     @ApiResponse({
         status: 200,
         description: 'Annotations retrieved successfully',
-        type: [AnnotationResponse]
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string' },
+                statusCode: { type: 'number' },
+                success: { type: 'boolean' },
+                timestamp: { type: 'string' },
+                data: {
+                    type: 'object',
+                    properties: {
+                        data: {
+                            type: 'array',
+                            items: { $ref: '#/components/schemas/AnnotationResponse' }
+                        },
+                        total: { type: 'number' },
+                        filters: { type: 'object' }
+                    }
+                }
+            }
+        }
     })
-    @ApiResponse({
-        status: 401,
-        description: 'Unauthorized - Invalid or missing authentication token',
-        type: ErrorDto
-    })
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "File not found")
     async getAllAnnotations(
         @Param('fileId') fileId?: string,
         @Query('userId') userId?: string,
         @Query('type') type?: string,
         @Query('isShared') isShared?: boolean
-    ): Promise<{ data: AnnotationResponse[]; total: number; filters: any }> {
-        return await this.annotationService.getAll(fileId, userId, type as AnnotationsType, isShared);
+    ): Promise<ResponseDto> {
+        const result = await this.annotationService.getAll(fileId, userId, type as AnnotationsType, isShared);
+
+        return {
+            message: "Annotations retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: result
+        };
     }
 }
