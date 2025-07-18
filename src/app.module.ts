@@ -7,9 +7,10 @@ import { AuthModule } from './modules/auth/auth.module';
 import { InstitutionModule } from './modules/institution/institution.module';
 import { LibrariesModule } from './modules/libraries/libraries.module';
 import { ReferencesModule } from './modules/references/references.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 
 @Module({
-  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule],
+  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule],
   controllers: [AppController],
   providers: [AppService],
 })
