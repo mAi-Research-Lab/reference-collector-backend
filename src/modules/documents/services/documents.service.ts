@@ -7,7 +7,7 @@ import { CustomHttpException } from 'src/common/exceptions/custom-http-exception
 import { DOCUMENT_MESSAGES } from '../constants/document/document.messages';
 import { UpdateDocumentDto } from '../dto/document/update-document.dto';
 import { ContentDeltaDto } from '../dto/document/content-delta.dto';
-import { Documents } from 'generated/prisma';
+import { CollaboratorRoles, Documents } from 'generated/prisma';
 
 @Injectable()
 export class DocumentsService {
@@ -21,6 +21,17 @@ export class DocumentsService {
                 ...data,
                 createdBy,
                 contentDelta: data.contentDelta as any
+            }
+        });
+
+        await this.prisma.documentCollaborators.create({
+            data: {
+                documentId: document.id,
+                userId: createdBy,
+                role: CollaboratorRoles.owner,
+                invitedBy: createdBy,
+                acceptedAt: new Date(),
+                permissions: {}
             }
         });
 
@@ -82,7 +93,7 @@ export class DocumentsService {
 
         return {
             ...updatedDocument,
-            contentDelta: updatedDocument.contentDelta as any,
+            contentDelta: document.contentDelta as any,
         } as DocumentResponse;
     }
 
