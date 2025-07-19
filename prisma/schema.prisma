@@ -361,6 +361,7 @@ model Documents {
   deltas                DocumentDeltas[]
   DocumentCollaborators DocumentCollaborators[]
   Citation              Citation[]
+  CollaborationSession  CollaborationSession[]
 
   @@map("documents")
 }
@@ -452,4 +453,23 @@ model CitationStyle {
   downloadCount Int      @default(0) @map("download_count")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
+}
+
+// ====== COLLABORATION SESSION ==========
+model CollaborationSession {
+  id                 String    @id @default(uuid()) @db.Uuid
+  documentId         String    @map("document_id") @db.Uuid
+  participants       Json      @default("[]") // Active User
+  operationLog       Json      @default("[]") @map("operation_log") // Text opt
+  currentState       Json      @default("{}") @map("current_state")
+  conflictResolution Json      @default("{}") @map("conflict_resolution")
+  sessionData        Json      @default("{}") @map("session_data")
+  isActive           Boolean   @default(true) @map("is_active")
+  startedAt          DateTime  @default(now()) @map("started_at")
+  endedAt            DateTime? @map("ended_at")
+  lastActivity       DateTime  @default(now()) @map("last_activity")
+
+  document Documents @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("collaboration_sessions")
 }
