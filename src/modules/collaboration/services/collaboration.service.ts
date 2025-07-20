@@ -12,7 +12,7 @@ export class CollaborationService {
         private readonly prisma: PrismaService
     ) { }
 
-    async getOrCreateSession(documentId: string, data: CreateCollaborationDto): Promise<CollaborationResponse> {
+    async getOrCreateSession(documentId: string, data?: CreateCollaborationDto): Promise<CollaborationResponse> {
         const collaborationSession = await this.prisma.collaborationSession.findFirst({
             where: {
                 documentId,
@@ -22,21 +22,37 @@ export class CollaborationService {
 
         if (collaborationSession) {
             return collaborationSession as CollaborationResponse;
+        } else {
+            const createdSession = await this.prisma.collaborationSession.create({
+                data: {
+                    documentId,
+                    ...data,
+                    participants: data?.participants ?? {},
+                    operationLog: data?.operationLog ?? {},
+                    currentState: data?.currentState ?? {},
+                    sessionData: data?.sessionData ?? {},
+                    conflictResolution: data?.conflictResolution ?? {},
+                }
+            })
+
+            return createdSession as CollaborationResponse
+        }
+    }
+
+    async getSessionById(sessionId: string): Promise<CollaborationResponse> {
+        const session = await this.prisma.collaborationSession.findUnique({
+            where: { id: sessionId }
+        });
+
+        if (!session) {
+            throw new CustomHttpException(
+                COLLABORATION_MESSAGES.SESSION_NOT_FOUND,
+                404,
+                COLLABORATION_MESSAGES.SESSION_NOT_FOUND
+            );
         }
 
-        const createdSession = await this.prisma.collaborationSession.create({
-            data: {
-                documentId,
-                ...data,
-                participants: data.participants ?? {},
-                operationLog: data.operationLog ?? {},
-                currentState: data.currentState ?? {},
-                sessionData: data.sessionData ?? {},
-                conflictResolution: data.conflictResolution ?? {},
-            }
-        })
-
-        return createdSession as CollaborationResponse
+        return session as CollaborationResponse;
     }
 
     async addParticipant(sessionId: string, userId: string, socketId: string): Promise<CollaborationResponse> {
