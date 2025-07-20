@@ -3,6 +3,7 @@ import { IsNotEmpty, IsObject, IsOptional, IsString, ValidateNested } from "clas
 import { CitationStyle } from "../../enums/citation.enum";
 import { ContentDeltaDto } from "./content-delta.dto";
 import { Type } from "class-transformer";
+import { JsonValue } from "generated/prisma/runtime/library";
 
 export class CreateDocumentDto {
     @ApiProperty({ example: 'Document Title' })
@@ -46,16 +47,14 @@ export class CreateDocumentDto {
     @IsObject()
     @ValidateNested()
     @Type(() => ContentDeltaDto)
-    contentDelta: ContentDeltaDto
+    contentDelta: JsonValue
 
     @ApiProperty({ example: CitationStyle.APA })
     @IsNotEmpty()
     citationStyle: CitationStyle
 
     @ApiPropertyOptional({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
-    @IsString()
+    @IsOptional()
     templateId?: string
 
-    @ApiPropertyOptional({ example: 1 })
-    version?: number
 }
