@@ -20,6 +20,7 @@ import { UserModule } from '../user/user.module';
     DocumentsController,
     DocumentTemplatesController,
     DocumentCollaboratorController
-  ]
+  ],
+  exports: [DocumentsService]
 })
 export class DocumentsModule {}
