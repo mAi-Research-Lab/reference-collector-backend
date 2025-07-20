@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Collaboration Test</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; }
+        .editor { width: 100%; height: 300px; border: 1px solid #ccc; padding: 10px; }
+        .participants { background: #f5f5f5; padding: 10px; margin: 10px 0; }
+        .cursor { background: red; width: 2px; height: 20px; position: absolute; }
+        .typing-indicator { color: #666; font-style: italic; }
+        button { margin: 5px; padding: 10px; }
+        .log { background: #f0f0f0; padding: 10px; height: 200px; overflow-y: scroll; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Real-time Collaboration Test</h1>
+        
+        <div>
+            <input id="userId" placeholder="User ID" value="user-123">
+            <input id="documentId" placeholder="Document ID" value="doc-456">
+            <button onclick="joinDocument()">Join Document</button>
+            <button onclick="leaveDocument()">Leave Document</button>
+        </div>
+
+        <div class="participants">
+            <strong>Participants:</strong>
+            <div id="participantsList"></div>
+        </div>
+
+        <div>
+            <textarea id="editor" class="editor" placeholder="Start typing..."></textarea>
+            <div class="typing-indicator" id="typingIndicator"></div>
+        </div>
+
+        <div>
+            <button onclick="insertText()">Insert "Hello"</button>
+            <button onclick="deleteText()">Delete 5 chars</button>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let socket;
+        let sessionId;
+        let userId;
+        let documentId;
+        let cursorPosition = 0;
+        let isConnected = false;
+        let lastContent = ''; // Son içeriği takip etmek için
+        let isUpdatingFromRemote = false; // Uzaktan güncelleme sırasında local event'leri önlemek için
+
+        // Initialize socket connection
+        function initSocket() {
+            socket = io('http://localhost:8080/collaboration');
+            
+            socket.on('connect', () => {
+                log('Connected to server');
+                isConnected = true;
+            });
+
+            socket.on('disconnect', () => {
+                log('Disconnected from server');
+                isConnected = false;
+            });
+
+            // Session events
+            socket.on('session-joined', (data) => {
+                log(`Joined session: ${data.sessionId}`);
+                sessionId = data.sessionId;
+                updateParticipants(data.participants);
+                updateEditor(data.currentState?.content || '');
+                lastContent = data.currentState?.content || '';
+            });
+
+            socket.on('user-joined', (data) => {
+                log(`User joined: ${data.userId}`);
+                updateParticipants(data.participants);
+            });
+
+            socket.on('user-left', (data) => {
+                log(`User left: ${data.userId}`);
+                updateParticipants(data.participants);
+            });
+
+            // Text operation events
+            socket.on('text-operation-applied', (data) => {
+                log(`Text operation applied: ${data.operation.type} at ${data.operation.position}`);
+                updateEditor(data.newState.content);
+                lastContent = data.newState.content;
+            });
+
+            socket.on('operation-confirmed', (data) => {
+                log(`Operation confirmed: ${data.operationId}`);
+            });
+
+            socket.on('operation-failed', (data) => {
+                log(`Operation failed: ${data.message}`, 'error');
+            });
+
+            // Cursor events
+            socket.on('cursor-updated', (data) => {
+                log(`Cursor updated: User ${data.userId} at position ${data.position}`);
+            });
+
+            // Typing events
+            socket.on('typing-status-changed', (data) => {
+                updateTypingIndicator(data.userId, data.isTyping);
+            });
+
+            socket.on('error', (data) => {
+                log(`Error: ${data.message}`, 'error');
+            });
+        }
+
+        // Join document
+        function joinDocument() {
+            userId = document.getElementById('userId').value;
+            documentId = document.getElementById('documentId').value;
+            
+            if (!isConnected) {
+                initSocket();
+                setTimeout(() => {
+                    socket.emit('join-document', { userId, documentId });
+                }, 1000);
+            } else {
+                socket.emit('join-document', { userId, documentId });
+            }
+        }
+
+        // Leave document
+        function leaveDocument() {
+            if (sessionId) {
+                socket.emit('leave-document', { sessionId });
+            }
+        }
+
+        // Insert text operation
+        function insertText() {
+            if (!sessionId) return;
+            
+            const operation = {
+                type: 'insert',
+                position: cursorPosition,
+                content: 'Hello '
+            };
+
+            socket.emit('text-operation', {
+                sessionId,
+                operation,
+                userId
+            });
+        }
+
+        // Delete text operation
+        function deleteText() {
+            if (!sessionId) return;
+            
+            const operation = {
+                type: 'delete',
+                position: Math.max(0, cursorPosition - 5),
+                length: 5
+            };
+
+            socket.emit('text-operation', {
+                sessionId,
+                operation,
+                userId
+            });
+        }
+
+        // Gerçek zamanlı text operation gönderme fonksiyonu
+        function sendTextOperation(currentContent, previousContent, cursorPos) {
+            if (!sessionId || isUpdatingFromRemote) return;
+
+            // İçerik değişikliğini analiz et
+            if (currentContent.length > previousContent.length) {
+                // Metin eklendi
+                const insertedText = currentContent.substring(
+                    cursorPos - (currentContent.length - previousContent.length),
+                    cursorPos
+                );
+                const position = cursorPos - insertedText.length;
+
+                const operation = {
+                    type: 'insert',
+                    position: position,
+                    content: insertedText
+                };
+
+                socket.emit('text-operation', {
+                    sessionId,
+                    operation,
+                    userId
+                });
+
+                log(`Sent insert operation: "${insertedText}" at position ${position}`);
+
+            } else if (currentContent.length < previousContent.length) {
+                // Metin silindi
+                const deletedLength = previousContent.length - currentContent.length;
+                
+                const operation = {
+                    type: 'delete',
+                    position: cursorPos,
+                    length: deletedLength
+                };
+
+                socket.emit('text-operation', {
+                    sessionId,
+                    operation,
+                    userId
+                });
+
+                log(`Sent delete operation: ${deletedLength} chars at position ${cursorPos}`);
+            }
+        }
+
+        // Editor event listeners
+        document.getElementById('editor').addEventListener('input', function(e) {
+            const currentContent = e.target.value;
+            cursorPosition = e.target.selectionStart;
+            
+            // Gerçek zamanlı text operation gönder
+            sendTextOperation(currentContent, lastContent, cursorPosition);
+            
+            // İçeriği güncelle
+            lastContent = currentContent;
+            
+            // Typing indicator gönder
+            if (sessionId) {
+                socket.emit('typing-status', {
+                    sessionId,
+                    userId,
+                    isTyping: true
+                });
+
+                // Stop typing after 1 second
+                setTimeout(() => {
+                    socket.emit('typing-status', {
+                        sessionId,
+                        userId,
+                        isTyping: false
+                    });
+                }, 1000);
+            }
+        });
+
+        document.getElementById('editor').addEventListener('click', function(e) {
+            cursorPosition = e.target.selectionStart;
+            
+            // Send cursor position
+            if (sessionId) {
+                socket.emit('cursor-position', {
+                    sessionId,
+                    userId,
+                    position: cursorPosition
+                });
+            }
+        });
+
+        // UI update functions
+        function updateParticipants(participants) {
+            const list = document.getElementById('participantsList');
+            list.innerHTML = participants.map(p => 
+                `<span>${p.userId} ${p.isTyping ? '(typing...)' : ''}</span>`
+            ).join(', ');
+        }
+
+        function updateEditor(content) {
+            const editor = document.getElementById('editor');
+            const oldPosition = editor.selectionStart;
+            
+            // Uzaktan güncelleme bayrağını set et
+            isUpdatingFromRemote = true;
+            
+            editor.value = content;
+            editor.setSelectionRange(oldPosition, oldPosition);
+            
+            // Bayrağı temizle
+            setTimeout(() => {
+                isUpdatingFromRemote = false;
+            }, 50);
+        }
+
+        function updateTypingIndicator(userId, isTyping) {
+            const indicator = document.getElementById('typingIndicator');
+            if (isTyping) {
+                indicator.textContent = `${userId} is typing...`;
+            } else {
+                indicator.textContent = '';
+            }
+        }
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.textContent = `[${timestamp}] ${message}`;
+            if (type === 'error') entry.style.color = 'red';
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            log('Test client loaded. Ready to connect.');
+        });
+    </script>
+</body>
+</html>
