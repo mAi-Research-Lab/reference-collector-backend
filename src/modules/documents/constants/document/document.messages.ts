@@ -7,4 +7,8 @@ export const DOCUMENT_MESSAGES = {
     DOCUMENTS_FETCHED_SUCCESSFULLY: 'Documents fetched successfully',
     DOCUMENT_FETCHED_SUCCESSFULLY: 'Document fetched successfully',
     DOCUMENT_PUBLISHED_SUCCESSFULLY: 'Document published successfully',
+    DOCUMENT_UNPUBLISHED_SUCCESSFULLY: 'Document unpublished successfully',
+    DOCUMENT_CONTENT_UPDATED_SUCCESSFULLY: 'Document content updated successfully',
+    USER_NOT_MEMBER: 'User is not a member of the library',
+    USER_NOT_OWNER: 'User is not the owner of the document',
 }

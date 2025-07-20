@@ -7,6 +7,7 @@ import { CustomHttpException } from 'src/common/exceptions/custom-http-exception
 import { DOCUMENT_MESSAGES } from '../constants/document/document.messages';
 import { UpdateDocumentDto } from '../dto/document/update-document.dto';
 import { ContentDeltaDto } from '../dto/document/content-delta.dto';
+import { CollaboratorRoles, Documents } from 'generated/prisma';
 
 @Injectable()
 export class DocumentsService {
@@ -20,6 +21,17 @@ export class DocumentsService {
                 ...data,
                 createdBy,
                 contentDelta: data.contentDelta as any
+            }
+        });
+
+        await this.prisma.documentCollaborators.create({
+            data: {
+                documentId: document.id,
+                userId: createdBy,
+                role: CollaboratorRoles.owner,
+                invitedBy: createdBy,
+                acceptedAt: new Date(),
+                permissions: {}
             }
         });
 
@@ -55,20 +67,32 @@ export class DocumentsService {
     }
 
     async updateDocument(documentId: string, data: UpdateDocumentDto): Promise<DocumentResponse> {
-        const document = await this.prisma.documents.update({
+
+        const document = await this.prisma.documents.findUnique({
             where: {
                 id: documentId
-            },
-            data: {
-                ...data,
-                contentDelta: data.contentDelta as any
             }
         });
 
         if (!document) throw new CustomHttpException(DOCUMENT_MESSAGES.DOCUMENT_NOT_FOUND, 404, DOCUMENT_MESSAGES.DOCUMENT_NOT_FOUND);
 
+        if (!this.checkDocumentOwnership(document, document.createdBy)) {
+            throw new CustomHttpException(DOCUMENT_MESSAGES.USER_NOT_OWNER, 404, DOCUMENT_MESSAGES.USER_NOT_OWNER);
+        }
+
+        const updatedDocument = await this.prisma.documents.update({
+            where: {
+                id: documentId
+            },
+            data: {
+                ...data,
+                contentDelta: data.contentDelta as any,
+                updatedAt: new Date()
+            }
+        });
+
         return {
-            ...document,
+            ...updatedDocument,
             contentDelta: document.contentDelta as any,
         } as DocumentResponse;
     }
@@ -81,6 +105,10 @@ export class DocumentsService {
         });
 
         if (!document) throw new CustomHttpException(DOCUMENT_MESSAGES.DOCUMENT_NOT_FOUND, 404, DOCUMENT_MESSAGES.DOCUMENT_NOT_FOUND);
+
+        if (!this.checkDocumentOwnership(document, document.createdBy)) {
+            throw new CustomHttpException(DOCUMENT_MESSAGES.USER_NOT_OWNER, 404, DOCUMENT_MESSAGES.USER_NOT_OWNER);
+        }
 
         await this.prisma.documents.delete({
             where: {
@@ -107,8 +135,8 @@ export class DocumentsService {
             },
             data: {
                 content,
-                wordCount: document.content.split(' ').length,
-                charCount: document.content.length,
+                wordCount: content.split(' ').length,
+                charCount: content.length,
                 contentDelta: document.contentDelta as any,
                 updatedAt: new Date()
             }
@@ -143,5 +171,9 @@ export class DocumentsService {
             ...publishedDocument,
             contentDelta: publishedDocument.contentDelta as any,
         } as DocumentResponse;
+    }
+
+    private checkDocumentOwnership(document: Documents, userId: string): boolean {
+        return document.createdBy === userId;
     }
 }
