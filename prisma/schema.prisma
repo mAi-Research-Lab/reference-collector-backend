@@ -54,6 +54,8 @@ model User {
 
   documentCollaborators DocumentCollaborators[] @relation("User")
   invitedCollaborators  DocumentCollaborators[] @relation("Inviter")
+  OfficeDocuments       OfficeDocuments[]
+  SyncSessions          SyncSessions[]
 }
 
 enum SubscriptionStatus {
@@ -472,4 +474,76 @@ model CollaborationSession {
   document Documents @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@map("collaboration_sessions")
+}
+
+// ========== OFFICE DOCUMENTS ==============
+model OfficeDocuments {
+  id                 String     @id @default(uuid()) @db.Uuid
+  userId             String     @map("user_id") @db.Uuid
+  documentPath       String     @map("document_path")
+  documentName       String     @map("document_name")
+  documentHash       String     @map("document_hash")
+  platform           Platforms  @default(word)
+  platformDocumentId String?    @map("platform_document_id") // Google Docs ID, Word internal ID
+  citationMapping    Json       @default("{}") @map("citation_mapping")
+  libraryLinks       Json       @default("{}") @map("library_links")
+  lastSync           DateTime?  @map("last_sync")
+  wordProcessorType  String     @default("microsoft-word") @map("word_processor_type")
+  versionInfo        Json       @default("{}") @map("version_info")
+  syncStatus         SyncStatus @default(pending)
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  user         User           @relation(fields: [userId], references: [id])
+  SyncSessions SyncSessions[]
+
+  @@map("office_documents")
+}
+
+enum Platforms {
+  word
+  google_docs
+  libreoffice
+}
+
+enum SyncStatus {
+  pending
+  syncing
+  synced
+  error
+}
+
+// ============== SYNC SESSIONS =============================
+model SyncSessions {
+  id                 String            @id @default(uuid()) @db.Uuid
+  userId             String            @map("user_id") @db.Uuid
+  officeDocumentId   String            @map("office_document_id") @db.Uuid
+  platformType       String            @map("platform_type") // 'word', 'google-docs'
+  syncType           SyncType          @map("sync_type")
+  syncData           Json              @default("{}") @map("sync_data")
+  conflicts          Json              @default("[]")
+  resolutionStrategy String            @default("last-writer-wins") @map("resolution_strategy")
+  itemsSynced        Int               @default(0) @map("items_synced")
+  errorsCount        Int               @default(0) @map("errors_count")
+  startedAt          DateTime          @default(now()) @map("started_at")
+  completedAt        DateTime?         @map("completed_at")
+  status             SyncSessionStatus @default(pending)
+
+  user           User            @relation(fields: [userId], references: [id])
+  officeDocument OfficeDocuments @relation(fields: [officeDocumentId], references: [id])
+
+  @@map("sync_sessions")
+}
+
+enum SyncType {
+  manual
+  automatic
+  real_time
+}
+
+enum SyncSessionStatus {
+  pending
+  running
+  completed
+  failed
 }
