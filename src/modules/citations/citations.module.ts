@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
-import { CitationsService } from './citations.service';
-import { CitationsController } from './citations.controller';
+import { CitationsController } from './controller/citations.controller';
 import { UserModule } from '../user/user.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { ReferencesModule } from '../references/references.module';
 import { DocumentCollaboratorService } from '../documents/services/document-collaborator.service';
+import { CitationsService } from './services/citations.service';
+import { CitationStylesService } from './services/citation-styles.service';
+import { CitationStylesController } from './controller/citation-styles.controller';
 
 @Module({
   imports: [
@@ -12,7 +14,11 @@ import { DocumentCollaboratorService } from '../documents/services/document-coll
     DocumentsModule,
     ReferencesModule,
   ],
-  providers: [CitationsService, DocumentCollaboratorService],
-  controllers: [CitationsController]
+  providers: [
+    CitationsService, 
+    DocumentCollaboratorService,
+    CitationStylesService
+  ],
+  controllers: [CitationsController, CitationStylesController]
 })
 export class CitationsModule {}
