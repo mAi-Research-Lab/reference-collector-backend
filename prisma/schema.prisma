@@ -56,6 +56,7 @@ model User {
   invitedCollaborators  DocumentCollaborators[] @relation("Inviter")
   OfficeDocuments       OfficeDocuments[]
   SyncSessions          SyncSessions[]
+  ExtensionCapture      ExtensionCapture[]
 }
 
 enum SubscriptionStatus {
@@ -272,11 +273,12 @@ model References {
   createdAt     DateTime                 @default(now()) @map("created_at")
   updatedAt     DateTime                 @default(now()) @map("updated_at")
 
-  addedByUser     User              @relation("ReferencesAddedBy", fields: [addedBy], references: [id])
-  modifiedByUser  User?             @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
-  CollectionItems CollectionItems[]
-  Files           Files[]
-  Citation        Citation[]
+  addedByUser      User               @relation("ReferencesAddedBy", fields: [addedBy], references: [id])
+  modifiedByUser   User?              @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
+  CollectionItems  CollectionItems[]
+  Files            Files[]
+  Citation         Citation[]
+  ExtensionCapture ExtensionCapture[]
 
   @@map("references")
 }
@@ -546,4 +548,26 @@ enum SyncSessionStatus {
   running
   completed
   failed
+}
+
+// ========= EXTENSION CAPTURES ==============
+model ExtensionCapture {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  url               String
+  title             String
+  rawMetadata       Json     @map("raw_metadata")
+  processedMetadata Json?    @map("processed_metadata")
+  captureMethod     String   @map("capture_method")
+  browserInfo       Json     @map("browser_info")
+  translatorUsed    String?  @map("translator_used")
+  success           Boolean  @default(false)
+  errorMessage      String?  @map("error_message")
+  referenceId       String?  @map("reference_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user      User        @relation(fields: [userId], references: [id])
+  reference References? @relation(fields: [referenceId], references: [id])
+
+  @@map("extension_captures")
 }
