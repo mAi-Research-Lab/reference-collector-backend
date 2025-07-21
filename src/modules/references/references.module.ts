@@ -16,6 +16,7 @@ import { AnnotationController } from './controller/annotation.controller';
     ReferencesController,
     FileController,
     AnnotationController
-  ]
+  ],
+  exports: [ReferencesService]
 })
 export class ReferencesModule {}
