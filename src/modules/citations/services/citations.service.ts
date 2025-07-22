@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma/prisma.service';
-import { CreateCitationDto } from './dto/create-citation.dto';
-import { CitationResponse, CitationResponseWithReferences } from './dto/citation.response';
-import { UserService } from '../user/user.service';
-import { DocumentCollaboratorService } from '../documents/services/document-collaborator.service';
-import { ReferencesService } from '../references/references.service';
+import { DocumentCollaboratorService } from 'src/modules/documents/services/document-collaborator.service';
+import { DocumentsService } from 'src/modules/documents/services/documents.service';
+import { ReferencesService } from 'src/modules/references/references.service';
+import { UserService } from 'src/modules/user/user.service';
+import { CitationResponse, CitationResponseWithReferences } from '../dto/citation.response';
+import { CreateCitationDto } from '../dto/create-citation.dto';
 import { CustomHttpException } from 'src/common/exceptions/custom-http-exception';
-import { CITATIONS_MESSAGES } from './constants/citation.messages';
-import { DocumentsService } from '../documents/services/documents.service';
-import { UpdateCitationDto } from './dto/update-citation.dto';
+import { CITATIONS_MESSAGES } from '../constants/citation.messages';
+import { UpdateCitationDto } from '../dto/update-citation.dto';
 
 @Injectable()
 export class CitationsService {

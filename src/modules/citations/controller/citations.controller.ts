@@ -1,16 +1,16 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
-import { CitationsService } from './citations.service';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
-import { CreateCitationDto } from './dto/create-citation.dto';
-import { User } from '../user/decorators/user.decorator';
+import { CreateCitationDto } from '../dto/create-citation.dto';
+import { User } from '../../user/decorators/user.decorator';
 import { ResponseDto } from 'src/common/dto/api-response.dto';
 import { ApiErrorResponse, ApiSuccessResponse } from 'src/common/decorators/api-response-wrapper.decorator';
-import { CitationResponse } from './dto/citation.response';
-import { CITATIONS_MESSAGES } from './constants/citation.messages';
+import { CitationResponse } from '../dto/citation.response';
+import { CITATIONS_MESSAGES } from '../constants/citation.messages';
 import { COMMON_MESSAGES } from 'src/common/constants/common.messages';
-import { UpdateCitationDto } from './dto/update-citation.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UpdateCitationDto } from '../dto/update-citation.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RoleGuard } from 'src/common/guard/role.guard';
+import { CitationsService } from '../services/citations.service';
 
 @Controller('citations')
 @ApiTags('Citations')

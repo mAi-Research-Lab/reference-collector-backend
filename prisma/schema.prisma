@@ -54,6 +54,9 @@ model User {
 
   documentCollaborators DocumentCollaborators[] @relation("User")
   invitedCollaborators  DocumentCollaborators[] @relation("Inviter")
+  OfficeDocuments       OfficeDocuments[]
+  SyncSessions          SyncSessions[]
+  ExtensionCapture      ExtensionCapture[]
 }
 
 enum SubscriptionStatus {
@@ -270,11 +273,12 @@ model References {
   createdAt     DateTime                 @default(now()) @map("created_at")
   updatedAt     DateTime                 @default(now()) @map("updated_at")
 
-  addedByUser     User              @relation("ReferencesAddedBy", fields: [addedBy], references: [id])
-  modifiedByUser  User?             @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
-  CollectionItems CollectionItems[]
-  Files           Files[]
-  Citation        Citation[]
+  addedByUser      User               @relation("ReferencesAddedBy", fields: [addedBy], references: [id])
+  modifiedByUser   User?              @relation("ReferencesModifiedBy", fields: [modifiedBy], references: [id])
+  CollectionItems  CollectionItems[]
+  Files            Files[]
+  Citation         Citation[]
+  ExtensionCapture ExtensionCapture[]
 
   @@map("references")
 }
@@ -472,4 +476,98 @@ model CollaborationSession {
   document Documents @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@map("collaboration_sessions")
+}
+
+// ========== OFFICE DOCUMENTS ==============
+model OfficeDocuments {
+  id                 String     @id @default(uuid()) @db.Uuid
+  userId             String     @map("user_id") @db.Uuid
+  documentPath       String     @map("document_path")
+  documentName       String     @map("document_name")
+  documentHash       String     @map("document_hash")
+  platform           Platforms  @default(word)
+  platformDocumentId String?    @map("platform_document_id") // Google Docs ID, Word internal ID
+  citationMapping    Json       @default("{}") @map("citation_mapping")
+  libraryLinks       Json       @default("{}") @map("library_links")
+  lastSync           DateTime?  @map("last_sync")
+  wordProcessorType  String     @default("microsoft-word") @map("word_processor_type")
+  versionInfo        Json       @default("{}") @map("version_info")
+  syncStatus         SyncStatus @default(pending)
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  user         User           @relation(fields: [userId], references: [id])
+  SyncSessions SyncSessions[]
+
+  @@map("office_documents")
+}
+
+enum Platforms {
+  word
+  google_docs
+  libreoffice
+}
+
+enum SyncStatus {
+  pending
+  syncing
+  synced
+  error
+}
+
+// ============== SYNC SESSIONS =============================
+model SyncSessions {
+  id                 String            @id @default(uuid()) @db.Uuid
+  userId             String            @map("user_id") @db.Uuid
+  officeDocumentId   String            @map("office_document_id") @db.Uuid
+  platformType       String            @map("platform_type") // 'word', 'google-docs'
+  syncType           SyncType          @map("sync_type")
+  syncData           Json              @default("{}") @map("sync_data")
+  conflicts          Json              @default("[]")
+  resolutionStrategy String            @default("last-writer-wins") @map("resolution_strategy")
+  itemsSynced        Int               @default(0) @map("items_synced")
+  errorsCount        Int               @default(0) @map("errors_count")
+  startedAt          DateTime          @default(now()) @map("started_at")
+  completedAt        DateTime?         @map("completed_at")
+  status             SyncSessionStatus @default(pending)
+
+  user           User            @relation(fields: [userId], references: [id])
+  officeDocument OfficeDocuments @relation(fields: [officeDocumentId], references: [id])
+
+  @@map("sync_sessions")
+}
+
+enum SyncType {
+  manual
+  automatic
+  real_time
+}
+
+enum SyncSessionStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+// ========= EXTENSION CAPTURES ==============
+model ExtensionCapture {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  url               String
+  title             String
+  rawMetadata       Json     @map("raw_metadata")
+  processedMetadata Json?    @map("processed_metadata")
+  captureMethod     String   @map("capture_method")
+  browserInfo       Json     @map("browser_info")
+  translatorUsed    String?  @map("translator_used")
+  success           Boolean  @default(false)
+  errorMessage      String?  @map("error_message")
+  referenceId       String?  @map("reference_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user      User        @relation(fields: [userId], references: [id])
+  reference References? @relation(fields: [referenceId], references: [id])
+
+  @@map("extension_captures")
 }

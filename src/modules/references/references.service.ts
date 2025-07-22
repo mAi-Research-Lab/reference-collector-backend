@@ -28,7 +28,8 @@ export class ReferencesService {
                     connect: {
                         id: addedBy
                     }
-                }
+                },
+                type: data.type ? data.type : ""
             }
         });
 

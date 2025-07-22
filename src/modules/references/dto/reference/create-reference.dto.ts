@@ -4,8 +4,7 @@ import { IsString, IsNotEmpty, IsOptional, IsInt, IsArray, IsUUID, Min, Max } fr
 export class CreateReferenceDto {
    @ApiProperty({ example: 'journal', description: 'Type of reference (journal, book, conference, etc.)' })
    @IsString()
-   @IsNotEmpty()
-   type: string;
+   type?: string;
 
    @ApiProperty({ example: 'Machine Learning in Healthcare: A Comprehensive Review' })
    @IsString()

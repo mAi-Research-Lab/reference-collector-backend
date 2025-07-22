@@ -10,9 +10,11 @@ import { ReferencesModule } from './modules/references/references.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { CitationsModule } from './modules/citations/citations.module';
 import { CollaborationModule } from './modules/collaboration/collaboration.module';
+import { OfficeIntegrationModule } from './modules/office-integration/office-integration.module';
+import { ExtensionCapturesModule } from './modules/extension-captures/extension-captures.module';
 
 @Module({
-  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule],
+  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule, OfficeIntegrationModule, ExtensionCapturesModule],
   controllers: [AppController],
   providers: [AppService],
 })
