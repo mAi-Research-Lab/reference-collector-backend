@@ -19,7 +19,7 @@ export class ReferencesController {
         private readonly referencesService: ReferencesService
     ) { }
 
-    @Post()
+    @Post(':libraryId')
     @ApiOperation({ summary: 'Create new reference' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
     @ApiSuccessResponse(ReferencesResponse, 201, "Reference created successfully")
@@ -232,7 +232,7 @@ export class ReferencesController {
     @ApiErrorResponse(404, "Reference not found")
     async addTagsToReference(
         @Param('id') referenceId: string,
-        @Body('tags') tags: string[]
+        @Body() tags: string[]
     ): Promise<ResponseDto> {
         const reference = await this.referencesService.addTagsToReference(referenceId, tags);
 

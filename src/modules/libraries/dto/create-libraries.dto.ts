@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsEnum, IsNotEmpty, IsString } from "class-validator";
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { LibraryTypes, LibraryVisibility } from "generated/prisma";
 
 export class CreateLibrariesDto {
@@ -18,7 +18,7 @@ export class CreateLibrariesDto {
     ownerId: string
 
     @ApiPropertyOptional({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
-    @IsString()
+    @IsOptional()
     institutionId?: string
 
     @ApiProperty({example:'Library Type'})
