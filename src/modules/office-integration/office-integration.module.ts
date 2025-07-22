@@ -4,6 +4,7 @@ import { OfficeDocumentsService } from './services/office-integration.service';
 
 @Module({
   providers: [OfficeDocumentsService],
-  controllers: [OfficeIntegrationController]
+  controllers: [OfficeIntegrationController],
+  exports: [OfficeDocumentsService],
 })
 export class OfficeIntegrationModule {}
