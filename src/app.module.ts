@@ -12,9 +12,10 @@ import { CitationsModule } from './modules/citations/citations.module';
 import { CollaborationModule } from './modules/collaboration/collaboration.module';
 import { OfficeIntegrationModule } from './modules/office-integration/office-integration.module';
 import { ExtensionCapturesModule } from './modules/extension-captures/extension-captures.module';
+import { SyncSessionsModule } from './modules/sync-sessions/sync-sessions.module';
 
 @Module({
-  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule, OfficeIntegrationModule, ExtensionCapturesModule],
+  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule, OfficeIntegrationModule, ExtensionCapturesModule, SyncSessionsModule],
   controllers: [AppController],
   providers: [AppService],
 })
