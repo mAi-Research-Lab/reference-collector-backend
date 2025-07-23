@@ -11,13 +11,16 @@ import { UpdateLibrariesDto } from './dto/update-libraries.dto';
 import { User } from '../user/decorators/user.decorator';
 import { ResponseDto } from 'src/common/dto/api-response.dto';
 import { ApiErrorResponse, ApiSuccessArrayResponse, ApiSuccessResponse } from 'src/common/decorators/api-response-wrapper.decorator';
+import { ReferencesService } from '../references/references.service';
+import { ReferencesResponse } from '../references/dto/reference/references.response';
 
 @Controller('libraries')
 @UseGuards(JwtAuthGuard, RoleGuard)
 @ApiSecurity('bearer')
 export class LibrariesController {
     constructor(
-        private readonly librariesService: LibrariesService
+        private readonly librariesService: LibrariesService,
+        private readonly referencesService: ReferencesService
     ) { }
 
     @Post()
@@ -146,5 +149,20 @@ export class LibrariesController {
             timestamp: new Date().toISOString(),
             data: library
         };
+    }
+
+    @Get('library/:libraryId')
+    @ApiSuccessArrayResponse(ReferencesResponse, 200, LIBRARY_MESSAGES.LIBRARY_REFERENCES_FETCHED_SUCCESSFULLY)
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    async getLibraryReferences(@Param('libraryId') libraryId: string):Promise<ResponseDto> {
+        const references = await this.referencesService.getReferencesByLibrary(libraryId);
+
+        return {
+            message: LIBRARY_MESSAGES.LIBRARY_REFERENCES_FETCHED_SUCCESSFULLY,
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: references
+        }
     }
 }

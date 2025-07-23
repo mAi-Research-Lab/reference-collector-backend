@@ -7,13 +7,17 @@ import { PermissionService } from './service/permission.service';
 import { PermissionController } from './controllers/permission.controller';
 import { CollectionService } from './service/collection.service';
 import { CollectionController } from './controllers/collection.controller';
+import { ReferencesModule } from '../references/references.module';
 
 @Module({
+  imports: [
+    ReferencesModule
+  ],
   providers: [
     LibrariesService, 
     SharedService,
     PermissionService,
-    CollectionService
+    CollectionService,
   ],
   controllers: [
     LibrariesController, 

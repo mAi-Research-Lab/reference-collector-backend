@@ -6,6 +6,7 @@ export const LIBRARY_MESSAGES = {
     LIBRARY_UPDATED_SUCCESSFULLY: 'Library updated successfully',
     LIBRARIES_FETCHED_SUCCESSFULLY: 'Libraries fetched successfully',
     LIBRARY_FETCHED_SUCCESSFULLY: 'Library fetched successfully',
+    LIBRARY_REFERENCES_FETCHED_SUCCESSFULLY: 'Library references fetched successfully',
 
     MEMBERSHIP_ALREADY_EXISTS: 'Membership already exists',
     MEMBERSHIP_NOT_FOUND: 'Membership not found',
