@@ -15,7 +15,8 @@ export class ReferencesService {
 
     async create(libraryId: string, data: CreateReferenceDto): Promise<ReferencesResponse> {        
         const { addedBy, ...referenceData } = data;
-
+        console.log(libraryId, data);
+        
         return await this.prismaService.references.create({
             data: {
                 ...referenceData,

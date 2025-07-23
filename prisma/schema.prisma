@@ -552,8 +552,8 @@ enum SyncSessionStatus {
 
 // ========= EXTENSION CAPTURES ==============
 model ExtensionCapture {
-  id                String   @id @default(uuid())
-  userId            String   @map("user_id")
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
   url               String
   title             String
   rawMetadata       Json     @map("raw_metadata")
@@ -563,7 +563,7 @@ model ExtensionCapture {
   translatorUsed    String?  @map("translator_used")
   success           Boolean  @default(false)
   errorMessage      String?  @map("error_message")
-  referenceId       String?  @map("reference_id")
+  referenceId       String?  @map("reference_id") @db.Uuid
   createdAt         DateTime @default(now()) @map("created_at")
 
   user      User        @relation(fields: [userId], references: [id])
