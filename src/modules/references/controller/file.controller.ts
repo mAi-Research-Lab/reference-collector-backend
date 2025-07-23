@@ -1,11 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UseInterceptors, UploadedFile, Res, BadRequestException } from "@nestjs/common";
-import { ApiConsumes, ApiOperation, ApiParam, ApiProduces, ApiResponse, ApiSecurity, ApiTags } from "@nestjs/swagger";
+import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiProduces, ApiResponse, ApiSecurity, ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Response } from "express";
 import { RoleGuard } from "src/common/guard/role.guard";
 import { JwtAuthGuard } from "src/modules/auth/guards/jwt-auth.guard";
 import { FileService } from "../services/file.service";
-import { CreateFileDto } from "../dto/file/create-file.dto";
 import { FileResponse } from "../dto/file/file.response";
 import { UpdateFileDto } from "../dto/file/update-file.dto";
 import { CustomHttpException } from "src/common/exceptions/custom-http-exception";
@@ -13,6 +12,7 @@ import { memoryStorage } from "multer";
 import { ApiSuccessResponse, ApiErrorResponse } from "src/common/decorators/api-response-wrapper.decorator";
 import { ResponseDto } from "src/common/dto/api-response.dto";
 import { COMMON_MESSAGES } from "src/common/constants/common.messages";
+import { User } from "src/modules/user/decorators/user.decorator";
 
 @Controller('references/files')
 @ApiTags('References Files')
@@ -27,6 +27,18 @@ export class FileController {
     @ApiOperation({ summary: 'Upload file to reference' })
     @ApiParam({ name: 'referenceId', description: 'Reference ID' })
     @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        description: 'File upload',
+        schema: {
+            type: 'object',
+            properties: {
+                file: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    })
     @ApiSuccessResponse(FileResponse, 201, "File uploaded successfully")
     @ApiErrorResponse(400, "Bad request - Invalid file or file data")
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
@@ -56,7 +68,7 @@ export class FileController {
     async uploadFile(
         @Param('referenceId') referenceId: string,
         @UploadedFile() file: Express.Multer.File,
-        @Body() createFileDto: CreateFileDto
+        @User() user: any
     ): Promise<ResponseDto> {
         if (!file) {
             throw new CustomHttpException('No file uploaded', 400, 'NO_FILE');
@@ -70,7 +82,7 @@ export class FileController {
             throw new CustomHttpException('Uploaded file has zero size', 400, 'ZERO_SIZE_FILE');
         }
         try {
-            const uploadedFile = await this.fileService.create(file, referenceId, createFileDto);
+            const uploadedFile = await this.fileService.create(file, referenceId, user.id);
 
             return {
                 message: "File uploaded successfully",
@@ -138,7 +150,7 @@ export class FileController {
         @Res() response: Response
     ): Promise<void> {
         const { buffer, originalName, contentType } = await this.fileService.downloadFile(fileId);
-        
+
         const encodedFilename = encodeURIComponent(originalName);
 
         response.setHeader('Content-Type', contentType || 'application/octet-stream');
