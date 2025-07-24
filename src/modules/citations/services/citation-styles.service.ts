@@ -19,9 +19,12 @@ export class CitationStylesService {
     ) { }
 
     async getAvailableStyles(): Promise<CitationStyleResponse[]> {
-        const citations = await this.prisma.citationStyle.findMany(
-            { where: { downloadCount: { gt: 0 } }, orderBy: { downloadCount: 'desc' } }
-        );
+        const citations = await this.prisma.citationStyle.findMany({
+            orderBy: [
+                { downloadCount: 'desc' },
+                { createdAt: 'desc' }
+            ]
+        });
 
         return citations;
     }
@@ -112,9 +115,9 @@ export class CitationStylesService {
     }
 
     async createCustomStyle(userId: string, data: CreateCitationStyleDto): Promise<CitationStyleResponse> {
-        if (data.cslContent) {
-            this.validateCSLContent(data.cslContent);
-        }
+        // if (data.cslContent) {
+        //     this.validateCSLContent(data.cslContent);
+        // }
 
         const createdStyle = await this.prisma.citationStyle.create({
             data: {
