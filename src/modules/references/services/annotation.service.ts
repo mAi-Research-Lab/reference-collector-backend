@@ -37,11 +37,12 @@ export class AnnotationService {
         return annotation;
     }
 
-    async create(fileId: string, data: CreateAnnotationDto): Promise<AnnotationResponse> {
+    async create(fileId: string, userId:string, data: CreateAnnotationDto): Promise<AnnotationResponse> {
         const annotation = await this.prisma.annotations.create({
             data: {
                 ...data,
                 fileId,
+                userId,
                 positionData: data.positionData || {}
             }
         });
@@ -103,11 +104,12 @@ export class AnnotationService {
         return await this.prisma.annotations.findMany({ where: { fileId } });
     }
 
-    async bulkCreate(fileId: string, data: CreateAnnotationDto[]): Promise<AnnotationResponse[]> {
+    async bulkCreate(fileId: string, userId: string, data: CreateAnnotationDto[]): Promise<AnnotationResponse[]> {
         const result = await this.prisma.annotations.createMany({
             data: data.map(item => ({
                 ...item,
                 fileId,
+                userId,
                 positionData: item.positionData || {}
             }))
         });

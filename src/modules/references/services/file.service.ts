@@ -1,6 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "src/database/prisma/prisma.service";
-import { CreateFileDto } from "../dto/file/create-file.dto";
 import { FileResponse } from "../dto/file/file.response";
 import { StorageProvider } from "generated/prisma";
 import { CustomHttpException } from "src/common/exceptions/custom-http-exception";
@@ -31,8 +30,8 @@ export class FileService {
         }
     }
 
-    async create(document: Express.Multer.File, referenceId: string, data: CreateFileDto): Promise<FileResponse> {
-        const localPath = await this.saveDocument(document, data.uploadedBy, referenceId);
+    async create(document: Express.Multer.File, referenceId: string, uploadedBy: string): Promise<FileResponse> {
+        const localPath = await this.saveDocument(document, uploadedBy, referenceId);
 
         const fileData = {
             filename: document.originalname,
@@ -40,7 +39,7 @@ export class FileService {
             fileType: document.mimetype,
             fileSize: BigInt(document.size),
             mimeType: document.mimetype,
-            uploadedBy: data.uploadedBy,
+            uploadedBy: uploadedBy,
             referenceId,
             storagePath: localPath,
             storageProvider: StorageProvider.local

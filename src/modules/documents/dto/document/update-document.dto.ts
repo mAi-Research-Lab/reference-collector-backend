@@ -23,7 +23,7 @@ export class UpdateDocumentDto {
     @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
     @IsString()
     @IsOptional()
-    templateId: string
+    templateId?: string
 
     @ApiPropertyOptional({ example: 1 })
     @IsOptional()

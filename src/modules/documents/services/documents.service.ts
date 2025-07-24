@@ -87,7 +87,9 @@ export class DocumentsService {
             data: {
                 ...data,
                 contentDelta: data.contentDelta as any,
-                updatedAt: new Date()
+                updatedAt: new Date(),
+                wordCount: data.content.split(' ').length,
+                charCount: data.content.length
             }
         });
 

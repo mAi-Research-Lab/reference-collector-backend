@@ -17,8 +17,8 @@ export class DocumentCollaboratorService {
         private readonly documentService: DocumentsService
     ) { }
 
-    async inviteCollaborator(invitedBy: string, data: CreateCollaboratorDto): Promise<{ message: string }> {
-        const { documentId, email, role, permissions } = data;
+    async inviteCollaborator(invitedBy: string, documentId:string, data: CreateCollaboratorDto): Promise<{ message: string }> {
+        const { email, role, permissions } = data;
 
         const user = await this.userService.findByEmail(email)
 

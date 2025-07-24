@@ -10,6 +10,7 @@ import { AnnotationsType } from "generated/prisma";
 import { ApiSuccessArrayResponse, ApiSuccessResponse, ApiErrorResponse } from "src/common/decorators/api-response-wrapper.decorator";
 import { ResponseDto } from "src/common/dto/api-response.dto";
 import { COMMON_MESSAGES } from "src/common/constants/common.messages";
+import { User } from "src/modules/user/decorators/user.decorator";
 
 @Controller('references/files/:fileId/annotations')
 @ApiTags('References Files Annotations')
@@ -35,11 +36,12 @@ export class AnnotationController {
     @ApiErrorResponse(404, "File not found")
     async createAnnotation(
         @Param('fileId') fileId: string,
+        @User() user: any,
         @Body() createAnnotationDto: CreateAnnotationDto
     ): Promise<ResponseDto> {
         console.log(createAnnotationDto);
 
-        const annotation = await this.annotationService.create(fileId, createAnnotationDto);
+        const annotation = await this.annotationService.create(fileId, user.id,createAnnotationDto);
 
         return {
             message: "Annotation created successfully",
@@ -66,9 +68,10 @@ export class AnnotationController {
     @ApiErrorResponse(404, "File not found")
     async bulkCreateAnnotations(
         @Param('fileId') fileId: string,
+        @User() user: any,
         @Body() createAnnotationDtos: CreateAnnotationDto[]
     ): Promise<ResponseDto> {
-        const annotations = await this.annotationService.bulkCreate(fileId, createAnnotationDtos);
+        const annotations = await this.annotationService.bulkCreate(fileId, user.id, createAnnotationDtos);
 
         return {
             message: "Annotations created successfully",

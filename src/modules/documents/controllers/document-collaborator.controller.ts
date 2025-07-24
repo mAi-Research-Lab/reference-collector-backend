@@ -19,14 +19,14 @@ export class DocumentCollaboratorController {
         private readonly documentCollaboratorService: DocumentCollaboratorService
     ) { }
 
-    @Post('invite')
+    @Post(':documentId/invite')
     @ApiOperation({ summary: 'Invite collaborator to document' })
-    @ApiSuccessResponse({ message: 'Invitation sent successfully' }, 200, COLLABORATOR_MESSAGES.USER_INVITED_SUCCESSFULLY)
+    @ApiSuccessResponse(Object, 200, COLLABORATOR_MESSAGES.USER_INVITED_SUCCESSFULLY)
     @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED || COLLABORATOR_MESSAGES.USER_NOT_OWNER)
     @ApiErrorResponse(409, COLLABORATOR_MESSAGES.USER_ALREADY_COLLABORATOR)
-    async inviteCollaborator(@User() user: any, @Body() data: CreateCollaboratorDto): Promise<ResponseDto> {
-        const result = await this.documentCollaboratorService.inviteCollaborator(user.id,data)
+    async inviteCollaborator(@User() user: any, @Param('documentId') documentId: string, @Body() data: CreateCollaboratorDto): Promise<ResponseDto> {
+        const result = await this.documentCollaboratorService.inviteCollaborator(user.id, documentId, data)
 
         return {
             message: COLLABORATOR_MESSAGES.USER_INVITED_SUCCESSFULLY,
@@ -38,14 +38,14 @@ export class DocumentCollaboratorController {
     }
 
 
-    @Post('accept')
+    @Post(':documentId/accept')
     @ApiOperation({ summary: 'Accept invitation to document' })
     @ApiSuccessResponse({ message: 'Invitation accepted successfully' }, 200, COLLABORATOR_MESSAGES.USER_ACCEPTED_SUCCESSFULLY)
     @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
     @ApiErrorResponse(404, COLLABORATOR_MESSAGES.COLLABORATOR_NOT_FOUND)
-    async acceptInvitation(@Body('documentId') documentId: string, @Body('userId') userId: string): Promise<ResponseDto> {
-        const result = await this.documentCollaboratorService.acceptInvitation(documentId, userId)
+    async acceptInvitation(@Param('documentId') documentId: string, @User() user: any): Promise<ResponseDto> {
+        const result = await this.documentCollaboratorService.acceptInvitation(documentId, user.id)
 
         return {
             message: COLLABORATOR_MESSAGES.USER_ACCEPTED_SUCCESSFULLY,
