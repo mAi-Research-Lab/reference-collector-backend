@@ -88,5 +88,5 @@ export class CreateUserDto {
     @IsOptional()
     @IsString()
     @IsEnum(UserType)
-    userType: string
+    userType: UserType
 }
