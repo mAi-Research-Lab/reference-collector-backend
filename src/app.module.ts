@@ -13,9 +13,10 @@ import { CollaborationModule } from './modules/collaboration/collaboration.modul
 import { OfficeIntegrationModule } from './modules/office-integration/office-integration.module';
 import { ExtensionCapturesModule } from './modules/extension-captures/extension-captures.module';
 import { SyncSessionsModule } from './modules/sync-sessions/sync-sessions.module';
+import { ExportModule } from './modules/export/export.module';
 
 @Module({
-  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule, OfficeIntegrationModule, ExtensionCapturesModule, SyncSessionsModule],
+  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule, OfficeIntegrationModule, ExtensionCapturesModule, SyncSessionsModule, ExportModule],
   controllers: [AppController],
   providers: [AppService],
 })
