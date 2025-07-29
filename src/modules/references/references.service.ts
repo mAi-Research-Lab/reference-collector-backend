@@ -46,6 +46,16 @@ export class ReferencesService {
         })
     }
 
+    async getReferencesByIds(ids: string[]): Promise<ReferencesResponse[]> {
+        return await this.prismaService.references.findMany({
+            where: {
+                id: {
+                    in: ids
+                }
+            }
+        })
+    }
+
     async getReference(id: string): Promise<ReferencesResponse> {
         const reference = await this.prismaService.references.findUnique({
             where: { id }

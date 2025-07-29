@@ -65,6 +65,14 @@ export class FileService {
 
         return file
     }
+    
+    async getFilesByReference(referenceId: string): Promise<FileResponse[]> {
+        return this.prisma.files.findMany({
+            where: {
+                referenceId
+            }
+        })
+    }
 
     private async saveDocument(document: Express.Multer.File, userId: string, referenceId: string): Promise<string> {
         try {
