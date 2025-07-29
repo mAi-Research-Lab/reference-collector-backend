@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Export Download Test</title>
+</head>
+<body>
+    <h2>Export Test</h2>
+    <input type="text" id="token" placeholder="JWT Token" style="width: 300px;">
+    <br><br>
+    <input type="text" id="referenceId" placeholder="Reference ID" style="width: 300px;">
+    <br><br>
+    <button onclick="testExport()">Test Export & Download</button>
+    <div id="status"></div>
+
+    <script>
+        async function testExport() {
+            const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyMzNlYzY1ZS05ZTJiLTRjMmYtOTYwYS1iYWQzYTE2ODdlMjQiLCJpYXQiOjE3NTM3OTYxMTUsImV4cCI6MTc1Mzc5OTcxNX0.Vd__YHUum4Dny-82LVdCzNXK4DF7BuVQGybuwZ6Qdfk"
+            const referenceId = "934bec4b-6e5a-4ab0-8be0-c76627228daa"
+            const status = document.getElementById('status');
+            
+            if (!token || !referenceId) {
+                status.innerHTML = '<p style="color: red;">Token ve Reference ID gerekli!</p>';
+                return;
+            }
+            
+            status.innerHTML = '<p>Exporting...</p>';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/v1/export/references', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        format: 'html',
+                        referenceIds: [referenceId],
+                        options: {
+                            filename: 'test_bibliography'
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    downloadFile(
+                        result.data.content, 
+                        result.data.filename, 
+                        result.data.mimeType
+                    );
+                    
+                    status.innerHTML = `
+                        <p style="color: green;">✅ Export başarılı!</p>
+                        <p>Dosya: ${result.data.filename}</p>
+                        <p>Boyut: ${result.data.size} bytes</p>
+                        <p>Referans sayısı: ${result.data.totalReferences}</p>
+                    `;
+                } else {
+                    status.innerHTML = `<p style="color: red;">❌ Error: ${result.message}</p>`;
+                }
+                
+            } catch (error) {
+                status.innerHTML = `<p style="color: red;">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
