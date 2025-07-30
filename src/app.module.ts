@@ -14,9 +14,10 @@ import { OfficeIntegrationModule } from './modules/office-integration/office-int
 import { ExtensionCapturesModule } from './modules/extension-captures/extension-captures.module';
 import { SyncSessionsModule } from './modules/sync-sessions/sync-sessions.module';
 import { ExportModule } from './modules/export/export.module';
+import { PdfRetrievalModule } from './modules/pdf-retrieval/pdf-retrieval.module';
 
 @Module({
-  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule, OfficeIntegrationModule, ExtensionCapturesModule, SyncSessionsModule, ExportModule],
+  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule, OfficeIntegrationModule, ExtensionCapturesModule, SyncSessionsModule, ExportModule, PdfRetrievalModule],
   controllers: [AppController],
   providers: [AppService],
 })
