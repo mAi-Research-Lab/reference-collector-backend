@@ -4,6 +4,6 @@ export interface ResolvedDoiResult {
     authors: string[];
     publisher: string;
     publicationDate: string;
-    pdfUrl?: string;
+    pdfUrl?: string | null;
     metadataRaw?: any;
 }

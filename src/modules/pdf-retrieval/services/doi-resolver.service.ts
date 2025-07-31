@@ -19,6 +19,7 @@ export class DoiResolverService {
         }
 
         const normalizedDoi = this.normalizeDoi(doi);
+        console.log(normalizedDoi);
 
         const { baseUrl, endpoints } = OPEN_ACCESS_APIS.CROSSREF;
         const crossrefUrl = `${baseUrl}${endpoints.works.replace('{doi}', encodeURIComponent(normalizedDoi))}`;
@@ -103,7 +104,7 @@ export class DoiResolverService {
         if (!metadata) {
             throw new CustomHttpException('Metadata not found', 404, 'METADATA_NOT_FOUND');
         }
-        
+
         const links = metadata.link || [];
         const pdfLink = links.find((link: any) => link['content-type'] === 'application/pdf');
 
@@ -122,9 +123,68 @@ export class DoiResolverService {
         return URL_PATTERNS.DOI.STANDARD.test(doi);
     }
 
-    private extractPdfUrl(metadata: any): string | undefined {
-        const links = metadata.link || [];
-        const pdfLink = links.find((link: any) => link['content-type'] === 'application/pdf');
-        return pdfLink?.URL;
+    private extractPdfUrl(metadata: any): string | null {
+        // 1. Link array'den PDF URL'sini ara
+        if (metadata.link && Array.isArray(metadata.link)) {
+            const pdfLink = metadata.link.find((link: any) =>
+                link['content-type'] === 'application/pdf' ||
+                (link.URL && link.URL.toLowerCase().includes('.pdf'))
+            );
+
+            if (pdfLink?.URL) {
+                return pdfLink.URL;
+            }
+        }
+
+        // 2. Resource primary'den ara
+        if (metadata.resource?.primary?.URL) {
+            const url = metadata.resource.primary.URL;
+            if (url.toLowerCase().includes('.pdf')) {
+                return url;
+            }
+        }
+
+        return this.getPublisherSpecificPdfUrl(metadata);
+    }
+
+    private getPublisherSpecificPdfUrl(metadata: any): string | null {
+        const publisher = metadata.publisher?.toLowerCase() || '';
+        const doi = metadata.DOI;
+
+        if (publisher.includes('jmir') && doi) {
+            try {
+                const year = metadata.issued?.['date-parts']?.[0]?.[0] ||
+                    new Date(metadata.created?.['date-time']).getFullYear();
+                const issue = metadata.issue;
+                const page = metadata.page; 
+
+                if (year && issue && page) {
+                    return `https://www.jmir.org/${year}/${issue}/${page}/PDF`;
+                }
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (error) {
+                if (doi.includes('jmir')) {
+                    const parts = doi.split('/');
+                    if (parts.length >= 2) {
+                        const jmirPart = parts[parts.length - 1];
+                        const id = jmirPart.split('.')[1];
+                        return `https://www.jmir.org/2016/6/e${id}/PDF`;
+                    }
+                }
+            }
+        }
+
+        if (doi && doi.includes('arxiv')) {
+            const arxivId = doi.replace('10.48550/arxiv.', '');
+            return `https://arxiv.org/pdf/${arxivId}.pdf`;
+        }
+
+        if (publisher.includes('biorxiv') || doi?.includes('biorxiv')) {
+            const doiParts = doi.split('/');
+            const id = doiParts[doiParts.length - 1];
+            return `https://www.biorxiv.org/content/10.1101/${id}.full.pdf`;
+        }
+
+        return null;
     }
 }

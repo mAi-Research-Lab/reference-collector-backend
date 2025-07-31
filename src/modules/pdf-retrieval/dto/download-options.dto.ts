@@ -1,6 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
 
+export interface ProxyConfig {
+    host: string;
+    port: number;
+    auth?: {
+        username: string;
+        password: string;
+    };
+}
+
+export interface ContentTypeResult {
+    isValidPdf: boolean;
+    contentType: string;
+    contentLength?: number;
+    error?: string;
+}
+
 export class DownloadOptionsDto {
     @ApiProperty({
         description: 'Reference ID to download PDF for'
@@ -48,6 +64,61 @@ export class DownloadOptionsDto {
     @IsOptional()
     @IsBoolean()
     validatePdf?: boolean;
+
+    @ApiPropertyOptional({
+        description: 'Target directory to download PDF to'
+    })
+    @IsOptional()
+    @IsString()
+    targetDirectory?: string;
+
+    @ApiPropertyOptional({
+        description: 'Whether to use proxy',
+        default: false
+    })
+    @IsOptional()
+    @IsBoolean()
+    useProxy?: boolean;
+
+    @ApiPropertyOptional({
+        description: 'Proxy configuration'
+    })
+    @IsOptional()
+    proxyConfig?: ProxyConfig;
+}
+
+export class PdfValidationResultDto {
+    @ApiProperty({
+        description: 'Whether PDF is valid'
+    })
+    isValid: boolean;
+
+    @ApiProperty({
+        description: 'File size in bytes'
+    })
+    fileSize: number;
+
+    @ApiPropertyOptional({
+        description: 'Number of pages'
+    })
+    pageCount?: number;
+
+    @ApiProperty({
+        description: 'Whether PDF contains extractable text'
+    })
+    hasText: boolean;
+
+    @ApiProperty({
+        description: 'PDF quality assessment',
+        enum: ['low', 'medium', 'high']
+    })
+    quality: 'low' | 'medium' | 'high';
+
+    @ApiPropertyOptional({
+        description: 'Validation errors if any',
+        type: [String]
+    })
+    errors?: string[];
 }
 
 export class DownloadResultDto {
@@ -92,36 +163,3 @@ export class DownloadResultDto {
     validation?: PdfValidationResultDto;
 }
 
-export class PdfValidationResultDto {
-    @ApiProperty({
-        description: 'Whether PDF is valid'
-    })
-    isValid: boolean;
-
-    @ApiProperty({
-        description: 'File size in bytes'
-    })
-    fileSize: number;
-
-    @ApiPropertyOptional({
-        description: 'Number of pages'
-    })
-    pageCount?: number;
-
-    @ApiProperty({
-        description: 'Whether PDF contains extractable text'
-    })
-    hasText: boolean;
-
-    @ApiProperty({
-        description: 'PDF quality assessment',
-        enum: ['low', 'medium', 'high']
-    })
-    quality: 'low' | 'medium' | 'high';
-
-    @ApiPropertyOptional({
-        description: 'Validation errors if any',
-        type: [String]
-    })
-    errors?: string[];
-}

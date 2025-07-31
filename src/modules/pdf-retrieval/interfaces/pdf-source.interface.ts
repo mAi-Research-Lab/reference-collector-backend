@@ -24,3 +24,22 @@ export enum AccessLevel {
     PURCHASE = 'purchase',
     INSTITUTIONAL = 'institutional'
 }
+
+export interface PdfResultItem {
+    source: string;
+    sourceType: PdfSourceType;
+    url: string;
+    confidence: number;
+    accessLevel: AccessLevel;
+    lastChecked: Date;
+    metadata?: {
+        title?: string;
+        authors?: string[];
+        journal?: string;
+        year?: number;
+        doi?: string;
+        publisher?: string;
+        contentType?: string;
+    };
+    snapshotData?: Buffer; 
+}
