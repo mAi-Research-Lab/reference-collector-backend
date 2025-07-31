@@ -112,7 +112,7 @@ export class LibrariesController {
     @ApiSuccessResponse(LibraryResponse, 200, LIBRARY_MESSAGES.LIBRARY_DELETED_SUCCESSFULLY)
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
     @ApiErrorResponse(404, LIBRARY_MESSAGES.LIBRARY_NOT_FOUND)
-    async delete(@Param() id: string): Promise<ResponseDto> {
+    async delete(@Param('id') id: string): Promise<ResponseDto> {
         const message = await this.librariesService.delete(id);
 
         return {
@@ -154,7 +154,7 @@ export class LibrariesController {
     @Get('library/:libraryId')
     @ApiSuccessArrayResponse(ReferencesResponse, 200, LIBRARY_MESSAGES.LIBRARY_REFERENCES_FETCHED_SUCCESSFULLY)
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
-    async getLibraryReferences(@Param('libraryId') libraryId: string):Promise<ResponseDto> {
+    async getLibraryReferences(@Param('libraryId') libraryId: string): Promise<ResponseDto> {
         const references = await this.referencesService.getReferencesByLibrary(libraryId);
 
         return {

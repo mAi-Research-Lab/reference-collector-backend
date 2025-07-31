@@ -62,6 +62,7 @@ export interface DownloadResult {
     downloadTime?: number;
     error?: string;
     source: string;
+    validation?: PdfValidationResult;
 }
 
 export interface PdfValidationResult {

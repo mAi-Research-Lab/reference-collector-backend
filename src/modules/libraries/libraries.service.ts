@@ -25,11 +25,15 @@ export class LibrariesService {
     }
 
     async getAll(): Promise<LibraryResponse[]> {
-        return await this.prisma.libraries.findMany();
+        return await this.prisma.libraries.findMany({
+            where: { isDeleted: false }
+        });
     }
 
     async getLibraryById(id: string): Promise<LibraryResponse> {
-        const library = await this.prisma.libraries.findUnique({ where: { id } });
+        const library = await this.prisma.libraries.findUnique({
+            where: { id, isDeleted: false }
+        });
 
         if (!library) {
             throw new CustomHttpException(LIBRARY_MESSAGES.LIBRARY_NOT_FOUND, 404, LIBRARY_MESSAGES.LIBRARY_NOT_FOUND);
@@ -39,7 +43,9 @@ export class LibrariesService {
     }
 
     async update(id: string, data: UpdateLibrariesDto): Promise<LibraryResponse> {
-        const library = await this.prisma.libraries.findUnique({ where: { id } });
+        const library = await this.prisma.libraries.findUnique({
+            where: { id, isDeleted: false }
+        });
 
         if (!library) {
             throw new CustomHttpException(LIBRARY_MESSAGES.LIBRARY_NOT_FOUND, 404, LIBRARY_MESSAGES.LIBRARY_NOT_FOUND);
@@ -49,19 +55,27 @@ export class LibrariesService {
     }
 
     async delete(id: string): Promise<{ message: string }> {
-        const library = await this.prisma.libraries.findUnique({ where: { id } });
+        const library = await this.prisma.libraries.findUnique({
+            where: { id, isDeleted: false }
+        });
 
         if (!library) {
             throw new CustomHttpException(LIBRARY_MESSAGES.LIBRARY_NOT_FOUND, 404, LIBRARY_MESSAGES.LIBRARY_NOT_FOUND);
         }
 
-        await this.prisma.libraries.delete({ where: { id } });
+        // Soft delete - sadece isDeleted flag'ini true yap
+        await this.prisma.libraries.update({
+            where: { id },
+            data: { isDeleted: true, updatedAt: new Date() }
+        });
 
         return { message: LIBRARY_MESSAGES.LIBRARY_DELETED_SUCCESSFULLY };
     }
 
     async getUserLibraries(userId: string): Promise<LibraryResponse[]> {
-        return await this.prisma.libraries.findMany({ where: { ownerId: userId } });
+        return await this.prisma.libraries.findMany({
+            where: { ownerId: userId, isDeleted: false }
+        });
     }
 
     async createPersonalLibrary(userId: string, data: { name: string, description?: string, institutionId?: string }): Promise<LibraryResponse> {

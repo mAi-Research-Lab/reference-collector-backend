@@ -1,6 +1,8 @@
-import { IsOptional, IsString, IsArray, IsNumber, IsEnum } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsArray, IsNumber, IsEnum, ValidateNested } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PdfSourceType } from '../interfaces/pdf-source.interface';
+import { Type } from 'class-transformer';
+import { DownloadOptionsDto } from './download-options.dto';
 
 export class PdfSearchDto {
     @ApiPropertyOptional({
@@ -88,5 +90,17 @@ export class PdfSearchDto {
     @IsOptional()
     @IsNumber()
     timeout?: number;
+}
+
+export class DownloadRequestDto {
+    @ApiProperty({ type: PdfSearchDto })
+    @ValidateNested()
+    @Type(() => PdfSearchDto)
+    query: PdfSearchDto;
+
+    @ApiProperty({ type: DownloadOptionsDto })
+    @ValidateNested()
+    @Type(() => DownloadOptionsDto)
+    options: DownloadOptionsDto;
 }
 
