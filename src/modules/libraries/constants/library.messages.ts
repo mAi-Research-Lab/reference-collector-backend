@@ -44,4 +44,16 @@ export const LIBRARY_MESSAGES = {
     COLLECTION_FETCHED_SUCCESSFULLY: 'Collection fetched successfully',
     REFERENCE_ALREADY_EXISTS: 'Reference already exists',
     REFERENCE_DELETED_SUCCESSFULLY: 'Reference deleted successfully',
+
+    // Template messages
+    TEMPLATE_NOT_FOUND: 'Template not found',
+    TEMPLATE_CREATED_SUCCESSFULLY: 'Template created successfully',
+    TEMPLATE_UPDATED_SUCCESSFULLY: 'Template updated successfully',
+    TEMPLATE_DELETED_SUCCESSFULLY: 'Template deleted successfully',
+    TEMPLATES_FETCHED_SUCCESSFULLY: 'Templates fetched successfully',
+    TEMPLATE_FETCHED_SUCCESSFULLY: 'Template fetched successfully',
+    TEMPLATE_NAME_EXISTS: 'Template with this name already exists',
+    TEMPLATE_UPDATE_FORBIDDEN: 'You do not have permission to update this template',
+    TEMPLATE_DELETE_FORBIDDEN: 'You do not have permission to delete this template',
+    LIBRARY_FROM_TEMPLATE_CREATED: 'Library created from template successfully',
 }

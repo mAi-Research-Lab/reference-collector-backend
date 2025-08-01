@@ -7,6 +7,12 @@ import { PermissionService } from './service/permission.service';
 import { PermissionController } from './controllers/permission.controller';
 import { CollectionService } from './service/collection.service';
 import { CollectionController } from './controllers/collection.controller';
+import { LibraryTemplateService } from './services/library-template.service';
+import { LibraryTemplateController } from './controllers/library-template.controller';
+import { AdvancedSharingService } from './services/advanced-sharing.service';
+import { AdvancedSharingController } from './controllers/advanced-sharing.controller';
+import { CollaborationService } from './services/collaboration.service';
+import { CollaborationController } from './controllers/collaboration.controller';
 import { ReferencesModule } from '../references/references.module';
 
 @Module({
@@ -14,16 +20,22 @@ import { ReferencesModule } from '../references/references.module';
     ReferencesModule
   ],
   providers: [
-    LibrariesService, 
+    LibrariesService,
     SharedService,
     PermissionService,
     CollectionService,
+    LibraryTemplateService,
+    AdvancedSharingService,
+    CollaborationService,
   ],
   controllers: [
-    LibrariesController, 
+    LibrariesController,
     SharedController,
     PermissionController,
-    CollectionController
+    CollectionController,
+    LibraryTemplateController,
+    AdvancedSharingController,
+    CollaborationController
   ]
 })
 export class LibrariesModule { }
