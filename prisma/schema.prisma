@@ -57,6 +57,16 @@ model User {
   OfficeDocuments       OfficeDocuments[]
   SyncSessions          SyncSessions[]
   ExtensionCapture      ExtensionCapture[]
+
+  // Template relations
+  createdTemplates      LibraryTemplates[]
+  templateRatings       TemplateRatings[]
+
+  // Advanced sharing relations
+  createdShares         AdvancedShares[]     @relation("ShareCreator")
+  receivedShares        AdvancedShares[]     @relation("ShareRecipient")
+  shareAccessLogs       ShareAccessLogs[]
+  collaborationLogs     CollaborationLogs[]
 }
 
 enum SubscriptionStatus {
@@ -142,6 +152,56 @@ model Libraries {
 
   References References[]
   Documents  Documents[]
+
+  // Advanced sharing relations
+  collaborationSettings LibraryCollaborationSettings?
+
+  @@map("libraries")
+}
+
+// ======= LIBRARY TEMPLATES =============
+model LibraryTemplates {
+  id                  String            @id @default(uuid()) @db.Uuid
+  name                String
+  description         String?
+  category            String            // TemplateCategory enum as string
+  tags                String[]          @default([])
+  defaultLibraryType  LibraryTypes      @default(personal) @map("default_library_type")
+  defaultVisibility   LibraryVisibility @default(private) @map("default_visibility")
+  collections         Json?             // CollectionTemplateDto[]
+  defaultSettings     Json?             @map("default_settings") // LibrarySettingsTemplateDto
+  metadata            Json?
+  isPublic            Boolean           @default(false) @map("is_public")
+  isOfficial          Boolean           @default(false) @map("is_official")
+  usageCount          Int               @default(0) @map("usage_count")
+  averageRating       Float             @default(0) @map("average_rating")
+  ratingCount         Int               @default(0) @map("rating_count")
+  createdBy           String            @map("created_by") @db.Uuid
+  creator             User              @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  isDeleted           Boolean           @default(false) @map("is_deleted")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  ratings             TemplateRatings[]
+
+  @@map("library_templates")
+}
+
+// ======= TEMPLATE RATINGS =============
+model TemplateRatings {
+  id         String           @id @default(uuid()) @db.Uuid
+  templateId String           @map("template_id") @db.Uuid
+  template   LibraryTemplates @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  userId     String           @map("user_id") @db.Uuid
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating     Int              // 1-5 stars
+  comment    String?
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  @@unique([templateId, userId])
+  @@map("template_ratings")
 }
 
 enum LibraryTypes {
@@ -570,4 +630,109 @@ model ExtensionCapture {
   reference References? @relation(fields: [referenceId], references: [id])
 
   @@map("extension_captures")
+}
+
+// ========= ADVANCED SHARING ==============
+model AdvancedShares {
+  id                  String                @id @default(uuid()) @db.Uuid
+  shareType           ShareType
+  scope               ShareScope
+  resourceId          String                @map("resource_id") @db.Uuid
+  resourceName        String                @map("resource_name")
+  recipientEmail      String?               @map("recipient_email")
+  recipientUserId     String?               @map("recipient_user_id") @db.Uuid
+  accessLevel         AccessLevel           @map("access_level")
+  granularPermissions Json?                 @map("granular_permissions")
+  linkSettings        Json?                 @map("link_settings")
+  shareUrl            String?               @map("share_url")
+  shortUrl            String?               @map("short_url")
+  qrCode              String?               @map("qr_code")
+  createdBy           String                @map("created_by") @db.Uuid
+  message             String?
+  expiresAt           DateTime?             @map("expires_at")
+  isActive            Boolean               @default(true) @map("is_active")
+  lastAccessedAt      DateTime?             @map("last_accessed_at")
+  accessCount         Int                   @default(0) @map("access_count")
+  maxUses             Int?                  @map("max_uses")
+  currentUses         Int                   @default(0) @map("current_uses")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+
+  creator           User                    @relation("ShareCreator", fields: [createdBy], references: [id])
+  recipient         User?                   @relation("ShareRecipient", fields: [recipientUserId], references: [id])
+  accessLogs        ShareAccessLogs[]
+  collaborationLogs CollaborationLogs[]
+
+  @@map("advanced_shares")
+}
+
+model ShareAccessLogs {
+  id          String   @id @default(uuid()) @db.Uuid
+  shareId     String   @map("share_id") @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  ipAddress   String   @map("ip_address")
+  userAgent   String   @map("user_agent")
+  action      String
+  details     Json?
+  accessedAt  DateTime @default(now()) @map("accessed_at")
+
+  share AdvancedShares @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  user  User?          @relation(fields: [userId], references: [id])
+
+  @@map("share_access_logs")
+}
+
+model CollaborationLogs {
+  id           String   @id @default(uuid()) @db.Uuid
+  shareId      String   @map("share_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String   @map("resource_id") @db.Uuid
+  details      Json?
+  comment      String?
+  timestamp    DateTime @default(now())
+
+  share AdvancedShares @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  user  User           @relation(fields: [userId], references: [id])
+
+  @@map("collaboration_logs")
+}
+
+model LibraryCollaborationSettings {
+  id                    String      @id @default(uuid()) @db.Uuid
+  libraryId             String      @unique @map("library_id") @db.Uuid
+  allowComments         Boolean     @default(true) @map("allow_comments")
+  allowSuggestions      Boolean     @default(true) @map("allow_suggestions")
+  requireApproval       Boolean     @default(false) @map("require_approval")
+  notifyOnChanges       Boolean     @default(true) @map("notify_on_changes")
+  defaultAccessLevel    AccessLevel @default(read) @map("default_access_level")
+  defaultExpirationDays Int?        @map("default_expiration_days")
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+
+  library Libraries @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+
+  @@map("library_collaboration_settings")
+}
+
+enum ShareType {
+  direct
+  link
+  public
+  institutional
+}
+
+enum ShareScope {
+  library
+  collection
+  reference
+}
+
+enum AccessLevel {
+  none
+  read
+  comment
+  edit
+  admin
 }
