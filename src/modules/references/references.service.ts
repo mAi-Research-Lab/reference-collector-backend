@@ -6,17 +6,45 @@ import { CustomHttpException } from 'src/common/exceptions/custom-http-exception
 import { REFERENCES_MESSAGES } from './constants/references.message';
 import { UpdateReferenceDto } from './dto/reference/update-reference.dto';
 import { Prisma } from 'generated/prisma';
+import { DuplicateDetectionService } from './services/duplicate-detection.service';
+import { ReferenceValidationService } from './services/reference-validation.service';
 
 @Injectable()
 export class ReferencesService {
     constructor(
-        private readonly prismaService: PrismaService
+        private readonly prismaService: PrismaService,
+        private readonly duplicateDetectionService: DuplicateDetectionService,
+        private readonly validationService: ReferenceValidationService
     ) { }
 
-    async create(libraryId: string, data: CreateReferenceDto): Promise<ReferencesResponse> {        
+    async create(libraryId: string, data: CreateReferenceDto): Promise<ReferencesResponse> {
         const { addedBy, ...referenceData } = data;
-        console.log(libraryId, data);
-        
+
+        // Validation check before creating
+        const validationResult = await this.validationService.validateReference(referenceData);
+
+        if (!validationResult.isValid && validationResult.score < 60) {
+            throw new CustomHttpException(
+                `Reference validation failed. Score: ${validationResult.score}/100. Issues: ${validationResult.warnings.join(', ')}`,
+                400,
+                'REFERENCE_VALIDATION_FAILED'
+            );
+        }
+
+        // Duplicate check before creating
+        const duplicateResult = await this.duplicateDetectionService.detectDuplicates(
+            libraryId,
+            referenceData
+        );
+
+        if (duplicateResult.isDuplicate) {
+            throw new CustomHttpException(
+                `Potential duplicate found. Similarity: ${duplicateResult.confidence.toFixed(2)}`,
+                409,
+                'DUPLICATE_REFERENCE_DETECTED'
+            );
+        }
+
         return await this.prismaService.references.create({
             data: {
                 ...referenceData,
@@ -33,7 +61,6 @@ export class ReferencesService {
                 type: data.type ? data.type : ""
             }
         });
-
     }
 
     async getReferencesByLibrary(libraryId: string): Promise<ReferencesResponse[]> {

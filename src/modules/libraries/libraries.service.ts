@@ -59,6 +59,7 @@ export class LibrariesService {
             where: { id, isDeleted: false }
         });
 
+        
         if (!library) {
             throw new CustomHttpException(LIBRARY_MESSAGES.LIBRARY_NOT_FOUND, 404, LIBRARY_MESSAGES.LIBRARY_NOT_FOUND);
         }
