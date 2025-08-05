@@ -41,14 +41,30 @@ export class ReferencesController {
         };
     }
 
-    @Get(':libraryId/search')
-    @ApiOperation({ summary: 'Search references' })
+    @Get('all/:libraryId')
+    @ApiOperation({ summary: 'Get all references by library' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
+    @ApiSuccessArrayResponse(ReferencesResponse, 200, "References retrieved successfully")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Library not found")
+    async getAllReferences(@Param('libraryId') libraryId: string): Promise<ResponseDto> {
+        const references = await this.referencesService.getReferencesByLibrary(libraryId);
+
+        return {
+            message: "References retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: references
+        };
+    }
+
+
+    @Get('/search')
+    @ApiOperation({ summary: 'Search references' })
     @ApiQuery({ name: 'q', description: 'Search term', required: true })
-    @ApiQuery({ name: 'page', description: 'Page number', required: false })
-    @ApiQuery({ name: 'limit', description: 'Items per page', required: false })
     @ApiResponse({
-        status: 200, 
+        status: 200,
         description: 'Search results retrieved successfully',
         schema: {
             type: 'object',
@@ -75,12 +91,61 @@ export class ReferencesController {
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
     @ApiErrorResponse(404, "Library not found")
     async searchReferences(
+        @Query('q') searchTerm: string,
+    ): Promise<ResponseDto> {
+        const searchResults = await this.referencesService.searchReferences(
+            searchTerm,
+        );
+
+        return {
+            message: "Search results retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: searchResults
+        };
+    }
+
+    @Get(':libraryId/search')
+    @ApiOperation({ summary: 'Search references' })
+    @ApiParam({ name: 'libraryId', description: 'Library ID' })
+    @ApiQuery({ name: 'q', description: 'Search term', required: true })
+    @ApiQuery({ name: 'page', description: 'Page number', required: false })
+    @ApiQuery({ name: 'limit', description: 'Items per page', required: false })
+    @ApiResponse({
+        status: 200,
+        description: 'Search results retrieved successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string' },
+                statusCode: { type: 'number' },
+                success: { type: 'boolean' },
+                timestamp: { type: 'string' },
+                data: {
+                    type: 'object',
+                    properties: {
+                        data: {
+                            type: 'array',
+                            items: { $ref: getSchemaPath(ReferencesResponse) },
+                        },
+                        total: { type: 'number' },
+                        page: { type: 'number' },
+                        totalPages: { type: 'number' },
+                    }
+                }
+            }
+        }
+    })
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Library not found")
+    async searchReferencesWithLibrary(
         @Param('libraryId') libraryId: string,
         @Query('q') searchTerm: string,
         @Query('page') page?: number,
         @Query('limit') limit?: number
     ): Promise<ResponseDto> {
-        const searchResults = await this.referencesService.searchReferences(
+        const searchResults = await this.referencesService.searchReferencesWithLibrary(
             searchTerm,
             libraryId,
             page || 1,
@@ -93,6 +158,28 @@ export class ReferencesController {
             success: true,
             timestamp: new Date().toISOString(),
             data: searchResults
+        };
+    }
+
+    @Get(':libraryId/collection/:collectionId')
+    @ApiOperation({ summary: 'Get references by collection' })
+    @ApiParam({ name: 'libraryId', description: 'Library ID' })
+    @ApiParam({ name: 'collectionId', description: 'Collection ID' })
+    @ApiSuccessArrayResponse(ReferencesResponse, 200, "References retrieved successfully")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Library not found")
+    async getReferencesByCollection(
+        @Param('libraryId') libraryId: string,
+        @Param('collectionId') collectionId: string
+    ): Promise<ResponseDto> {
+        const references = await this.referencesService.getReferencesByCollection(collectionId);
+
+        return {
+            message: "References retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: references
         };
     }
 

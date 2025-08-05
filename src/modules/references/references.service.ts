@@ -48,16 +48,9 @@ export class ReferencesService {
         return await this.prismaService.references.create({
             data: {
                 ...referenceData,
-                library: {
-                    connect: {
-                        id: libraryId
-                    }
-                },
-                addedByUser: {
-                    connect: {
-                        id: addedBy
-                    }
-                },
+                collectionId: data.collectionId ? data.collectionId : null,
+                libraryId: libraryId,
+                addedBy: addedBy,
                 type: data.type ? data.type : ""
             }
         });
@@ -138,6 +131,14 @@ export class ReferencesService {
         return reference;
     }
 
+    async getReferencesByCollection(collectionId: string): Promise<ReferencesResponse[]> {
+        return await this.prismaService.references.findMany({
+            where: {
+                collectionId: collectionId,
+            }
+        })
+    }
+
     async addTagsToReference(id: string, tags: string[]): Promise<ReferencesResponse> {
         return await this.prismaService.references.update({
             where: { id },
@@ -152,7 +153,7 @@ export class ReferencesService {
         })
     }
 
-    async searchReferences(
+    async searchReferencesWithLibrary(
         searchTerm: string,
         libraryId: string,
         page: number = 1,
@@ -201,6 +202,27 @@ export class ReferencesService {
             page,
             totalPages: Math.ceil(total / limit)
         };
+    }
+
+    async searchReferences(searchTerm: string): Promise<ReferencesResponse[]> {
+        return await this.prismaService.references.findMany({
+            where: {
+                OR: [
+                    { title: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                    { publication: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                    { publisher: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                    { doi: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                    { isbn: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                    { abstractText: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                    {
+                        authors: {
+                            path: [],
+                            string_contains: searchTerm
+                        }
+                    }
+                ]
+            }
+        })
     }
 
     async filterReferencesAdvanced(

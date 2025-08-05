@@ -59,14 +59,14 @@ model User {
   ExtensionCapture      ExtensionCapture[]
 
   // Template relations
-  createdTemplates      LibraryTemplates[]
-  templateRatings       TemplateRatings[]
+  createdTemplates LibraryTemplates[]
+  templateRatings  TemplateRatings[]
 
   // Advanced sharing relations
-  createdShares         AdvancedShares[]     @relation("ShareCreator")
-  receivedShares        AdvancedShares[]     @relation("ShareRecipient")
-  shareAccessLogs       ShareAccessLogs[]
-  collaborationLogs     CollaborationLogs[]
+  createdShares     AdvancedShares[]    @relation("ShareCreator")
+  receivedShares    AdvancedShares[]    @relation("ShareRecipient")
+  shareAccessLogs   ShareAccessLogs[]
+  collaborationLogs CollaborationLogs[]
 }
 
 enum SubscriptionStatus {
@@ -161,29 +161,29 @@ model Libraries {
 
 // ======= LIBRARY TEMPLATES =============
 model LibraryTemplates {
-  id                  String            @id @default(uuid()) @db.Uuid
-  name                String
-  description         String?
-  category            String            // TemplateCategory enum as string
-  tags                String[]          @default([])
-  defaultLibraryType  LibraryTypes      @default(personal) @map("default_library_type")
-  defaultVisibility   LibraryVisibility @default(private) @map("default_visibility")
-  collections         Json?             // CollectionTemplateDto[]
-  defaultSettings     Json?             @map("default_settings") // LibrarySettingsTemplateDto
-  metadata            Json?
-  isPublic            Boolean           @default(false) @map("is_public")
-  isOfficial          Boolean           @default(false) @map("is_official")
-  usageCount          Int               @default(0) @map("usage_count")
-  averageRating       Float             @default(0) @map("average_rating")
-  ratingCount         Int               @default(0) @map("rating_count")
-  createdBy           String            @map("created_by") @db.Uuid
-  creator             User              @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-  isDeleted           Boolean           @default(false) @map("is_deleted")
-  createdAt           DateTime          @default(now()) @map("created_at")
-  updatedAt           DateTime          @updatedAt @map("updated_at")
+  id                 String            @id @default(uuid()) @db.Uuid
+  name               String
+  description        String?
+  category           String // TemplateCategory enum as string
+  tags               String[]          @default([])
+  defaultLibraryType LibraryTypes      @default(personal) @map("default_library_type")
+  defaultVisibility  LibraryVisibility @default(private) @map("default_visibility")
+  collections        Json? // CollectionTemplateDto[]
+  defaultSettings    Json?             @map("default_settings") // LibrarySettingsTemplateDto
+  metadata           Json?
+  isPublic           Boolean           @default(false) @map("is_public")
+  isOfficial         Boolean           @default(false) @map("is_official")
+  usageCount         Int               @default(0) @map("usage_count")
+  averageRating      Float             @default(0) @map("average_rating")
+  ratingCount        Int               @default(0) @map("rating_count")
+  createdBy          String            @map("created_by") @db.Uuid
+  creator            User              @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  isDeleted          Boolean           @default(false) @map("is_deleted")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
 
   // Relations
-  ratings             TemplateRatings[]
+  ratings TemplateRatings[]
 
   @@map("library_templates")
 }
@@ -195,7 +195,7 @@ model TemplateRatings {
   template   LibraryTemplates @relation(fields: [templateId], references: [id], onDelete: Cascade)
   userId     String           @map("user_id") @db.Uuid
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rating     Int              // 1-5 stars
+  rating     Int // 1-5 stars
   comment    String?
   createdAt  DateTime         @default(now()) @map("created_at")
   updatedAt  DateTime         @updatedAt @map("updated_at")
@@ -283,6 +283,7 @@ model Collections {
   Collections Collections[] @relation("CollectionHierarchy")
 
   CollectionItems CollectionItems[]
+  References      References[]
 }
 
 // ======= COLLECTION_ITEMS =============
@@ -304,6 +305,8 @@ model References {
   id            String                   @id @default(uuid()) @db.Uuid
   libraryId     String                   @map("library_id") @db.Uuid
   library       Libraries                @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  collectionId  String?                  @map("collection_id") @db.Uuid
+  collection    Collections?             @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   type          String
   title         String
   authors       Json?                    @db.JsonB
@@ -634,32 +637,32 @@ model ExtensionCapture {
 
 // ========= ADVANCED SHARING ==============
 model AdvancedShares {
-  id                  String                @id @default(uuid()) @db.Uuid
+  id                  String      @id @default(uuid()) @db.Uuid
   shareType           ShareType
   scope               ShareScope
-  resourceId          String                @map("resource_id") @db.Uuid
-  resourceName        String                @map("resource_name")
-  recipientEmail      String?               @map("recipient_email")
-  recipientUserId     String?               @map("recipient_user_id") @db.Uuid
-  accessLevel         AccessLevel           @map("access_level")
-  granularPermissions Json?                 @map("granular_permissions")
-  linkSettings        Json?                 @map("link_settings")
-  shareUrl            String?               @map("share_url")
-  shortUrl            String?               @map("short_url")
-  qrCode              String?               @map("qr_code")
-  createdBy           String                @map("created_by") @db.Uuid
+  resourceId          String      @map("resource_id") @db.Uuid
+  resourceName        String      @map("resource_name")
+  recipientEmail      String?     @map("recipient_email")
+  recipientUserId     String?     @map("recipient_user_id") @db.Uuid
+  accessLevel         AccessLevel @map("access_level")
+  granularPermissions Json?       @map("granular_permissions")
+  linkSettings        Json?       @map("link_settings")
+  shareUrl            String?     @map("share_url")
+  shortUrl            String?     @map("short_url")
+  qrCode              String?     @map("qr_code")
+  createdBy           String      @map("created_by") @db.Uuid
   message             String?
-  expiresAt           DateTime?             @map("expires_at")
-  isActive            Boolean               @default(true) @map("is_active")
-  lastAccessedAt      DateTime?             @map("last_accessed_at")
-  accessCount         Int                   @default(0) @map("access_count")
-  maxUses             Int?                  @map("max_uses")
-  currentUses         Int                   @default(0) @map("current_uses")
-  createdAt           DateTime              @default(now()) @map("created_at")
-  updatedAt           DateTime              @updatedAt @map("updated_at")
+  expiresAt           DateTime?   @map("expires_at")
+  isActive            Boolean     @default(true) @map("is_active")
+  lastAccessedAt      DateTime?   @map("last_accessed_at")
+  accessCount         Int         @default(0) @map("access_count")
+  maxUses             Int?        @map("max_uses")
+  currentUses         Int         @default(0) @map("current_uses")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
 
-  creator           User                    @relation("ShareCreator", fields: [createdBy], references: [id])
-  recipient         User?                   @relation("ShareRecipient", fields: [recipientUserId], references: [id])
+  creator           User                @relation("ShareCreator", fields: [createdBy], references: [id])
+  recipient         User?               @relation("ShareRecipient", fields: [recipientUserId], references: [id])
   accessLogs        ShareAccessLogs[]
   collaborationLogs CollaborationLogs[]
 
@@ -667,14 +670,14 @@ model AdvancedShares {
 }
 
 model ShareAccessLogs {
-  id          String   @id @default(uuid()) @db.Uuid
-  shareId     String   @map("share_id") @db.Uuid
-  userId      String?  @map("user_id") @db.Uuid
-  ipAddress   String   @map("ip_address")
-  userAgent   String   @map("user_agent")
-  action      String
-  details     Json?
-  accessedAt  DateTime @default(now()) @map("accessed_at")
+  id         String   @id @default(uuid()) @db.Uuid
+  shareId    String   @map("share_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  ipAddress  String   @map("ip_address")
+  userAgent  String   @map("user_agent")
+  action     String
+  details    Json?
+  accessedAt DateTime @default(now()) @map("accessed_at")
 
   share AdvancedShares @relation(fields: [shareId], references: [id], onDelete: Cascade)
   user  User?          @relation(fields: [userId], references: [id])

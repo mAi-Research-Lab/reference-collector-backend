@@ -7,6 +7,9 @@ export class ReferencesResponse {
    @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
    libraryId: string;
 
+   @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
+   collectionId?: string | null;
+
    @ApiProperty({ example: 'journal' })
    type: string;
 
