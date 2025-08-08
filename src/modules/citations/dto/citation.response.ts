@@ -12,6 +12,9 @@ export class CitationResponse {
     @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
     referenceId: string;
 
+    @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
+    fieldId?: string | null;
+
     @ApiProperty({ example: '(Smith, 2023, p. 45)' })
     citationText: string;
 

@@ -1,53 +1,58 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBoolean, IsNotEmpty, IsObject, IsOptional, IsString } from "class-validator";
+// dto/create-citation.dto.ts - Style ID ekle
+import { IsString, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateCitationDto {
-    @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
+    @ApiProperty({ description: 'Document ID' })
     @IsString()
-    @IsNotEmpty()
     documentId: string;
 
-    @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
+    @ApiProperty({ description: 'Reference ID' })
     @IsString()
-    @IsNotEmpty()
     referenceId: string;
 
-    @ApiPropertyOptional({ 
-        example: { paragraph: 5, line: 12, character_position: 245 }
-    })
+    @ApiProperty({ description: 'Citation style ID', required: false })
     @IsOptional()
-    @IsObject()
-    locationData?: any;
+    @IsString()
+    styleId?: string;
 
-    @ApiPropertyOptional({ example: '45-47' })
+    @ApiProperty({ description: 'Page numbers', required: false })
     @IsOptional()
     @IsString()
     pageNumbers?: string;
 
-    @ApiPropertyOptional({ example: 'see also' })
+    @ApiProperty({ description: 'Citation prefix', required: false })
     @IsOptional()
     @IsString()
     prefix?: string;
 
-    @ApiPropertyOptional({ example: 'for more details' })
+    @ApiProperty({ description: 'Citation suffix', required: false })
     @IsOptional()
     @IsString()
     suffix?: string;
 
-    @ApiPropertyOptional({ example: false })
+    @ApiProperty({ description: 'Suppress author name', required: false })
     @IsOptional()
     @IsBoolean()
     suppressAuthor?: boolean;
 
-    @ApiPropertyOptional({ example: false })
+    @ApiProperty({ description: 'Suppress date', required: false })
     @IsOptional()
     @IsBoolean()
     suppressDate?: boolean;
 
-    @ApiPropertyOptional({ 
-        example: { font_style: 'italic', show_doi: false }
-    })
+    @ApiProperty({ description: 'Sort order', required: false })
     @IsOptional()
-    @IsObject()
-    styleOverride?: any;
+    @IsNumber()
+    sortOrder?: number;
+
+    @ApiProperty({ description: 'Word field ID', required: false })
+    @IsOptional()
+    @IsString()
+    fieldId?: string;
+
+    @ApiProperty({ description: 'User ID', required: false })
+    @IsOptional()
+    @IsString()
+    userId?: string;
 }
