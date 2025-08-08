@@ -229,6 +229,7 @@ CREATE TABLE "collection_items" (
 CREATE TABLE "references" (
     "id" UUID NOT NULL,
     "library_id" UUID NOT NULL,
+    "collection_id" UUID,
     "type" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "authors" JSONB,
@@ -370,7 +371,9 @@ CREATE TABLE "DocumentCollaborators" (
 -- CreateTable
 CREATE TABLE "Citation" (
     "id" UUID NOT NULL,
-    "document_id" UUID NOT NULL,
+    "document_id" TEXT NOT NULL,
+    "style_id" UUID NOT NULL,
+    "field_id" TEXT,
     "reference_id" UUID NOT NULL,
     "location_data" JSONB,
     "citation_text" TEXT NOT NULL,
@@ -637,6 +640,9 @@ ALTER TABLE "collection_items" ADD CONSTRAINT "collection_items_reference_id_fke
 ALTER TABLE "references" ADD CONSTRAINT "references_library_id_fkey" FOREIGN KEY ("library_id") REFERENCES "libraries"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "references" ADD CONSTRAINT "references_collection_id_fkey" FOREIGN KEY ("collection_id") REFERENCES "Collections"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "references" ADD CONSTRAINT "references_added_by_fkey" FOREIGN KEY ("added_by") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -679,10 +685,10 @@ ALTER TABLE "DocumentCollaborators" ADD CONSTRAINT "DocumentCollaborators_user_i
 ALTER TABLE "DocumentCollaborators" ADD CONSTRAINT "DocumentCollaborators_invited_by_fkey" FOREIGN KEY ("invited_by") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Citation" ADD CONSTRAINT "Citation_document_id_fkey" FOREIGN KEY ("document_id") REFERENCES "documents"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Citation" ADD CONSTRAINT "Citation_reference_id_fkey" FOREIGN KEY ("reference_id") REFERENCES "references"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Citation" ADD CONSTRAINT "Citation_reference_id_fkey" FOREIGN KEY ("reference_id") REFERENCES "references"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Citation" ADD CONSTRAINT "Citation_style_id_fkey" FOREIGN KEY ("style_id") REFERENCES "CitationStyle"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "collaboration_sessions" ADD CONSTRAINT "collaboration_sessions_document_id_fkey" FOREIGN KEY ("document_id") REFERENCES "documents"("id") ON DELETE CASCADE ON UPDATE CASCADE;

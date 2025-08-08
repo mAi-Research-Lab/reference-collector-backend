@@ -2,6 +2,10 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsBoolean, IsObject, IsOptional, IsString } from "class-validator";
 
 export class UpdateCitationDto {
+
+    @ApiPropertyOptional({ description: 'Citation ID', example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
+    styleId: string;
+
     @ApiPropertyOptional({ example: '45-47' })
     @IsOptional()
     @IsString()
@@ -27,7 +31,7 @@ export class UpdateCitationDto {
     @IsBoolean()
     suppressDate?: boolean;
 
-    @ApiPropertyOptional({ 
+    @ApiPropertyOptional({
         example: { font_style: 'italic' }
     })
     @IsOptional()

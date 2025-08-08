@@ -2,9 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { UserRepository } from 'src/database/repositories/user/user.repository';
-import { User } from 'generated/prisma';
 import { UserResponse } from 'src/modules/user/dto/user.response';
+import { UserService } from 'src/modules/user/user.service';
 
 interface JwtPayload {
   sub: string;
@@ -14,7 +13,7 @@ interface JwtPayload {
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
-    private readonly userRepository: UserRepository
+    private readonly userService: UserService
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -24,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.userRepository.findById(payload.sub)
+    const user = await this.userService.findById(payload.sub)
 
 
     if (!user) {
@@ -46,7 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
   }
 
-  private formatUserResponse(user: User): UserResponse {
+  private formatUserResponse(user: any): UserResponse {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, ...userResponse } = user;
     return {
