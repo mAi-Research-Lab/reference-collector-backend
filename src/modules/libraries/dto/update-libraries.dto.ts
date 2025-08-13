@@ -1,41 +1,41 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBoolean, IsEnum, IsNumber, IsString } from "class-validator";
+import { IsOptional } from "class-validator";
 import { LibraryTypes, LibraryVisibility } from "generated/prisma";
 
 export class UpdateLibrariesDto {
     @ApiProperty({ example: 'Library Name' })
-    @IsString()
+    @IsOptional()
     name?: string
 
     @ApiPropertyOptional()
-    @IsString()
+    @IsOptional()
     description?: string
 
-    @ApiPropertyOptional({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
-    @IsString()
-    institutionId?: string
+    // @ApiPropertyOptional({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
+    // @IsOptional()
+    // institutionId?: string
 
     @ApiProperty({ example: 'Library Type' })
-    @IsEnum(LibraryTypes)
+    @IsOptional()
     type: LibraryTypes
 
     @ApiProperty({ example: 'Library visibility' })
-    @IsEnum(LibraryVisibility)
+    @IsOptional()
     visibility: LibraryVisibility
 
     @ApiProperty({example: 500000})
-    @IsNumber()
+    @IsOptional()
     storageUsed?: number
 
     @ApiProperty({example: 500000})
-    @IsNumber()
+    @IsOptional()
     maxStorage?: number
 
     @ApiProperty({example: 500000})
-    @IsNumber()
+    @IsOptional()
     itemCount?: number
 
     @ApiProperty({example: false})
-    @IsBoolean()
+    @IsOptional()
     isDeleted?: boolean
 }
