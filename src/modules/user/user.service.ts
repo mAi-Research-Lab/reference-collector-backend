@@ -14,7 +14,7 @@ import { PrismaService } from 'src/database/prisma/prisma.service';
 export class UserService {
     constructor(
         private readonly userRepository: UserRepository,
-        private readonly prisma: PrismaService
+        private readonly prisma: PrismaService,
     ) { }
 
     async create(data: CreateUserDto): Promise<UserResponse> {
@@ -24,15 +24,19 @@ export class UserService {
             throw new CustomHttpException(COMMON_MESSAGES.EMAIL_ALREADY_EXISTS, 409, COMMON_MESSAGES.EMAIL_ALREADY_EXISTS);
         }
 
+        const [username, domain] = data.email.split('@');
+
+        const institution = await this.prisma.institution.findUnique({ where: { domain } });
+
         const hashedPassword = await bcrypt.hash(data.password, 10);
 
-        const createUserData  = {
+        const createUserData = {
             email: data.email,
             fullName: data.fullName,
-            institutionId: data.institutionId,
+            institutionId: institution ? institution.id : null,
             fieldOfStudy: data.fieldOfStudy,
             orcidId: data.orcidId,
-            userType: data.userType as UserType || UserType.individual,
+            userType: institution ? UserType.institutional : data.userType as UserType || UserType.individual,
             subscriptionPlan: null,
             subscriptionStatus: 'inactive',
             avatarUrl: data.avatarUrl || '',

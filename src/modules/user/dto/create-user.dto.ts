@@ -39,11 +39,6 @@ export class CreateUserDto {
     @IsString()
     fullName: string
 
-    @ApiPropertyOptional()
-    @IsOptional()
-    @IsString()
-    institutionId?: string
-
     @ApiProperty()
     @IsNotEmpty()
     @IsString()
