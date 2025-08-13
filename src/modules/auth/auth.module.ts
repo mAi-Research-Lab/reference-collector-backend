@@ -10,6 +10,7 @@ import { EmailVerificationService } from './services/email-verification.service'
 import { PasswordService } from './services/password.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UserRepository } from 'src/database/repositories/user/user.repository';
+import { LibrariesModule } from '../libraries/libraries.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { UserRepository } from 'src/database/repositories/user/user.repository';
     }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     UserModule,
+    LibrariesModule,
     PrismaModule
   ],
   providers: [AuthService, EmailVerificationService, PasswordService, JwtStrategy, UserRepository],

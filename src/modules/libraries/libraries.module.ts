@@ -36,6 +36,9 @@ import { ReferencesModule } from '../references/references.module';
     LibraryTemplateController,
     AdvancedSharingController,
     CollaborationController
+  ],
+  exports: [
+    LibrariesService
   ]
 })
 export class LibrariesModule { }
