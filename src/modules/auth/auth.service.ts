@@ -8,6 +8,7 @@ import { COMMON_MESSAGES } from 'src/common/constants/common.messages';
 import * as bcrypt from 'bcrypt';
 import { formatUserResponse } from 'src/common/utils/format-user-response';
 import { UserResponse } from '../user/dto/user.response';
+import { LibrariesService } from '../libraries/libraries.service';
 
 @Injectable()
 export class AuthService {
@@ -16,13 +17,15 @@ export class AuthService {
 
     constructor(
         private readonly userService: UserService,
-        private readonly jwtService: JwtService
+        private readonly jwtService: JwtService,
+        private readonly libraryService: LibrariesService
     ) { }
 
     async signup(data: CreateUserDto): Promise<AuthResponse> {        
         const user = await this.userService.create(data);
 
         // notification to user
+        await this.libraryService.createDefaultLibraries(user.id);
 
         const token = await this.generateAccessToken(user);
 

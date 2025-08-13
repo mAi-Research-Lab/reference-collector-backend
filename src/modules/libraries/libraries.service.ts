@@ -59,7 +59,7 @@ export class LibrariesService {
             where: { id, isDeleted: false }
         });
 
-        
+
         if (!library) {
             throw new CustomHttpException(LIBRARY_MESSAGES.LIBRARY_NOT_FOUND, 404, LIBRARY_MESSAGES.LIBRARY_NOT_FOUND);
         }
@@ -76,6 +76,15 @@ export class LibrariesService {
     async getUserLibraries(userId: string): Promise<LibraryResponse[]> {
         return await this.prisma.libraries.findMany({
             where: { ownerId: userId, isDeleted: false }
+        });
+    }
+
+    async createDefaultLibraries(userId: string): Promise<void> {
+        await this.prisma.libraries.createMany({
+            data: [
+                { name: 'Unfiled Items', ownerId: userId, type: LibraryTypes.template, visibility: LibraryVisibility.private },
+                { name: 'Trash', ownerId: userId, type: LibraryTypes.template, visibility: LibraryVisibility.private },
+            ]
         });
     }
 
