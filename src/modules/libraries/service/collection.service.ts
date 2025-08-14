@@ -16,7 +16,7 @@ export class CollectionService {
 
     async create(data: CreateCollectionData): Promise<CollectionResponse> {
         const isExistCollection = await this.prisma.collections.findFirst({ where: { name: data.name } })
-        
+
         if (isExistCollection) {
             throw new CustomHttpException(LIBRARY_MESSAGES.COLLECTIONS_ALREADY_EXISTS, 409, LIBRARY_MESSAGES.COLLECTIONS_ALREADY_EXISTS)
         }
@@ -114,6 +114,53 @@ export class CollectionService {
         }
 
         const updatedCollection = await this.prisma.collections.update({ where: { id: collectionId }, data: { parentId } })
+
+        return updatedCollection
+    }
+
+    // Service method - daha esnek hali
+    async transferCollection(
+        collectionId: string,
+        targetLibraryId: string,
+        targetParentId?: string | null
+    ): Promise<CollectionResponse> {
+        const collection = await this.prisma.collections.findUnique({
+            where: { id: collectionId }
+        })
+
+        if (!collection) {
+            throw new CustomHttpException(LIBRARY_MESSAGES.COLLECTIONS_NOT_FOUND, 404, LIBRARY_MESSAGES.COLLECTIONS_NOT_FOUND)
+        }
+
+        const targetLibrary = await this.prisma.libraries.findUnique({
+            where: { id: targetLibraryId }
+        })
+
+        if (!targetLibrary) {
+            throw new CustomHttpException("Target library not found", 404, "Target library not found")
+        }
+
+        if (targetParentId) {
+            const targetParent = await this.prisma.collections.findUnique({
+                where: { id: targetParentId }
+            })
+
+            if (!targetParent || targetParent.libraryId !== targetLibraryId) {
+                throw new CustomHttpException(
+                    "Target parent collection not found in target library",
+                    404,
+                    "Target parent collection not found in target library"
+                )
+            }
+        }
+
+        const updatedCollection = await this.prisma.collections.update({
+            where: { id: collectionId },
+            data: {
+                libraryId: targetLibraryId,
+                parentId: targetParentId || null
+            }
+        })
 
         return updatedCollection
     }

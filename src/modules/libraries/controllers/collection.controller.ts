@@ -306,6 +306,51 @@ export class CollectionController {
         }
     }
 
+    // Controller endpoint
+    @Post(':id/transfer')
+    @ApiOperation({ summary: 'Transfer collection to different library' })
+    @ApiParam({ name: 'libraryId', description: 'Current Library ID' })
+    @ApiParam({ name: 'id', description: 'Collection ID to transfer' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                targetLibraryId: {
+                    type: 'string',
+                    description: 'Target library ID'
+                },
+                targetParentId: {
+                    type: 'string',
+                    description: 'Target parent collection ID in new library (optional - if not provided, will be placed at root level)',
+                    nullable: true
+                }
+            },
+            required: ['targetLibraryId']
+        }
+    })
+    async transferCollection(
+        @Param('libraryId') libraryId: string,
+        @Param('id') collectionId: string,
+        @Body() transferDto: {
+            targetLibraryId: string;
+            targetParentId?: string | null
+        }
+    ): Promise<ResponseDto> {
+        const collection = await this.collectionService.transferCollection(
+            collectionId,
+            transferDto.targetLibraryId,
+            transferDto.targetParentId
+        );
+
+        return {
+            message: "Collection transferred successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: collection
+        }
+    }
+
     @Post(':id/copy')
     @ApiOperation({ summary: 'Copy collection' })
     @ApiParam({ name: 'libraryId', description: 'Library ID' })
