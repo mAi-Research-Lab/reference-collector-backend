@@ -14,6 +14,8 @@ import { ReferenceValidationService } from './services/reference-validation.serv
 import { ReferenceValidationController } from './controller/reference-validation.controller';
 import { MetadataEnhancementService } from './services/metadata-enhancement.service';
 import { MetadataEnhancementController } from './controller/metadata-enhancement.controller';
+import { QuickImportService } from './services/external/quick-import.service';
+import { QuickImportController } from './controller/quick-import.controller';
 
 @Module({
   imports: [HttpModule],
@@ -24,7 +26,8 @@ import { MetadataEnhancementController } from './controller/metadata-enhancement
     DuplicateDetectionService,
     BulkOperationsService,
     ReferenceValidationService,
-    MetadataEnhancementService
+    MetadataEnhancementService,
+    QuickImportService
   ],
   controllers: [
     ReferencesController,
@@ -33,8 +36,9 @@ import { MetadataEnhancementController } from './controller/metadata-enhancement
     DuplicateDetectionController,
     BulkOperationsController,
     ReferenceValidationController,
-    MetadataEnhancementController
+    MetadataEnhancementController,
+    QuickImportController
   ],
   exports: [ReferencesService, DuplicateDetectionService, BulkOperationsService, ReferenceValidationService, MetadataEnhancementService]
 })
-export class ReferencesModule {}
+export class ReferencesModule { }
