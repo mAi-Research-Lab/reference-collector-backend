@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiSecurity, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { UserResponse } from './dto/user.response';
 import { COMMON_MESSAGES } from 'src/common/constants/common.messages';
 import { User as UserDecorator } from './decorators/user.decorator';
@@ -10,6 +10,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ResponseDto } from 'src/common/dto/api-response.dto';
 import { ApiErrorResponse, ApiSuccessResponse } from 'src/common/decorators/api-response-wrapper.decorator';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('user')
 @ApiSecurity('bearer')
@@ -73,8 +74,7 @@ export class UserController {
     @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
     async updateCurrent(@UserDecorator('id') id: string, @Body() data: UpdateUserDto): Promise<ResponseDto> {
         const user = await this.userService.update(id, data);
-        
-        
+
         return {
             message: "User updated successfully",
             statusCode: 200,
@@ -82,5 +82,59 @@ export class UserController {
             timestamp: new Date().toISOString(),
             data: user
         } as any
+    }
+
+    @Post('avatar')
+    @UseInterceptors(FileInterceptor('avatar'))
+    @ApiOperation({ summary: 'Upload user avatar', description: 'Upload avatar image for current user' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                avatar: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Avatar image file (JPEG, PNG, WebP - Max 5MB)',
+                },
+            },
+        },
+    })
+    @ApiSuccessResponse(UserResponse, 200, "Avatar uploaded successfully")
+    @ApiErrorResponse(400, 'Invalid file or validation error')
+    @ApiErrorResponse(404, COMMON_MESSAGES.USER_NOT_FOUND)
+    @ApiErrorResponse(500, 'Server error')
+    async uploadAvatar(
+        @UploadedFile() file: Express.Multer.File,
+        @UserDecorator('id') userId: string,
+    ): Promise<ResponseDto> {
+        const result = await this.userService.uploadAvatar(userId, file);
+
+        return {
+            message: "Avatar uploaded successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: result
+        };
+    }
+
+    @Delete('avatar')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Delete user avatar', description: 'Delete avatar image of current user' })
+    @ApiSuccessResponse(Object, 200, "Avatar deleted successfully")
+    @ApiErrorResponse(400, 'No avatar found')
+    @ApiErrorResponse(404, COMMON_MESSAGES.USER_NOT_FOUND)
+    @ApiErrorResponse(500, 'Server error')
+    async deleteAvatar(@UserDecorator('id') userId: string): Promise<ResponseDto> {
+        const result = await this.userService.deleteAvatar(userId);
+
+        return {
+            message: result.message,
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: null
+        };
     }
 }

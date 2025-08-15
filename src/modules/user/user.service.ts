@@ -9,13 +9,26 @@ import { Prisma, User, UserType } from 'generated/prisma';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { formatPreferences, formatUserResponse } from 'src/common/utils/format-user-response';
 import { PrismaService } from 'src/database/prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as sharp from 'sharp';
 
 @Injectable()
 export class UserService {
+    private readonly uploadPath: string;
+    private readonly allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    private readonly maxFileSize = 5 * 1024 * 1024; // 5MB
+    private readonly avatarSize = 400; // 400x400 px
+
     constructor(
         private readonly userRepository: UserRepository,
         private readonly prisma: PrismaService,
-    ) { }
+        private readonly configService: ConfigService,
+    ) {
+        this.uploadPath = this.configService.get<string>('AVATAR_UPLOAD_PATH') || './uploads/avatars';
+        this.ensureUploadDirectory();
+    }
 
     async create(data: CreateUserDto): Promise<UserResponse> {
         const user = await this.userRepository.findByEmail(data.email);
@@ -51,8 +64,6 @@ export class UserService {
 
         return formatUserResponse(newUser);
     }
-
-
 
     async findById(id: string): Promise<UserResponse> {
         const user = await this.userRepository.findById(id);
@@ -93,4 +104,121 @@ export class UserService {
         return users.map(formatUserResponse);
     }
 
+    async uploadAvatar(userId: string, file: Express.Multer.File): Promise<UserResponse> {
+        const user = await this.userRepository.findById(userId);
+        if (!user) {
+            throw new CustomHttpException(COMMON_MESSAGES.USER_NOT_FOUND, 404, COMMON_MESSAGES.USER_NOT_FOUND);
+        }
+
+        this.validateFile(file);
+
+        if (user.avatarUrl) {
+            this.deleteOldAvatar(user.avatarUrl);
+        }
+
+        const fileExtension = path.extname(file.originalname);
+        const fileName = `${userId}-${fileExtension}`;
+        const filePath = path.join(this.uploadPath, fileName);
+
+        try {
+            await this.processAndSaveImage(file.buffer, filePath);
+
+            const avatarUrl = `/uploads/avatars/${fileName}`;
+
+            await this.updateAvatarUrl(userId, avatarUrl);
+
+            return formatUserResponse(user);
+        } catch (error) {
+            console.log(error);
+            
+            throw new CustomHttpException("Avatar upload error", 500, 'AVATAR_UPLOAD_ERROR');
+        }
+    }
+
+    async deleteAvatar(userId: string): Promise<{ message: string }> {
+        const user = await this.userRepository.findById(userId);
+        if (!user) {
+            throw new CustomHttpException(COMMON_MESSAGES.USER_NOT_FOUND, 404, COMMON_MESSAGES.USER_NOT_FOUND);
+        }
+
+        if (!user.avatarUrl) {
+            throw new CustomHttpException('Kullanıcının avatar fotoğrafı bulunmamaktadır', 400, 'NO_AVATAR_FOUND');
+        }
+
+        try {
+            this.deleteOldAvatar(user.avatarUrl);
+
+            await this.updateAvatarUrl(userId, null);
+
+            return {
+                message: 'Avatar başarıyla silindi'
+            };
+        } catch (error) {
+            console.log(error);
+            
+            throw new CustomHttpException('An error occurred while deleting the avatar', 500, 'AVATAR_DELETE_ERROR');
+        }
+    }
+
+    private async updateAvatarUrl(userId: string, avatarUrl: string | null): Promise<User> {
+        try {
+            const updatedUser = await this.userRepository.update(userId, { avatarUrl });
+            return updatedUser;
+        } catch (error) {
+            console.log(error);
+            
+            throw new CustomHttpException("Avatar update error", 500, 'AVATAR_UPDATE_ERROR');
+        }
+    }
+
+    private validateFile(file: Express.Multer.File): void {
+        if (!file) {
+            throw new CustomHttpException('Dosya bulunamadı', 400, 'FILE_NOT_FOUND');
+        }
+
+        if (!this.allowedMimeTypes.includes(file.mimetype)) {
+            throw new CustomHttpException(
+                "Invalid file type. Allowed types: " + this.allowedMimeTypes.join(', '),
+                400,
+                'INVALID_FILE_TYPE'
+            );
+        }
+
+        if (file.size > this.maxFileSize) {
+            throw new CustomHttpException(
+                "File size is too large. Maximum size: " + this.maxFileSize / 1024 / 1024 + 'MB',
+                400,
+                'FILE_TOO_LARGE'
+            );
+        }
+    }
+
+    private async processAndSaveImage(buffer: Buffer, filePath: string): Promise<void> {
+        await sharp(buffer)
+            .resize(this.avatarSize, this.avatarSize, {
+                fit: 'cover',
+                position: 'center'
+            })
+            .jpeg({ quality: 90 })
+            .toFile(filePath);
+    }
+
+    private deleteOldAvatar(avatarUrl: string): void {
+        try {
+            const fileName = path.basename(avatarUrl);
+            const filePath = path.join(this.uploadPath, fileName);
+
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        } catch (error) {
+            console.warn('Eski avatar dosyası silinemedi:', error);
+        }
+    }
+
+    private ensureUploadDirectory(): void {
+        if (!fs.existsSync(this.uploadPath)) {
+            fs.mkdirSync(this.uploadPath, { recursive: true });
+        }
+    }
 }
