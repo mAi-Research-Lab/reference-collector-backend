@@ -6,13 +6,20 @@ export function formatAPA(reference: any, options: { suppressAuthor: boolean; su
     let authorText = '';
     if (!suppressAuthor && reference.authors && reference.authors.length > 0) {
         const firstAuthor = reference.authors[0];
+
         if (reference.authors.length === 1) {
-            authorText = firstAuthor.lastName || 'Unknown';
+            // name field'ını parse et - "John Doe" -> "Doe"
+            const fullName = firstAuthor.name || firstAuthor.lastName || 'Unknown Author';
+            const lastName = extractLastName(fullName);
+            authorText = lastName;
         } else if (reference.authors.length === 2) {
             const secondAuthor = reference.authors[1];
-            authorText = `${firstAuthor.lastName} & ${secondAuthor.lastName}`;
+            const firstName = extractLastName(firstAuthor.name || firstAuthor.lastName || 'Unknown');
+            const secondName = extractLastName(secondAuthor.name || secondAuthor.lastName || 'Unknown');
+            authorText = `${firstName} & ${secondName}`;
         } else {
-            authorText = `${firstAuthor.lastName} et al.`;
+            const firstName = extractLastName(firstAuthor.name || firstAuthor.lastName || 'Unknown');
+            authorText = `${firstName} et al.`;
         }
     }
 
@@ -38,6 +45,17 @@ export function formatAPA(reference: any, options: { suppressAuthor: boolean; su
     }
 
     return `${prefix}${citation}${suffix}`;
+}
+
+// Helper function to extract last name from full name
+function extractLastName(fullName: string): string {
+    if (!fullName || fullName === 'Unknown Author') return 'Unknown';
+
+    const nameParts = fullName.trim().split(' ');
+    if (nameParts.length === 1) return nameParts[0];
+
+    // Son kelimeyi lastName olarak al
+    return nameParts[nameParts.length - 1];
 }
 
 // MLA Style formatting

@@ -23,11 +23,11 @@ export class CitationsService {
     ) { }
 
     async create(userId: string, data: CreateCitationDto): Promise<CitationResponse> {
-        if (data.documentId && !data.documentId.startsWith('doc_')) {
-            if (!await this.checkDocumentAccess(data.documentId, userId)) {
-                throw new CustomHttpException(CITATIONS_MESSAGES.USER_NOT_COLLABORATOR, 403, CITATIONS_MESSAGES.USER_NOT_COLLABORATOR);
-            }
-        }
+        // if (data.documentId && !data.documentId.startsWith('doc_')) {
+        //     if (!await this.checkDocumentAccess(data.documentId, userId)) {
+        //         throw new CustomHttpException(CITATIONS_MESSAGES.USER_NOT_COLLABORATOR, 403, CITATIONS_MESSAGES.USER_NOT_COLLABORATOR);
+        //     }
+        // }
 
         await this.referenceService.getReference(data.referenceId);
         const sortOrder = await this.getNextSortOrder(data.documentId);
