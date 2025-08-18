@@ -20,7 +20,7 @@ import { LibrariesModule } from '../libraries/libraries.module';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get('JWT_EXPIRATION') || '3600s',
+          expiresIn: configService.get('JWT_EXPIRATION') || '604800s',
         },
       }),
       inject: [ConfigService],
