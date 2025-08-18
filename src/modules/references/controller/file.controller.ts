@@ -97,6 +97,26 @@ export class FileController {
         }
     }
 
+    @Get('all/:referenceId')
+    @ApiOperation({ summary: 'Get all files for a reference' })
+    @ApiParam({ name: 'referenceId', description: 'Reference ID' })
+    @ApiSuccessResponse(FileResponse, 200, "Files retrieved successfully")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Reference not found")
+    async getFilesByReference(
+        @Param('referenceId') referenceId: string
+    ): Promise<ResponseDto> {
+        const files = await this.fileService.getFilesByReference(referenceId);
+
+        return {
+            message: "Files retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: files
+        };
+    }
+
     @Get(':fileId')
     @ApiOperation({ summary: 'Get file by ID' })
     @ApiParam({ name: 'fileId', description: 'File ID' })
