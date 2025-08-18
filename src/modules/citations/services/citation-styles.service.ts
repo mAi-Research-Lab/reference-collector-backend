@@ -49,23 +49,36 @@ export class CitationStylesService {
         return this.formatReferenceByStyle(reference, style, data);
     }
 
+
     private formatReferenceByStyle(reference: any, style: CitationStyleResponse, options?: FormatCitationDto): string {
+        console.log('🔍 Formatting citation with style:', style.shortName);
+        console.log('🔍 Reference data:', reference);
+        console.log('🔍 Authors:', reference.authors);
+
         const suppressAuthor = options?.suppressAuthor || false;
         const suppressDate = options?.suppressDate || false;
         const pageNumbers = options?.pageNumbers;
         const prefix = options?.prefix || '';
         const suffix = options?.suffix || '';
 
-        switch (style.shortName.toLowerCase()) {
+        const styleShortName = style.shortName.toLowerCase();
+        console.log('🔍 Style shortName (lowercase):', styleShortName);
+
+        switch (styleShortName) {
             case 'apa':
+                console.log('📝 Using APA format');
                 return formatAPA(reference, { suppressAuthor, suppressDate, pageNumbers, prefix, suffix });
             case 'mla':
+                console.log('📝 Using MLA format');
                 return formatMLA(reference, { suppressAuthor, suppressDate, pageNumbers, prefix, suffix });
             case 'chicago':
+                console.log('📝 Using Chicago format');
                 return formatChicago(reference, { suppressAuthor, suppressDate, pageNumbers, prefix, suffix });
             case 'ieee':
+                console.log('📝 Using IEEE format');
                 return formatIEEE(reference, { suppressAuthor, suppressDate, pageNumbers, prefix, suffix });
             default:
+                console.log('⚠️ Unknown style, defaulting to APA. Style was:', styleShortName);
                 return formatAPA(reference, { suppressAuthor, suppressDate, pageNumbers, prefix, suffix });
         }
     }

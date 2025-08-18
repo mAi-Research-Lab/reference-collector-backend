@@ -50,9 +50,4 @@ export class CreateCitationDto {
     @IsOptional()
     @IsString()
     fieldId?: string;
-
-    @ApiProperty({ description: 'User ID', required: false })
-    @IsOptional()
-    @IsString()
-    userId?: string;
 }
