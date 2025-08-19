@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from "@nestjs/common";
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiSecurity, ApiTags, getSchemaPath } from "@nestjs/swagger";
+import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiSecurity, ApiTags, getSchemaPath } from "@nestjs/swagger";
 import { RoleGuard } from "src/common/guard/role.guard";
 import { JwtAuthGuard } from "src/modules/auth/guards/jwt-auth.guard";
 import { ReferencesService } from "./references.service";
@@ -303,6 +303,38 @@ export class ReferencesController {
 
         return {
             message: "Reference retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: reference
+        };
+    }
+
+    @Post('move/:id')
+    @ApiOperation({ summary: 'Move reference' })
+    @ApiParam({ name: 'id', description: 'Reference ID' })
+    @ApiSuccessResponse(ReferencesResponse, 200, "Reference moved successfully")
+    @ApiErrorResponse(400, "Bad request - Invalid reference data")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Reference not found")
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                libraryId: { type: 'string' },
+                collectionId: { type: 'string' }
+            }
+        }
+    })
+    async moveReference(
+        @Param('id') referenceId: string,
+        @Body('libraryId') libraryId?: string,
+        @Body('collectionId') collectionId?: string
+    ): Promise<ResponseDto> {
+        const reference = await this.referencesService.moveReference(referenceId, libraryId, collectionId);
+
+        return {
+            message: "Reference moved successfully",
             statusCode: 200,
             success: true,
             timestamp: new Date().toISOString(),
