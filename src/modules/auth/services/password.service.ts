@@ -4,11 +4,13 @@ import * as bcrypt from "bcrypt";
 import { CustomHttpException } from "src/common/exceptions/custom-http-exception";
 import { AUTH_MESSAGES } from "../constants/auth.messages";
 import { generateResetToken } from "src/common/utils/generate-token";
+import { MailService } from "src/modules/mail/mail.service";
 
 @Injectable()
 export class PasswordService {
     constructor(
         private readonly prisma: PrismaService,
+        private readonly mailService: MailService
     ) { }
     async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<{ message: string }> {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -39,7 +41,7 @@ export class PasswordService {
 
 
     async forgotPassword(email: string) {
-        const user = await this.prisma.user.findUnique({ where: { id: email } });
+        const user = await this.prisma.user.findUnique({ where: { email: email } });
 
         if (!user) {
             throw new CustomHttpException(AUTH_MESSAGES.USER_NOT_FOUND, 404, AUTH_MESSAGES.USER_NOT_FOUND);
@@ -60,7 +62,7 @@ export class PasswordService {
         });
 
         // Send reset password email
-        // await this.mailService.sendPasswordResetEmail(user.email, user.name, token);
+        await this.mailService.sendPasswordResetEmail(user.email, user.fullName, token);
 
         return { message: AUTH_MESSAGES.PASSWORD_RESET_EMAIL_SENT };
     }

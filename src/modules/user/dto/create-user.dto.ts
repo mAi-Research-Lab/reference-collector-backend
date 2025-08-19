@@ -84,4 +84,8 @@ export class CreateUserDto {
     @IsString()
     @IsEnum(UserType)
     userType: UserType
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    emailVerified?: boolean
 }
