@@ -167,22 +167,22 @@ export class ReferencesService {
         const skip = (page - 1) * limit;
 
         const searchConditions = {
-        libraryId,
-        OR: [
-            { title: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-            { publication: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-            { publisher: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-            { doi: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-            { isbn: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-            { abstractText: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-            {
-                authors: {
-                    path: [],
-                    string_contains: searchTerm
+            libraryId,
+            OR: [
+                { title: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { publication: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { publisher: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { doi: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { isbn: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { abstractText: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                {
+                    authors: {
+                        path: [],
+                        string_contains: searchTerm
+                    }
                 }
-            }
-        ]
-    };
+            ]
+        };
 
         const [data, total] = await Promise.all([
             this.prismaService.references.findMany({
@@ -279,4 +279,77 @@ export class ReferencesService {
         });
     }
 
+    async moveReference(id: string, libraryId?: string, collectionId?: string, modifiedBy?: string): Promise<ReferencesResponse> {
+        const reference = await this.prismaService.references.findUnique({
+            where: { id }
+        });
+
+        if (!reference) {
+            throw new CustomHttpException(
+                REFERENCES_MESSAGES.REFERENCE_NOT_FOUND,
+                404,
+                REFERENCES_MESSAGES.REFERENCE_NOT_FOUND
+            );
+        }
+
+        const updateData: { libraryId?: string; collectionId?: string | null; modifiedBy?: string } = {};
+
+        if (modifiedBy) {
+            updateData.modifiedBy = modifiedBy;
+        }
+
+        if (libraryId && libraryId !== reference.libraryId) {
+            const libraryExists = await this.prismaService.libraries.findUnique({
+                where: { id: libraryId }
+            });
+
+            if (!libraryExists) {
+                throw new CustomHttpException(
+                    'Library not found',
+                    404,
+                    'LIBRARY_NOT_FOUND'
+                );
+            }
+
+            updateData.libraryId = libraryId;
+
+            if (collectionId === undefined) {
+                updateData.collectionId = null;
+            }
+        }
+
+        if (collectionId !== undefined) {
+            if (collectionId && collectionId.trim() !== '') {
+                const targetLibraryId = updateData.libraryId || reference.libraryId;
+
+                const collection = await this.prismaService.collections.findFirst({
+                    where: {
+                        id: collectionId,
+                        libraryId: targetLibraryId
+                    }
+                });
+
+                if (!collection) {
+                    throw new CustomHttpException(
+                        'Collection not found or does not belong to the specified library',
+                        404,
+                        'COLLECTION_NOT_FOUND_OR_INVALID'
+                    );
+                }
+
+                updateData.collectionId = collectionId;
+            } else {
+                updateData.collectionId = null;
+            }
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            return reference as ReferencesResponse;
+        }
+
+        return await this.prismaService.references.update({
+            where: { id },
+            data: updateData
+        });
+    }
 }

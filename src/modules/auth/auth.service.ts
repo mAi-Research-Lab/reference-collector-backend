@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { formatUserResponse } from 'src/common/utils/format-user-response';
 import { UserResponse } from '../user/dto/user.response';
 import { LibrariesService } from '../libraries/libraries.service';
+import { EmailVerificationService } from './services/email-verification.service';
 
 @Injectable()
 export class AuthService {
@@ -18,13 +19,18 @@ export class AuthService {
     constructor(
         private readonly userService: UserService,
         private readonly jwtService: JwtService,
-        private readonly libraryService: LibrariesService
+        private readonly libraryService: LibrariesService,
+        private readonly emailVerificationService: EmailVerificationService
     ) { }
 
-    async signup(data: CreateUserDto): Promise<AuthResponse> {        
-        const user = await this.userService.create(data);
+    async signup(data: CreateUserDto): Promise<AuthResponse> {
+        const user = await this.userService.create({
+            ...data,
+            emailVerified: false
+        });
 
         // notification to user
+        await this.emailVerificationService.emailVerification(user.id);
         await this.libraryService.createDefaultLibraries(user.id);
 
         const token = await this.generateAccessToken(user);

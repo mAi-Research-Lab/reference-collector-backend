@@ -15,9 +15,10 @@ import { ExtensionCapturesModule } from './modules/extension-captures/extension-
 import { SyncSessionsModule } from './modules/sync-sessions/sync-sessions.module';
 import { ExportModule } from './modules/export/export.module';
 import { PdfRetrievalModule } from './modules/pdf-retrieval/pdf-retrieval.module';
+import { MailModule } from './modules/mail/mail.module';
 
 @Module({
-  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule, OfficeIntegrationModule, ExtensionCapturesModule, SyncSessionsModule, ExportModule, PdfRetrievalModule],
+  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule, OfficeIntegrationModule, ExtensionCapturesModule, SyncSessionsModule, ExportModule, PdfRetrievalModule, MailModule],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -38,37 +38,6 @@ export class AuthController {
         return this.authService.signup(createUserDto);
     }
 
-    // @Post('picture')
-    // @ApiOperation({
-    //     summary: 'Upload a photo',
-    //     description: 'Uploads a photo to Google Cloud Storage'
-    // })
-    // @ApiConsumes('multipart/form-data')
-    // @ApiBody({
-    //     schema: {
-    //         type: 'object',
-    //         properties: {
-    //             userId: {
-    //                 type: 'string',
-    //                 description: 'User ID',
-    //                 pattern: '^[0-9a-fA-F]{24}$',
-    //             },
-    //             picture: {
-    //                 type: 'string',
-    //                 format: 'binary',
-    //                 description: 'Profile photo'
-    //             },
-    //         },
-    //     },
-    // })
-    // @ApiResponse({ status: 201, description: 'Photo uploaded successfully' })
-    // @ApiResponse({ status: 404, description: AuthMessages.USER_NOT_FOUND })
-    // @UseInterceptors(FileInterceptor('picture'))
-    // async uploadPhoto(@Body('userId') userId: string): Promise<{ message: string }> {
-    //     const fileUrl = await this.authService.uploadProfileImage(userId);
-    //     return fileUrl;
-    // }
-
     @Get('verify-email')
     @ApiOperation({
         summary: 'Verify email address',
@@ -160,27 +129,6 @@ export class AuthController {
         return await this.authService.login(email, password);
     }
 
-    // @Post('social')
-    // @HttpCode(HttpStatus.OK)
-    // @ApiOperation({
-    //   summary: 'Sign in with Google',
-    //   description: 'Authenticates a user using their Google account. Creates a new user account if the email is not registered. The user information (email, name, etc.) will be extracted from the Google ID token.'
-    // })
-    // @ApiResponse({
-    //   status: 200,
-    //   description: AuthMessages.LOGIN_SUCCESS,
-    //   type: AuthResponse
-    // })
-    // @ApiResponse({ status: 400, description: AuthMessages.SOCIAL_USER_EXISTS })
-    // @ApiResponse({ status: 401, description: AuthMessages.INVALID_SOCIAL_TOKEN })
-    // @ApiBody({
-    //   type: SocialUserDto,
-    //   description: 'Social authentication data containing provider type and ID token from Google'
-    // })
-    // async socialAuth(@Body() socialUserDto: SocialUserDto): Promise<AuthResponse> {
-    //   return this.authService.socialSignup(socialUserDto);
-    // }
-
     @Post('change-password')
     @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.OK)
@@ -228,6 +176,19 @@ export class AuthController {
     }
 
     @Post('forgot-password')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            required: ['email'],
+            properties: {
+                email: {
+                    type: 'string',
+                    format: 'email',
+                    example: 'a@hotmail.com'
+                }
+            }
+        }
+    })
     @ApiOperation({ summary: 'Request password reset email' })
     @ApiResponse({ status: 200, description: AUTH_MESSAGES.PASSWORD_RESET_EMAIL_SENT })
     @ApiErrorResponse(404, AUTH_MESSAGES.USER_NOT_FOUND)
@@ -247,6 +208,23 @@ export class AuthController {
     @ApiOperation({ summary: 'Reset password with token' })
     @ApiResponse({ status: 200, description: AUTH_MESSAGES.PASSWORD_RESET_SUCCESS })
     @ApiErrorResponse(401, AUTH_MESSAGES.INVALID_RESET_TOKEN)
+    @ApiBody({
+        schema: {
+            type: 'object',
+            required: ['token', 'password'],
+            properties: {
+                token: {
+                    type: 'string',
+                    example: '824850ca2238439e1ba5bd2f6b808ffe561d6b2ba50482b31a1f643baa5fb907'
+                },
+                password: {
+                    type: 'string',
+                    format: 'password',
+                    example: '321321*'
+                }
+            }
+        }
+    })
     async resetPassword(@Body('token') token: string, @Body('password') password: string) {
         return await this.passwordService.resetPassword(token, password);
     }
