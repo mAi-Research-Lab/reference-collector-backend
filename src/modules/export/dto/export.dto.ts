@@ -68,6 +68,25 @@ export class SingleExportDto {
     options?: ExportOptionsDto;
 }
 
+export class LibraryExportDto {
+    @ApiProperty({
+        description: 'Export format',
+        enum: ExportFormat,
+        example: ExportFormat.BIBTEX
+    })
+    @IsEnum(ExportFormat)
+    format: ExportFormat;
+
+    @ApiPropertyOptional({
+        description: 'Export options',
+        type: ExportOptionsDto
+    })
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => ExportOptionsDto)
+    options?: ExportOptionsDto;
+}
+
 export class MultipleExportDto {
     @ApiProperty({
         description: 'Export formats',

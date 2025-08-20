@@ -3,5 +3,6 @@ export enum ExportFormat {
     RTF = 'rtf',
     BIBTEX = 'bibtex',
     RIS = 'ris',
+    CSV = 'csv',
     ZIP = "ZIP"
 }
