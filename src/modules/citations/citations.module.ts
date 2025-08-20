@@ -7,6 +7,8 @@ import { DocumentCollaboratorService } from '../documents/services/document-coll
 import { CitationsService } from './services/citations.service';
 import { CitationStylesService } from './services/citation-styles.service';
 import { CitationStylesController } from './controller/citation-styles.controller';
+import { CSLFileHandlerService } from './services/citation-file.service';
+import { CSLProcessorService } from './services/csl-processor.service';
 
 @Module({
   imports: [
@@ -17,7 +19,9 @@ import { CitationStylesController } from './controller/citation-styles.controlle
   providers: [
     CitationsService, 
     DocumentCollaboratorService,
-    CitationStylesService
+    CitationStylesService,
+    CSLFileHandlerService,
+    CSLProcessorService
   ],
   controllers: [CitationsController, CitationStylesController]
 })
