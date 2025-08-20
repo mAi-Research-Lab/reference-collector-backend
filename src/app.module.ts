@@ -16,10 +16,32 @@ import { SyncSessionsModule } from './modules/sync-sessions/sync-sessions.module
 import { ExportModule } from './modules/export/export.module';
 import { PdfRetrievalModule } from './modules/pdf-retrieval/pdf-retrieval.module';
 import { MailModule } from './modules/mail/mail.module';
+import { join } from 'path';
+import { ServeStaticModule } from '@nestjs/serve-static';
 
 @Module({
-  imports: [DatabaseModule, UserModule, AuthModule, InstitutionModule, LibrariesModule, ReferencesModule, DocumentsModule, CitationsModule, CollaborationModule, OfficeIntegrationModule, ExtensionCapturesModule, SyncSessionsModule, ExportModule, PdfRetrievalModule, MailModule],
+  imports: [
+    DatabaseModule,
+    UserModule,
+    AuthModule,
+    InstitutionModule,
+    LibrariesModule,
+    ReferencesModule,
+    DocumentsModule,
+    CitationsModule,
+    CollaborationModule,
+    OfficeIntegrationModule,
+    ExtensionCapturesModule,
+    SyncSessionsModule,
+    ExportModule,
+    PdfRetrievalModule,
+    MailModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
+    })
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
