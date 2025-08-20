@@ -8,6 +8,7 @@ import { HtmlExportService } from './services/html.service';
 import { ExportFormat } from './enums/export-format.enum';
 import { ExportOptions, ExportResult } from './enums/export-option.enum';
 import { CitationStyle } from '../documents/enums/citation.enum';
+import { CsvExportService } from './services/csv.service';
 
 @Injectable()
 export class ExportService {
@@ -16,6 +17,7 @@ export class ExportService {
         private readonly risService: RisExportService,
         private readonly rtfService: RtfExportService,
         private readonly htmlService: HtmlExportService,
+        private readonly csvService: CsvExportService
     ) { }
 
     exportReferences(
@@ -64,7 +66,12 @@ export class ExportService {
                     filename = this.generateFilename('bibliography', 'html', options);
                     mimeType = 'text/html';
                     break;
-
+                
+                case ExportFormat.CSV:
+                    content = this.csvService.exportToCsv(references);
+                    filename = this.generateFilename('references', 'csv', options);
+                    mimeType = 'text/csv';
+                    break;
                 // case ExportFormat.ZIP:
                 //     {
                 //         const zipBuffer = await this.backupService.createZipBackup(references, options);

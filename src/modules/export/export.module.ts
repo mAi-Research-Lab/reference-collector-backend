@@ -6,6 +6,7 @@ import { RisExportService } from './services/ris.service';
 import { RtfExportService } from './services/rtf.service';
 import { HtmlExportService } from './services/html.service';
 import { ReferencesModule } from '../references/references.module';
+import { CsvExportService } from './services/csv.service';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { ReferencesModule } from '../references/references.module';
     BibtexExportService,
     RisExportService,
     RtfExportService,
-    HtmlExportService
+    HtmlExportService,
+    CsvExportService
   ],
   controllers: [ExportController]
 })
