@@ -174,15 +174,15 @@ export class CitationsService {
     }
 
     async generateBibliography(documentId: string, userId: string, styleId?: string): Promise<any> {
+        console.log("📚 Generating bibliography for document:", documentId);
+        
         const whereClause: any = { documentId };
-
-        if (documentId.startsWith('doc_')) {
-            whereClause.userId = userId;
-        } else {
-            if (!await this.checkDocumentAccess(documentId, userId)) {
-                throw new CustomHttpException(CITATIONS_MESSAGES.USER_NOT_COLLABORATOR, 403, CITATIONS_MESSAGES.USER_NOT_COLLABORATOR);
-            }
-        }
+        
+        // if (!documentId.startsWith('doc_')) {
+        //     if (!await this.checkDocumentAccess(documentId, userId)) {
+        //         throw new CustomHttpException(CITATIONS_MESSAGES.USER_NOT_COLLABORATOR, 403, CITATIONS_MESSAGES.USER_NOT_COLLABORATOR);
+        //     }
+        // }
 
         const citations = await this.prisma.citation.findMany({
             where: whereClause,
@@ -199,6 +199,9 @@ export class CitationsService {
                 style: 'none'
             };
         }
+
+        console.log("Citation style", styleId);
+        
 
         const finalStyleId = styleId || citations[0]?.styleId || await this.getDefaultStyleId();
 
