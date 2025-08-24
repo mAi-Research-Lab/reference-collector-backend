@@ -49,7 +49,7 @@ export class CitationStylesService {
 
         console.log('🔍 Formatting citation with CSL content for style:', style.name);
 
-        if (style.cslContent && this.isValidCSLContent(style.cslContent)) {
+        if (style.cslContent) {
             try {
                 console.log('📝 Using CSL Processor for formatting');
                 

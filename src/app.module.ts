@@ -18,6 +18,7 @@ import { PdfRetrievalModule } from './modules/pdf-retrieval/pdf-retrieval.module
 import { MailModule } from './modules/mail/mail.module';
 import { join } from 'path';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { BootstrapService } from './common/services/bootstrap.service';
 
 @Module({
   imports: [
@@ -42,6 +43,6 @@ import { ServeStaticModule } from '@nestjs/serve-static';
     })
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, BootstrapService],
 })
 export class AppModule { }
