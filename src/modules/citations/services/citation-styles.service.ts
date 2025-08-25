@@ -92,14 +92,22 @@ export class CitationStylesService {
     }
 
     async generateBibliography(referenceIds: string[], styleId: string): Promise<string[]> {
+        console.log('🔧 CitationStylesService.generateBibliography called with:');
+        console.log(`  Style ID: ${styleId}`);
+        console.log(`  Reference IDs order:`, referenceIds.map((id, index) => `${index + 1}. ${id.substring(0, 8)}...`));
+
         const references = await this.referenceService.getReferencesByIds(referenceIds);
         const validReferences = references.filter(ref => ref !== undefined);
         const style = await this.getStyleById(styleId);
+
+        console.log(`🔧 Retrieved ${validReferences.length} valid references`);
 
         const bibliographyEntries: string[] = [];
 
         for (let i = 0; i < validReferences.length; i++) {
             const reference = validReferences[i];
+
+            console.log(`🔧 Processing reference ${i + 1}/${validReferences.length}: ${reference.id.substring(0, 8)}... (title: "${reference.title?.substring(0, 30)}...")`);
 
             try {
                 let entry = '';
@@ -108,23 +116,35 @@ export class CitationStylesService {
                 if (style.cslContent) {
                     const normalizedRef = this.normalizeReferenceForCSL(reference);
                     entry = this.cslProcessor.formatBibliography(style.cslContent, normalizedRef);
+                    console.log(`🔧 CSL bibliography result for ${reference.id.substring(0, 8)}...: "${entry.substring(0, 50)}..."`);
                 }
 
                 // CSL başarısız olursa fallback
                 if (!entry || entry.trim() === '') {
                     entry = this.formatBibliographyEntryWithFormatting(reference, style);
+                    console.log(`🔧 Fallback bibliography result for ${reference.id.substring(0, 8)}...: "${entry.substring(0, 50)}..."`);
                 }
 
                 if (entry && entry.trim()) {
                     bibliographyEntries.push(entry.trim());
                 }
             } catch (error) {
+                console.error(`🔧 Error processing reference ${reference.id}:`, error);
                 const fallbackEntry = this.formatBibliographyEntryWithFormatting(reference, style);
                 bibliographyEntries.push(fallbackEntry);
             }
         }
 
-        return this.sortAndFormatBibliographyEntries(bibliographyEntries, validReferences, style);
+        console.log(`🔧 Generated ${bibliographyEntries.length} bibliography entries`);
+
+        const sortedEntries = this.sortAndFormatBibliographyEntries(bibliographyEntries, validReferences, style);
+
+        console.log(`🔧 After sorting: ${sortedEntries.length} entries`);
+        sortedEntries.forEach((entry, index) => {
+            console.log(`  ${index + 1}. "${entry.substring(0, 50)}..."`);
+        });
+
+        return sortedEntries;
     }
 
     private isValidCSLContent(cslContent: string): boolean {
@@ -435,47 +455,6 @@ export class CitationStylesService {
         return 'Unknown';
     }
 
-    private createMinimalEntry(reference: any): string {
-        const title = reference.title || 'Untitled';
-        const year = reference.year || 'n.d.';
-        const authors = this.getSimpleAuthorString(reference.authors);
-
-        return `${authors} (${year}). ${title}.`;
-    }
-
-    private getSimpleAuthorString(authors: any): string {
-        if (!authors) return 'Unknown Author';
-
-        if (Array.isArray(authors)) {
-            if (authors.length === 0) return 'Unknown Author';
-
-            const firstAuthor = authors[0];
-            if (typeof firstAuthor === 'string') {
-                return firstAuthor;
-            } else if (firstAuthor && typeof firstAuthor === 'object') {
-                return firstAuthor.name || `${firstAuthor.firstName || ''} ${firstAuthor.lastName || ''}`.trim();
-            }
-        } else if (typeof authors === 'string') {
-            return authors;
-        } else if (authors && typeof authors === 'object') {
-            return authors.name || `${authors.firstName || ''} ${authors.lastName || ''}`.trim();
-        }
-
-        return 'Unknown Author';
-    }
-
-    private sortBibliographyEntries(entries: string[], references: any[], style: any): string[] {
-        const combined = entries.map((entry, index) => ({
-            entry,
-            reference: references[index],
-            sortKey: this.generateSortKey(references[index])
-        }));
-
-        combined.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-
-        return combined.map(item => item.entry);
-    }
-
     private generateSortKey(reference: any): string {
         let key = '';
 
@@ -692,8 +671,6 @@ export class CitationStylesService {
             entry += url;
         }
 
-        console.log('✅ Final APA entry:', entry);
-
         return entry;
     }
 
@@ -701,15 +678,33 @@ export class CitationStylesService {
         let entry = '';
 
         if (reference.authors && reference.authors.length > 0) {
-            entry += this.formatAuthorsIEEE(reference.authors) + ', ';
+            if (reference.authors.length <= 3) {
+                const authorStrings = reference.authors.map(author => {
+                    const lastName = this.extractLastName(author);
+                    const firstName = this.extractFirstName(author);
+                    const initials = firstName.split(' ')
+                        .map(name => name.charAt(0).toUpperCase())
+                        .join('. ');
+                    return initials ? `${initials}. ${lastName}` : lastName;
+                });
+                entry += authorStrings.join(', ');
+            } else {
+                const firstAuthor = reference.authors[0];
+                const lastName = this.extractLastName(firstAuthor);
+                const firstName = this.extractFirstName(firstAuthor);
+                const initials = firstName.split(' ')
+                    .map(name => name.charAt(0).toUpperCase())
+                    .join('. ');
+                entry += initials ? `${initials}. ${lastName} et al.` : `${lastName} et al.`;
+            }
         }
 
         if (reference.title) {
-            entry += `"${reference.title}," `;
+            entry += entry ? `, "${reference.title},"` : `"${reference.title},"`;
         }
 
         if (reference.publication) {
-            entry += `*${reference.publication}*`;
+            entry += ` *${reference.publication}*`;
 
             if (reference.volume) {
                 entry += `, vol. ${reference.volume}`;
@@ -720,7 +715,8 @@ export class CitationStylesService {
             }
 
             if (reference.pages) {
-                entry += `, pp. ${reference.pages}`;
+                const pagePrefix = reference.pages.includes('-') || reference.pages.includes('–') ? 'pp.' : 'p.';
+                entry += `, ${pagePrefix} ${reference.pages}`;
             }
 
             if (reference.year) {
@@ -728,6 +724,15 @@ export class CitationStylesService {
             }
 
             entry += '.';
+        }
+
+        const doi = reference.doi || reference.DOI;
+        const url = reference.url || reference.URL;
+
+        if (doi) {
+            entry += ` DOI: ${doi}`;
+        } else if (url) {
+            entry += ` [Online]. Available: ${url}`;
         }
 
         return entry;
@@ -928,21 +933,6 @@ export class CitationStylesService {
         }
     }
 
-    private formatAuthorsIEEE(authors: any[]): string {
-        if (authors.length <= 3) {
-            return authors.map(author => {
-                const lastName = this.extractLastName(author);
-                const firstName = this.extractFirstName(author);
-                return `${firstName.charAt(0).toUpperCase()}. ${lastName}`;
-            }).join(', ');
-        } else {
-            const firstAuthor = authors[0];
-            const lastName = this.extractLastName(firstAuthor);
-            const firstName = this.extractFirstName(firstAuthor);
-            return `${firstName.charAt(0).toUpperCase()}. ${lastName} et al.`;
-        }
-    }
-
     private sortAndFormatBibliographyEntries(entries: string[], references: any[], style: any): string[] {
         // Sort alphabetically by first author's last name
         const combined = entries.map((entry, index) => ({
@@ -975,5 +965,42 @@ export class CitationStylesService {
         }
 
         return '';
+    }
+
+    setCitationNumbersForReferences(referenceNumberMap: Map<string, number>): void {
+        console.log('📍 Setting citation numbers from reference map');
+
+        // Kendi citation numbers map'ini güncelle
+        this.citationNumbers.clear();
+        referenceNumberMap.forEach((number, referenceId) => {
+            this.citationNumbers.set(referenceId, number);
+        });
+
+        // Next number'ı en yüksek sayıdan 1 fazla yap
+        this.nextNumber = Math.max(...Array.from(referenceNumberMap.values())) + 1;
+
+        // CSL processor'daki numbering'i de sync et
+        this.cslProcessor.setCitationNumbers(referenceNumberMap);
+
+        console.log('✅ Citation numbers synchronized');
+    }
+
+    presetCitationNumbers(referenceNumberMap: Map<string, number>): void {
+        console.log('🔧 CitationStylesService: Presetting citation numbers');
+
+        // Kendi citation numbers map'ini güncelle
+        this.citationNumbers.clear();
+        referenceNumberMap.forEach((number, referenceId) => {
+            this.citationNumbers.set(referenceId, number);
+            console.log(`🔧 Set reference ${referenceId.substring(0, 8)}... -> [${number}]`);
+        });
+
+        // Next number'ı güncel tut
+        this.nextNumber = Math.max(...Array.from(referenceNumberMap.values())) + 1;
+
+        // CSL Processor'da da aynı numbering'i set et
+        this.cslProcessor.presetCitationNumbers(referenceNumberMap);
+
+        console.log('✅ Citation numbers preset complete');
     }
 }

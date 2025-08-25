@@ -195,8 +195,6 @@ export class CitationsService {
     }
 
     async generateBibliography(documentId: string, userId: string, styleId?: string): Promise<any> {
-        console.log("📚 Generating bibliography for document:", documentId);
-
         const citations = await this.prisma.citation.findMany({
             where: { documentId },
             orderBy: { sortOrder: 'asc' }
@@ -213,13 +211,48 @@ export class CitationsService {
 
         const finalStyleId = styleId || citations[0]?.styleId || await this.getDefaultStyleId();
         const style = await this.citationStylesService.getStyleById(finalStyleId);
-
-        console.log('📚 Using bibliography style:', style.name);
-
-        const uniqueReferenceIds = [...new Set(citations.map(c => c.referenceId))];
+        const styleShortName = style.shortName?.toLowerCase();
 
         try {
-            // Bibliography generation için citation numbering reset et
+            if (styleShortName === 'ieee' || styleShortName === 'vancouver') {
+                console.log('📍 IEEE/Vancouver: Pre-setting citation numbers');
+
+                this.citationStylesService.resetCitationNumbers();
+
+                const referenceNumberMap = new Map<string, number>();
+                const uniqueReferenceIds: string[] = [];
+
+                citations.forEach((citation) => {
+                    if (!referenceNumberMap.has(citation.referenceId)) {
+                        const nextNumber = uniqueReferenceIds.length + 1;
+                        referenceNumberMap.set(citation.referenceId, nextNumber);
+                        uniqueReferenceIds.push(citation.referenceId);
+                        console.log(`📍 Assigned reference ${citation.referenceId.substring(0, 8)}... -> [${nextNumber}]`);
+                    }
+                });
+
+                this.citationStylesService.presetCitationNumbers(referenceNumberMap);
+
+                const bibliographyEntries = await this.citationStylesService.generateBibliography(
+                    uniqueReferenceIds,
+                    finalStyleId
+                );
+
+                const bibliographyText = this.formatFinalBibliography(bibliographyEntries, style);
+
+                return {
+                    bibliographyText,
+                    bibliographyHtml: this.convertToHTML(bibliographyText, style),
+                    citationCount: citations.length,
+                    uniqueReferences: uniqueReferenceIds.length,
+                    style: style.name,
+                    entries: bibliographyEntries
+                };
+            }
+
+            // Diğer stiller için normal flow
+            const uniqueReferenceIds = [...new Set(citations.map(c => c.referenceId))];
+
             this.citationStylesService.resetCitationNumbers();
 
             const bibliographyEntries = await this.citationStylesService.generateBibliography(
@@ -227,7 +260,9 @@ export class CitationsService {
                 finalStyleId
             );
 
-            const bibliographyText = this.formatFinalBibliography(bibliographyEntries, style);
+            const sortedEntries = bibliographyEntries;
+
+            const bibliographyText = this.formatFinalBibliography(sortedEntries, style);
 
             return {
                 bibliographyText,
@@ -235,7 +270,7 @@ export class CitationsService {
                 citationCount: citations.length,
                 uniqueReferences: uniqueReferenceIds.length,
                 style: style.name,
-                entries: bibliographyEntries
+                entries: sortedEntries
             };
 
         } catch (error) {
@@ -243,7 +278,7 @@ export class CitationsService {
             return {
                 bibliographyText: 'Error generating bibliography with the selected citation style.',
                 citationCount: citations.length,
-                uniqueReferences: uniqueReferenceIds.length,
+                uniqueReferences: 0,
                 style: style.name,
                 error: error.message
             };
@@ -258,45 +293,55 @@ export class CitationsService {
         let bibliography = '';
         const styleShortName = style.shortName?.toLowerCase();
 
-        // Style'a göre başlık
-        switch (styleShortName) {
-            case 'apa':
-                bibliography = 'References\n\n';
-                break;
-            case 'mla':
-                bibliography = 'Works Cited\n\n';
-                break;
-            case 'chicago':
-                bibliography = 'Bibliography\n\n';
-                break;
-            case 'ieee':
-            case 'vancouver':
-                bibliography = 'References\n\n';
-                break;
-            default:
-                bibliography = 'References\n\n';
-                break;
-        }
+        bibliography = 'References\n\n';
 
-        // Entries'leri ekle
-        entries.forEach((entry, index) => {
-            const cleanEntry = entry.trim();
-            if (cleanEntry) {
-                // IEEE/Vancouver için numaralama
-                if (styleShortName === 'ieee' || styleShortName === 'vancouver') {
-                    bibliography += `[${index + 1}] ${cleanEntry}\n`;
-                    // IEEE için ekstra spacing
-                    bibliography += '\n';
-                } else {
-                    bibliography += `${cleanEntry}\n`;
-                    // APA/MLA/Chicago için double spacing
-                    bibliography += '\n';
+        if (styleShortName === 'ieee' || styleShortName === 'vancouver') {
+            entries.forEach((entry, index) => {
+                const cleanEntry = entry.trim();
+                if (cleanEntry) {
+                    // CSL'den gelen entry'de zaten doğru numara var mı kontrol et
+                    const hasNumber = cleanEntry.match(/^\[\d+\]/);
+
+                    if (hasNumber) {
+                        // CSL'den gelen numarayı koru - sadece formatı düzelt, italic formatını koru
+                        const numberMatch = cleanEntry.match(/^\[(\d+)\]/);
+                        const number = numberMatch ? numberMatch[1] : (index + 1).toString();
+                        const contentWithoutNumber = cleanEntry.replace(/^\[\d+\]\s*/, '').trim();
+
+                        bibliography += `[${number}] ${contentWithoutNumber}\n\n`;
+                        console.log(`📍 IEEE Entry: Kept CSL number [${number}] with italics preserved`);
+                    } else {
+                        // Fallback: Sequential numbering, italic formatını koru
+                        const processedEntry = cleanEntry
+                            .replace(/^\[\d+\]\s*/, '')
+                            .replace(/^[\d+]\s*/, '')
+                            .replace(/^\([^)]+\)\s*/, '')
+                            .trim();
+
+                        // Italic formatını koru - CSL'den gelen *text* formatını temizleme
+                        // processedEntry'de *text* formatı varsa koru
+
+                        bibliography += `[${index + 1}] ${processedEntry}\n\n`;
+                        console.log(`📍 IEEE Entry: Added sequential number [${index + 1}] with italics preserved`);
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            entries.forEach(entry => {
+                const cleanEntry = entry.trim();
+                if (cleanEntry) {
+                    const processedEntry = cleanEntry
+                        .replace(/^\[\d+\]\s*/, '')
+                        .trim();
+
+                    bibliography += `${processedEntry}\n\n`;
+                }
+            });
+        }
 
         return bibliography.trim();
     }
+
 
     async refreshCitationsByStyle(documentId: string, newStyleId: string, userId: string): Promise<number> {
         const whereClause: any = { documentId };
@@ -390,7 +435,7 @@ export class CitationsService {
 
     private convertToHTML(bibliographyText: string, style: any): string {
         const htmlText = bibliographyText
-            .replace(/\*([^*]+)\*/g, '<em>$1</em>') 
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
             .replace(/\n\n/g, '<br><br>')
             .replace(/\n/g, '<br>');
 
