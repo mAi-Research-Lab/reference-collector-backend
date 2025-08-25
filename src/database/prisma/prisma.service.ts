@@ -22,7 +22,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       },
       log: isProduction 
         ? ['error'] 
-        : ['query', 'info', 'warn', 'error'],
+        : ['warn', 'error'],
       errorFormat: 'pretty',
     });
 
