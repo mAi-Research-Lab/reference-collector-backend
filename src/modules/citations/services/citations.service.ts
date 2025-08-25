@@ -30,36 +30,46 @@ export class CitationsService {
         // }
 
         await this.referenceService.getReference(data.referenceId);
-        const sortOrder = await this.getNextSortOrder(data.documentId);
 
+        const sortOrder = await this.getNextSortOrder(data.documentId);
         const styleId = data.styleId || await this.getDefaultStyleId();
 
-        const citation_text = await this.citationStylesService.formatCitationWithStyle(styleId, {
-            referenceId: data.referenceId,
-            suppressAuthor: data.suppressAuthor,
-            suppressDate: data.suppressDate,
-            pageNumbers: data.pageNumbers,
-            prefix: data.prefix,
-            suffix: data.suffix
-        });
+        console.log('🔄 Creating citation with style ID:', styleId);
 
-        const citation = await this.prisma.citation.create({
-            data: {
+        try {
+            // Citation text'i formatla
+            const citation_text = await this.citationStylesService.formatCitationWithStyle(styleId, {
                 referenceId: data.referenceId,
-                documentId: data.documentId,
-                citationText: citation_text,
-                pageNumbers: data.pageNumbers || '',
-                prefix: data.prefix || '',
-                suffix: data.suffix || '',
-                suppressAuthor: data.suppressAuthor || false,
-                suppressDate: data.suppressDate || false,
-                sortOrder: sortOrder,
-                styleId: styleId,
-                fieldId: data.fieldId
-            }
-        });
+                suppressAuthor: data.suppressAuthor,
+                suppressDate: data.suppressDate,
+                pageNumbers: data.pageNumbers,
+                prefix: data.prefix,
+                suffix: data.suffix
+            });
 
-        return citation;
+            console.log('✅ Generated citation text:', citation_text);
+
+            const citation = await this.prisma.citation.create({
+                data: {
+                    referenceId: data.referenceId,
+                    documentId: data.documentId,
+                    citationText: citation_text,
+                    pageNumbers: data.pageNumbers || '',
+                    prefix: data.prefix || '',
+                    suffix: data.suffix || '',
+                    suppressAuthor: data.suppressAuthor || false,
+                    suppressDate: data.suppressDate || false,
+                    sortOrder: sortOrder,
+                    styleId: styleId,
+                    fieldId: data.fieldId
+                }
+            });
+
+            return citation;
+        } catch (error) {
+            console.error('❌ Citation creation failed:', error);
+            throw new CustomHttpException('Failed to create citation', 500, 'Citation creation failed');
+        }
     }
 
     async getCitationsByDocument(documentId: string, userId: string): Promise<CitationResponseWithReferences[]> {
@@ -94,26 +104,26 @@ export class CitationsService {
         }
 
         let citation_text = citation.citationText;
-        if (data.styleId && data.styleId !== citation.styleId) {
-            citation_text = await this.citationStylesService.formatCitationWithStyle(data.styleId, {
-                referenceId: citation.referenceId,
-                suppressAuthor: data.suppressAuthor ?? citation.suppressAuthor,
-                suppressDate: data.suppressDate ?? citation.suppressDate,
-                pageNumbers: data.pageNumbers ?? citation.pageNumbers!,
-                prefix: data.prefix ?? citation.prefix!,
-                suffix: data.suffix ?? citation.suffix!
-            });
-        } else if (data.suppressAuthor !== undefined || data.suppressDate !== undefined ||
-            data.pageNumbers !== undefined || data.prefix !== undefined || data.suffix !== undefined) {
-            // Diğer parametreler değişmişse yeniden formatla
-            citation_text = await this.citationStylesService.formatCitationWithStyle(citation.styleId, {
-                referenceId: citation.referenceId,
-                suppressAuthor: data.suppressAuthor ?? citation.suppressAuthor,
-                suppressDate: data.suppressDate ?? citation.suppressDate,
-                pageNumbers: data.pageNumbers ?? citation.pageNumbers!,
-                prefix: data.prefix ?? citation.prefix!,
-                suffix: data.suffix ?? citation.suffix!
-            });
+
+        // Style değişmişse veya citation parametreleri değişmişse yeniden formatla
+        if (this.needsReformatting(citation, data)) {
+            try {
+                const styleId = data.styleId || citation.styleId;
+
+                citation_text = await this.citationStylesService.formatCitationWithStyle(styleId, {
+                    referenceId: citation.referenceId,
+                    suppressAuthor: data.suppressAuthor ?? citation.suppressAuthor,
+                    suppressDate: data.suppressDate ?? citation.suppressDate,
+                    pageNumbers: data.pageNumbers ?? citation.pageNumbers!,
+                    prefix: data.prefix ?? citation.prefix!,
+                    suffix: data.suffix ?? citation.suffix!
+                });
+
+                console.log('✅ Updated citation text:', citation_text);
+            } catch (error) {
+                console.error('❌ Citation update formatting failed:', error);
+                // Eski citation text'i koru
+            }
         }
 
         const updatedCitation = await this.prisma.citation.update({
@@ -125,6 +135,17 @@ export class CitationsService {
         });
 
         return updatedCitation;
+    }
+
+    private needsReformatting(existingCitation: any, updateData: UpdateCitationDto): boolean {
+        return (
+            (updateData.styleId && updateData.styleId !== existingCitation.styleId) ||
+            updateData.suppressAuthor !== undefined ||
+            updateData.suppressDate !== undefined ||
+            updateData.pageNumbers !== undefined ||
+            updateData.prefix !== undefined ||
+            updateData.suffix !== undefined
+        );
     }
 
     async delete(id: string): Promise<{ message: string }> {
@@ -175,20 +196,10 @@ export class CitationsService {
 
     async generateBibliography(documentId: string, userId: string, styleId?: string): Promise<any> {
         console.log("📚 Generating bibliography for document:", documentId);
-        
-        const whereClause: any = { documentId };
-        
-        // if (!documentId.startsWith('doc_')) {
-        //     if (!await this.checkDocumentAccess(documentId, userId)) {
-        //         throw new CustomHttpException(CITATIONS_MESSAGES.USER_NOT_COLLABORATOR, 403, CITATIONS_MESSAGES.USER_NOT_COLLABORATOR);
-        //     }
-        // }
 
         const citations = await this.prisma.citation.findMany({
-            where: whereClause,
-            orderBy: {
-                sortOrder: 'asc'
-            }
+            where: { documentId },
+            orderBy: { sortOrder: 'asc' }
         });
 
         if (citations.length === 0) {
@@ -200,30 +211,97 @@ export class CitationsService {
             };
         }
 
-        console.log("Citation style", styleId);
-        
-
         const finalStyleId = styleId || citations[0]?.styleId || await this.getDefaultStyleId();
+        const style = await this.citationStylesService.getStyleById(finalStyleId);
+
+        console.log('📚 Using bibliography style:', style.name);
 
         const uniqueReferenceIds = [...new Set(citations.map(c => c.referenceId))];
 
-        const bibliographyEntries = await this.citationStylesService.generateBibliography(uniqueReferenceIds, finalStyleId);
+        try {
+            // Bibliography generation için citation numbering reset et
+            this.citationStylesService.resetCitationNumbers();
 
-        const bibliographyText = `References\n\n${bibliographyEntries.join('\n\n')}`;
+            const bibliographyEntries = await this.citationStylesService.generateBibliography(
+                uniqueReferenceIds,
+                finalStyleId
+            );
 
-        const style = await this.citationStylesService.getStyleById(finalStyleId);
+            const bibliographyText = this.formatFinalBibliography(bibliographyEntries, style);
 
-        return {
-            bibliographyText,
-            citationCount: citations.length,
-            uniqueReferences: uniqueReferenceIds.length,
-            style: style.name
-        };
+            return {
+                bibliographyText,
+                bibliographyHtml: this.convertToHTML(bibliographyText, style),
+                citationCount: citations.length,
+                uniqueReferences: uniqueReferenceIds.length,
+                style: style.name,
+                entries: bibliographyEntries
+            };
+
+        } catch (error) {
+            console.error('❌ Bibliography generation failed:', error);
+            return {
+                bibliographyText: 'Error generating bibliography with the selected citation style.',
+                citationCount: citations.length,
+                uniqueReferences: uniqueReferenceIds.length,
+                style: style.name,
+                error: error.message
+            };
+        }
+    }
+
+    private formatFinalBibliography(entries: string[], style: any): string {
+        if (entries.length === 0) {
+            return 'No references found.';
+        }
+
+        let bibliography = '';
+        const styleShortName = style.shortName?.toLowerCase();
+
+        // Style'a göre başlık
+        switch (styleShortName) {
+            case 'apa':
+                bibliography = 'References\n\n';
+                break;
+            case 'mla':
+                bibliography = 'Works Cited\n\n';
+                break;
+            case 'chicago':
+                bibliography = 'Bibliography\n\n';
+                break;
+            case 'ieee':
+            case 'vancouver':
+                bibliography = 'References\n\n';
+                break;
+            default:
+                bibliography = 'References\n\n';
+                break;
+        }
+
+        // Entries'leri ekle
+        entries.forEach((entry, index) => {
+            const cleanEntry = entry.trim();
+            if (cleanEntry) {
+                // IEEE/Vancouver için numaralama
+                if (styleShortName === 'ieee' || styleShortName === 'vancouver') {
+                    bibliography += `[${index + 1}] ${cleanEntry}\n`;
+                    // IEEE için ekstra spacing
+                    bibliography += '\n';
+                } else {
+                    bibliography += `${cleanEntry}\n`;
+                    // APA/MLA/Chicago için double spacing
+                    bibliography += '\n';
+                }
+            }
+        });
+
+        return bibliography.trim();
     }
 
     async refreshCitationsByStyle(documentId: string, newStyleId: string, userId: string): Promise<number> {
         const whereClause: any = { documentId };
 
+        // Document access kontrolü
         if (documentId.startsWith('doc_')) {
             whereClause.userId = userId;
         } else {
@@ -235,6 +313,11 @@ export class CitationsService {
         const citations = await this.prisma.citation.findMany({
             where: whereClause
         });
+
+        console.log(`🔄 Refreshing ${citations.length} citations with new style`);
+
+        // Style değişikliği için citation numbering'i reset et
+        this.citationStylesService.resetCitationNumbers();
 
         let updatedCount = 0;
 
@@ -258,11 +341,13 @@ export class CitationsService {
                 });
 
                 updatedCount++;
+                console.log(`✅ Updated citation ${citation.id}: ${newCitationText}`);
             } catch (error) {
-                console.error(`Failed to update citation ${citation.id}:`, error);
+                console.error(`❌ Failed to update citation ${citation.id}:`, error);
             }
         }
 
+        console.log(`✅ Successfully updated ${updatedCount} citations`);
         return updatedCount;
     }
 
@@ -301,5 +386,36 @@ export class CitationsService {
         }
 
         return apaStyle.id;
+    }
+
+    private convertToHTML(bibliographyText: string, style: any): string {
+        const htmlText = bibliographyText
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>') 
+            .replace(/\n\n/g, '<br><br>')
+            .replace(/\n/g, '<br>');
+
+        const lines = htmlText.split('<br>');
+        let html = '<div class="bibliography">\n';
+
+        const title = lines[0];
+        html += `<h2 class="bibliography-title">${title}</h2>\n`;
+
+        const entries = lines.slice(2);
+        const styleClass = style.shortName.toLowerCase();
+
+        entries.forEach((entry) => {
+            if (entry.trim()) {
+                const isNumbered = styleClass === 'ieee' || styleClass === 'vancouver' ||
+                    styleClass === 'nature' || styleClass === 'science';
+                const hasHangingIndent = !isNumbered;
+
+                html += `<div class="bibliography-entry ${hasHangingIndent ? 'hanging-indent' : ''}" 
+                      style="${hasHangingIndent ? 'text-indent: -36px; margin-left: 36px;' : ''} 
+                             ${isNumbered ? 'margin-bottom: 12pt;' : 'line-height: 2.0;'}">${entry}</div>\n`;
+            }
+        });
+
+        html += '</div>';
+        return html;
     }
 }

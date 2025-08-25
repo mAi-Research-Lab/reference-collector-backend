@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
-import { ReferencesResponse } from 'src/modules/references/dto/reference/references.response';
 import { DOMParser } from 'xmldom';
 
 /**
@@ -8,13 +7,12 @@ import { DOMParser } from 'xmldom';
  */
 @Injectable()
 export class CSLProcessorService {
+    private citationNumbers = new Map<string, number>();
+    private nextNumber = 1;
 
-    /**
-     * CSL content'e göre citation formatla
-     */
     formatCitation(
-        cslContent: string, 
-        reference: ReferencesResponse, 
+        cslContent: string,
+        reference: any,
         options: {
             suppressAuthor?: boolean;
             suppressDate?: boolean;
@@ -24,17 +22,20 @@ export class CSLProcessorService {
         } = {}
     ): string {
         try {
-            // CSL XML'i parse et - ✅ DÜZELTME: new DOMParser() şeklinde
             const parser = new DOMParser();
             const doc = parser.parseFromString(cslContent, 'text/xml');
 
-            // xmldom parse error kontrolü
             if (!doc || !doc.documentElement) {
                 console.warn('Failed to parse CSL XML');
                 return this.fallbackCitationFormat(reference, options);
             }
 
-            // Citation layout'unu bul - ✅ DÜZELTME: getElementsByTagName kullan
+            // Style class'ını kontrol et (numbered vs author-date)
+            const styleElement = doc.documentElement;
+            const styleClass = styleElement.getAttribute('class') || 'in-text';
+
+            console.log('🔍 Style class:', styleClass);
+
             const citationElements = doc.getElementsByTagName('citation');
             if (citationElements.length === 0) {
                 console.warn('No citation element found in CSL');
@@ -50,122 +51,134 @@ export class CSLProcessorService {
 
             const layoutElement = layoutElements[0];
 
-            // Layout'u process et
+            // IEEE gibi numbered styles için özel işlem
+            if (styleClass === 'in-text' && this.isNumberedStyle(layoutElement)) {
+                console.log('🔢 Detected numbered citation style (IEEE)');
+                return this.formatNumberedCitation(reference, options);
+            }
+
             const formattedText = this.processLayout(layoutElement, reference, options);
-            
-            // Prefix ve suffix ekle
+
             const prefix = options.prefix || '';
             const suffix = options.suffix || '';
-            
+
             console.log('✅ CSL processing successful:', formattedText);
             return `${prefix}${formattedText}${suffix}`;
 
         } catch (error) {
             console.error('CSL processing error:', error);
-            // Hata durumunda fallback format kullan
             return this.fallbackCitationFormat(reference, options);
         }
     }
 
-    /**
-     * CSL content'e göre bibliography formatla
-     */
-    formatBibliography(
-        cslContent: string, 
-        reference: ReferencesResponse
-    ): string {
+    private formatNumberedCitation(reference: any, options: any): string {
+        const citationNumber = this.getCitationNumber(reference.id);
+
+        let result = `[${citationNumber}]`;
+
+        // Page numbers varsa ekle
+        if (options.pageNumbers && options.pageNumbers.trim()) {
+            result += `, p. ${options.pageNumbers}`;
+        }
+
+        const prefix = options.prefix || '';
+        const suffix = options.suffix || '';
+
+        return `${prefix}${result}${suffix}`;
+    }
+
+    private getCitationNumber(referenceId: string): number {
+        if (!this.citationNumbers.has(referenceId)) {
+            this.citationNumbers.set(referenceId, this.nextNumber++);
+        }
+        return this.citationNumbers.get(referenceId)!;
+    }
+
+    resetCitationNumbers(): void {
+        this.citationNumbers.clear();
+        this.nextNumber = 1;
+    }
+
+    private isNumberedStyle(layoutElement: any): boolean {
+        // Layout içinde citation-number variable'ı varmı?
+        const textElements = layoutElement.getElementsByTagName('text');
+        for (let i = 0; i < textElements.length; i++) {
+            const element = textElements[i];
+            const variable = element.getAttribute('variable');
+            if (variable === 'citation-number') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    formatBibliography(cslContent: string, reference: any): string {
         try {
             const parser = new DOMParser();
             const doc = parser.parseFromString(cslContent, 'text/xml');
 
-            if (!doc || !doc.documentElement) {
-                return this.fallbackBibliographyFormat(reference);
-            }
-
-            // Bibliography layout'unu bul
             const bibliographyElements = doc.getElementsByTagName('bibliography');
             if (bibliographyElements.length === 0) {
                 return this.fallbackBibliographyFormat(reference);
             }
 
-            const bibliographyElement = bibliographyElements[0];
-            const layoutElements = bibliographyElement.getElementsByTagName('layout');
-            if (layoutElements.length === 0) {
+            const layoutElement = bibliographyElements[0].getElementsByTagName('layout')[0];
+            if (!layoutElement) {
                 return this.fallbackBibliographyFormat(reference);
             }
 
-            const layoutElement = layoutElements[0];
-            return this.processLayout(layoutElement, reference, {});
+            const result = this.processLayout(layoutElement, reference, {});
+
+            const cleanedResult = result
+                .replace(/\.\./g, '.')
+                .replace(/\s+/g, ' ')
+                .replace(/<em>/g, '*')
+                .replace(/<\/em>/g, '*')
+                .trim();
+
+            return cleanedResult;
 
         } catch (error) {
-            console.error('CSL bibliography processing error:', error);
+            console.error('CSL bibliography processing failed:', error.message);
             return this.fallbackBibliographyFormat(reference);
         }
     }
 
-    /**
-     * Layout element'ini process et
-     */
     private processLayout(
-        layoutElement: any, // xmldom Element type
-        reference: ReferencesResponse, 
+        layoutElement: any,
+        reference: any,
         options: any
     ): string {
-        let result = '';
-
-        // Layout'un attributes'larını al
         const prefix = layoutElement.getAttribute('prefix') || '';
         const suffix = layoutElement.getAttribute('suffix') || '';
         const delimiter = layoutElement.getAttribute('delimiter') || '';
 
         console.log('🔍 Layout attributes:', { prefix, suffix, delimiter });
 
-        // Child elementleri işle
         const children = layoutElement.childNodes;
         const processedParts: string[] = [];
 
-        console.log('🔍 Layout children count:', children.length);
-
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
-            console.log(`🔍 Child ${i}:`, {
-                nodeType: child.nodeType,
-                tagName: child.tagName,
-                nodeName: child.nodeName
-            });
 
-            // Sadece element node'ları işle (text node'ları değil)
             if (child.nodeType === 1) { // ELEMENT_NODE
-                console.log(`📝 Processing element: ${child.tagName}`);
                 const processedPart = this.processElement(child, reference, options);
-                console.log(`✅ Processed result: "${processedPart}"`);
-                
+
                 if (processedPart && processedPart.trim()) {
                     processedParts.push(processedPart);
                 }
             }
         }
 
-        console.log('🔍 Processed parts:', processedParts);
-
-        // Delimiter ile birleştir
-        result = processedParts.join(delimiter);
-
-        console.log('🔍 Result before prefix/suffix:', result);
-
-        // Prefix ve suffix ekle
+        const result = processedParts.join(delimiter);
         const finalResult = `${prefix}${result}${suffix}`;
-        console.log('🔍 Final result:', finalResult);
 
         return finalResult;
     }
 
-    /**
-     * CSL element'ini process et
-     */
     private processElement(
-        element: any, // xmldom Element
-        reference: ReferencesResponse, 
+        element: any,
+        reference: any,
         options: any
     ): string {
         const tagName = element.tagName.toLowerCase();
@@ -173,173 +186,192 @@ export class CSLProcessorService {
         switch (tagName) {
             case 'names':
                 return this.processNames(element, reference, options);
-            
             case 'text':
                 return this.processText(element, reference, options);
-            
             case 'date':
                 return this.processDate(element, reference);
-            
             case 'number':
                 return this.processNumber(element, reference);
-            
             case 'group':
                 return this.processGroup(element, reference, options);
-            
-            case 'choose':  // ✅ YENİ: Choose element support
+            case 'choose':
                 return this.processChoose(element, reference, options);
-            
-            case 'if':      // ✅ YENİ: If element support
+            case 'if':
                 return this.processIf(element, reference, options);
-            
-            case 'else-if': // ✅ YENİ: Else-if element support
+            case 'else-if':
                 return this.processElseIf(element, reference, options);
-            
-            case 'else':    // ✅ YENİ: Else element support
+            case 'else':
                 return this.processElse(element, reference, options);
-            
-            case 'label':   // ✅ YENİ: Label element support
+            case 'label':
                 return this.processLabel(element, reference, options);
-            
             default:
                 console.warn(`Unknown CSL element: ${tagName}`);
                 return '';
         }
     }
 
-    /**
-     * Names element'ini process et (author, editor vb.)
-     */
-    private processNames(element: any, reference: ReferencesResponse, options: any): string {
+    private processNames(element: any, reference: any, options: any): string {
         const variable = element.getAttribute('variable');
         const elementPrefix = element.getAttribute('prefix') || '';
         const elementSuffix = element.getAttribute('suffix') || '';
 
-        console.log('👥 Processing names:', { variable, elementPrefix, elementSuffix });
-        console.log('👥 Options:', options);
-        console.log('👥 Reference authors:', reference.authors);
-
-        // Suppress author kontrolü
-        if (variable === 'author' && options.suppressAuthor) {
-            console.log('❌ Author suppressed');
-            return '';
-        }
-
         let names: any[] = [];
 
-        // Variable'a göre uygun field'ı al
         switch (variable) {
             case 'author':
-                names = reference.authors || [];
+                names = reference.author || reference.authors || [];
                 break;
             case 'editor':
-                names = reference.editors || [];
+                names = reference.editor || reference.editors || [];
                 break;
             default:
-                console.log(`❌ Unknown variable: ${variable}`);
                 return '';
         }
 
-        console.log('👥 Found names:', names);
-
-        if (names.length === 0) {
-            console.log('❌ No names found');
+        if (!names || names.length === 0) {
             return '';
         }
 
-        // Name formatting kurallarını al
         const nameElements = element.getElementsByTagName('name');
         const nameElement = nameElements.length > 0 ? nameElements[0] : null;
-        
+
         const etAlElements = element.getElementsByTagName('et-al');
         const etAlElement = etAlElements.length > 0 ? etAlElements[0] : null;
-        
-        console.log('👥 Name element:', nameElement ? 'found' : 'not found');
-        console.log('👥 Et-al element:', etAlElement ? 'found' : 'not found');
-        
-        const formattedNames = this.formatNames(names, nameElement, etAlElement);
-        
-        console.log('👥 Formatted names:', formattedNames);
 
-        const result = `${elementPrefix}${formattedNames}${elementSuffix}`;
-        console.log('👥 Final names result:', result);
-        
+        const formattedNames = this.formatNamesCorrectly(names, nameElement, etAlElement);
+
+        return `${elementPrefix}${formattedNames}${elementSuffix}`;
+    }
+
+    private formatNamesCorrectly(names: any[], nameElement: any | null, etAlElement: any | null): string {
+        if (!names || names.length === 0) return '';
+
+        const etAlMin = parseInt(nameElement?.getAttribute('et-al-min') || '4');
+        const etAlUseFirst = parseInt(nameElement?.getAttribute('et-al-use-first') || '3');
+        const delimiter = nameElement?.getAttribute('delimiter') || ', ';
+        const and = nameElement?.getAttribute('and') || 'and'; // CSL'den 'and' değerini al
+        const nameAsSort = nameElement?.getAttribute('name-as-sort-order');
+        const initializeWith = nameElement?.getAttribute('initialize-with');
+
+        let namesToShow = names;
+        let useEtAl = false;
+
+        if (names.length >= etAlMin) {
+            namesToShow = names.slice(0, etAlUseFirst);
+            useEtAl = true;
+        }
+
+        const formattedNames = namesToShow.map((name, index) => {
+            let family = '';
+            let given = '';
+
+            if (name && typeof name === 'object') {
+                family = name.family || name.lastName || '';
+                given = name.given || name.firstName || '';
+
+                // Sizin data structure: {"name":"John Doe","affiliation":"MIT"}
+                if (!family && !given && name.name) {
+                    const parts = name.name.trim().split(' ');
+                    family = parts[parts.length - 1];
+                    given = parts.slice(0, -1).join(' ');
+                }
+            } else if (typeof name === 'string') {
+                const parts = name.trim().split(' ');
+                family = parts[parts.length - 1];
+                given = parts.slice(0, -1).join(' ');
+            }
+
+            if (!family && !given) {
+                return 'Unknown';
+            }
+
+            let formattedName = '';
+
+            if (nameAsSort === 'all' || (nameAsSort === 'first' && index === 0)) {
+                formattedName = family;
+                if (given) {
+                    if (initializeWith !== undefined && initializeWith !== null) {
+                        const initials = given.split(' ')
+                            .map(part => part.charAt(0).toUpperCase())
+                            .join(initializeWith);
+                        formattedName += `, ${initials}${initializeWith}`;
+                    } else {
+                        formattedName += `, ${given}`;
+                    }
+                }
+            } else {
+                if (given) {
+                    if (initializeWith !== undefined && initializeWith !== null) {
+                        const initials = given.split(' ')
+                            .map(part => part.charAt(0).toUpperCase())
+                            .join(initializeWith);
+                        formattedName = `${initials}${initializeWith} ${family}`;
+                    } else {
+                        formattedName = `${given} ${family}`;
+                    }
+                } else {
+                    formattedName = family;
+                }
+            }
+
+            return formattedName;
+        });
+
+        let result = '';
+        if (formattedNames.length === 1) {
+            result = formattedNames[0];
+        } else if (formattedNames.length === 2) {
+            // CSL'den gelen 'and' değerini kullan
+            const connector = and === 'symbol' ? '&' : and;
+            result = `${formattedNames[0]} ${connector} ${formattedNames[1]}`;
+        } else {
+            const lastIndex = formattedNames.length - 1;
+            const firstPart = formattedNames.slice(0, lastIndex).join(delimiter);
+            const connector = and === 'symbol' ? '&' : and;
+            result = `${firstPart}${delimiter}${connector} ${formattedNames[lastIndex]}`;
+        }
+
+        if (useEtAl) {
+            result += ' et al.';
+        }
+
         return result;
     }
 
-    /**
-     * Text element'ini process et
-     */
-    private processText(element: any, reference: ReferencesResponse, options: any): string {
-        // ✅ Tüm attribute'ları debug et
-        console.log('📝 Processing TEXT element attributes:');
-        if (element.attributes) {
-            for (let i = 0; i < element.attributes.length; i++) {
-                const attr = element.attributes[i];
-                console.log(`  ${attr.name} = "${attr.value}"`);
-            }
-        }
-
+    private processText(element: any, reference: any, options: any): string {
         const variable = element.getAttribute('variable');
         const value = element.getAttribute('value');
-        const macro = element.getAttribute('macro'); // ✅ YENİ: Macro support
-        const term = element.getAttribute('term'); // ✅ YENİ: Term support
+        const macro = element.getAttribute('macro');
+        const term = element.getAttribute('term');
         const prefix = element.getAttribute('prefix') || '';
         const suffix = element.getAttribute('suffix') || '';
 
-        console.log('📝 Parsed attributes:', { variable, value, macro, term, prefix, suffix });
-
         let text = '';
 
-        // ✅ YENİ: Term attribute varsa onu işle
         if (term && term.trim()) {
             text = this.processTerm(term);
-            console.log('📝 Got term value for', term, ':', text);
-        }
-        // ✅ YENİ: Macro attribute varsa onu işle
-        else if (macro && macro.trim()) {
+        } else if (macro && macro.trim()) {
             text = this.processMacro(macro, reference, options);
-            console.log('📝 Got macro value for', macro, ':', text);
-        }
-        // Value attribute varsa onu kullan (boş string değilse)
-        else if (value && value.trim()) {
+        } else if (value && value.trim()) {
             text = value;
-            console.log('📝 Using value attribute:', text);
-        }
-        // Variable attribute varsa reference'tan al (boş string değilse)
-        else if (variable && variable.trim()) {
+        } else if (variable && variable.trim()) {
             text = this.getVariableValue(variable, reference, options);
-            console.log('📝 Got variable value for', variable, ':', text);
-        }
-        // Eğer ikisi de yoksa element'in textContent'ini al
-        else {
-            // Text node'lardan içeriği al
+        } else {
             text = this.getElementTextContent(element);
-            console.log('📝 Using element text content:', text);
         }
 
         if (!text || !text.trim()) {
-            console.log('❌ Text element has no content');
             return '';
         }
 
-        const result = `${prefix}${text}${suffix}`;
-        console.log('📝 Text final result:', result);
-
-        return result;
+        return `${prefix}${text}${suffix}`;
     }
 
-    /**
-     * Date element'ini process et
-     */
-    private processDate(element: any, reference: ReferencesResponse): string {
+    private processDate(element: any, reference: any): string {
         const variable = element.getAttribute('variable');
         const prefix = element.getAttribute('prefix') || '';
         const suffix = element.getAttribute('suffix') || '';
         const dateParts = element.getAttribute('date-parts');
-
-        console.log('📅 Processing DATE element:', { variable, prefix, suffix, dateParts });
-        console.log('📅 Reference year:', reference.year);
 
         let dateValue = '';
 
@@ -348,32 +380,21 @@ export class CSLProcessorService {
                 if (dateParts === 'year') {
                     dateValue = reference.year?.toString() || '';
                 } else {
-                    // Full date formatting burada yapılabilir
                     dateValue = reference.year?.toString() || '';
                 }
                 break;
             default:
-                console.log(`❌ Unknown date variable: ${variable}`);
                 return '';
         }
 
-        console.log('📅 Date value:', dateValue);
-
         if (!dateValue) {
-            console.log('❌ Date element has no value');
             return '';
         }
 
-        const result = `${prefix}${dateValue}${suffix}`;
-        console.log('📅 Date final result:', result);
-
-        return result;
+        return `${prefix}${dateValue}${suffix}`;
     }
 
-    /**
-     * Number element'ini process et
-     */
-    private processNumber(element: any, reference: ReferencesResponse): string {
+    private processNumber(element: any, reference: any): string {
         const variable = element.getAttribute('variable');
         const prefix = element.getAttribute('prefix') || '';
         const suffix = element.getAttribute('suffix') || '';
@@ -401,42 +422,23 @@ export class CSLProcessorService {
         return `${prefix}${numberValue}${suffix}`;
     }
 
-    /**
-     * Group element'ini process et
-     */
-    private processGroup(element: any, reference: ReferencesResponse, options: any): string {
-        console.log('🎯 Processing GROUP element');
-        
-        // Group içindeki tüm elementleri işle
+    private processGroup(element: any, reference: any, options: any): string {
         const children = element.childNodes;
         const processedParts: string[] = [];
 
-        console.log('🎯 Group children count:', children.length);
-
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
-            console.log(`🎯 Group child ${i}:`, {
-                nodeType: child.nodeType,
-                tagName: child.tagName,
-                nodeName: child.nodeName
-            });
 
             if (child.nodeType === 1) { // ELEMENT_NODE
-                console.log(`🎯 Processing group child: ${child.tagName}`);
                 const processedPart = this.processElement(child, reference, options);
-                console.log(`🎯 Group child result: "${processedPart}"`);
-                
+
                 if (processedPart && processedPart.trim()) {
                     processedParts.push(processedPart);
                 }
             }
         }
 
-        console.log('🎯 Group processed parts:', processedParts);
-
-        // Eğer group içinde hiç content yoksa boş döndür
         if (processedParts.length === 0) {
-            console.log('❌ Group has no content');
             return '';
         }
 
@@ -444,578 +446,149 @@ export class CSLProcessorService {
         const prefix = element.getAttribute('prefix') || '';
         const suffix = element.getAttribute('suffix') || '';
 
-        console.log('🎯 Group attributes:', { delimiter, prefix, suffix });
-
         const result = processedParts.join(delimiter);
-        const finalResult = `${prefix}${result}${suffix}`;
-        
-        console.log('🎯 Group final result:', finalResult);
-        
-        return finalResult;
+        return `${prefix}${result}${suffix}`;
     }
 
-    /**
-     * Names'leri formatla
-     */
-    private formatNames(names: any[], nameElement: any | null, etAlElement: any | null): string {
-        if (names.length === 0) return '';
-
-        // Et-al kuralları
-        const etAlMin = nameElement?.getAttribute('et-al-min');
-        const etAlUseFirst = nameElement?.getAttribute('et-al-use-first');
-        
-        // Name formatting kuralları
-        const delimiter = nameElement?.getAttribute('delimiter') || ', ';
-        const and = nameElement?.getAttribute('and') || 'and';
-
-        let namesToShow = names;
-        let useEtAl = false;
-
-        // Et-al kontrolü
-        if (etAlMin && etAlUseFirst) {
-            const minCount = parseInt(etAlMin);
-            const useFirstCount = parseInt(etAlUseFirst);
-            
-            if (names.length >= minCount) {
-                namesToShow = names.slice(0, useFirstCount);
-                useEtAl = true;
-            }
-        }
-
-        // Her name'i formatla
-        const formattedNames = namesToShow.map(name => {
-            return this.formatSingleName(name, nameElement);
-        });
-
-        // Birleştir
-        let result = '';
-        if (formattedNames.length === 1) {
-            result = formattedNames[0];
-        } else if (formattedNames.length === 2) {
-            result = `${formattedNames[0]} ${and} ${formattedNames[1]}`;
-        } else {
-            const lastIndex = formattedNames.length - 1;
-            const firstPart = formattedNames.slice(0, lastIndex).join(delimiter);
-            result = `${firstPart}${delimiter}${and} ${formattedNames[lastIndex]}`;
-        }
-
-        // Et-al ekle
-        if (useEtAl) {
-            result += ' et al.';
-        }
-
-        return result;
-    }
-
-    /**
-     * Tek bir name'i formatla
-     */
-    private formatSingleName(name: any, nameElement: any | null): string {
-        // Name'den lastName ve firstName'i al
-        let lastName = '';
-        let firstName = '';
-
-        // Önce direct field'ları kontrol et
-        if (name.lastName && name.firstName) {
-            lastName = name.lastName;
-            firstName = name.firstName;
-        } 
-        // Name field'ından parse et
-        else if (name.name) {
-            lastName = this.extractLastName(name.name);
-            firstName = this.extractFirstName(name.name);
-        }
-        // Direct field'ları kullan
-        else {
-            lastName = name.lastName || '';
-            firstName = name.firstName || '';
-        }
-
-        // ✅ DÜZELTME: Boş değerleri temizle
-        lastName = (lastName || '').trim();
-        firstName = (firstName || '').trim();
-
-        console.log(`👤 Formatting name: "${firstName}" "${lastName}"`);
-
-        const nameAsSort = nameElement?.getAttribute('name-as-sort-order');
-        const initializeWith = nameElement?.getAttribute('initialize-with');
-
-        if (nameAsSort === 'all' || nameAsSort === 'first') {
-            // Surname first format: "Smith, J."
-            let formatted = lastName;
-            if (firstName) {
-                if (initializeWith !== undefined) {
-                    // Initialize: "Smith, J."
-                    const initial = firstName.charAt(0).toUpperCase();
-                    formatted += `, ${initial}${initializeWith}`;
-                } else {
-                    // Full first name: "Smith, John"
-                    formatted += `, ${firstName}`;
-                }
-            }
-            return formatted;
-        } else {
-            // Normal format: "John Smith"
-            const fullName = `${firstName} ${lastName}`.trim();
-            return fullName || 'Unknown';
-        }
-    }
-
-    /**
-     * Variable değerini al
-     */
-    private getVariableValue(variable: string, reference: ReferencesResponse, options: any): string {
-        console.log(`🔍 Getting variable value for: "${variable}"`);
-        console.log('🔍 Reference data:', {
-            title: reference.title,
-            year: reference.year,
-            authors: reference.authors?.length || 0,
-            publication: reference.publication
-        });
-
-        switch (variable) {
-            case 'title':
-                return reference.title || '';
-            case 'container-title':
-                return reference.publication || '';
-            case 'volume':
-                return reference.volume || '';
-            case 'issue':
-                return reference.issue || '';
-            case 'page':
-                return reference.pages || '';
-            case 'DOI':
-                return reference.doi || '';
-            case 'URL':
-                return reference.url || '';
-            case 'locator':
-                return options.pageNumbers || '';
-            case 'issued': // Tarih için
-                return reference.year?.toString() || '';
-            
-            // IEEE specific variables
-            case 'citation-number':
-                { const citationNumber = this.generateCitationNumber(reference.id || '');
-                return citationNumber.toString(); }
-            
-            // Numeric citation (Science, Nature, Cell)
-            case 'citation-label':
-                return this.generateCitationNumber(reference.id || '').toString();
-            
-            // Author variables
-            case 'author':
-                return this.formatAuthorIntext(reference, options);
-            
-            // Title variables
-            case 'title-short':
-                { const title = reference.title || '';
-                return title.length > 50 ? title.substring(0, 47) + '...' : title; }
-            
-            // Publisher info
-            case 'publisher':
-                return reference.publisher || '';
-            
-            // Date parts
-            case 'year':
-                return reference.year?.toString() || '';
-            
-            default:
-                console.log(`❌ Unknown variable: "${variable}"`);
-                return '';
-        }
-    }
-
-    /**
-     * Name field'ından lastName çıkart
-     */
-    private extractLastName(fullName: string): string {
-        if (!fullName) return '';
-        const parts = fullName.trim().split(' ');
-        return parts[parts.length - 1];
-    }
-
-    /**
-     * Name field'ından firstName çıkart
-     */
-    private extractFirstName(fullName: string): string {
-        if (!fullName) return '';
-        const parts = fullName.trim().split(' ');
-        return parts.length > 1 ? parts[0] : '';
-    }
-
-    /**
-     * Element'in text content'ini al (xmldom için)
-     */
-    private getElementTextContent(element: any): string {
-        let text = '';
-        
-        if (element.childNodes) {
-            for (let i = 0; i < element.childNodes.length; i++) {
-                const child = element.childNodes[i];
-                if (child.nodeType === 3) { // TEXT_NODE
-                    text += child.nodeValue || '';
-                }
-            }
-        }
-        
-        return text.trim();
-    }
-
-    /**
-     * CSL Macro'ları işle
-     */
-    private processMacro(macroName: string, reference: ReferencesResponse, options: any): string {
-        console.log(`🔧 Processing macro: ${macroName}`);
-
-        // Genel macro implementations (tüm style'lar için)
-        switch (macroName) {
-            // APA Macros
-            case 'author-intext':
-                return this.formatAuthorIntext(reference, options);
-            
-            case 'date-intext':
-                return this.formatDateIntext(reference, options);
-            
-            case 'citation-locator':
-                return this.formatCitationLocator(reference, options);
-            
-            // Chicago Macros
-            case 'citation-author-date':
-                return this.formatChicagoCitation(reference, options);
-            
-            // MLA Macros  
-            case 'author-short':
-                return this.formatAuthorShort(reference, options);
-            
-            // IEEE Macros
-            case 'citation-number-inline':
-                return this.formatIEEECitationNumber(reference, options);
-            
-            // ✅ YENİ: Springer ve diğer eksik macro'lar
-            case 'year':
-            case 'date':
-                return this.formatDateIntext(reference, options);
-            
-            case 'at_page':
-                return this.formatGenericCitation(reference, options);
-            
-            case 'title-short':
-                { const title = reference.title || '';
-                return title.length > 50 ? title.substring(0, 47) + '...' : title; }
-            
-            // Genel fallback macro'lar
-            case 'author':
-            case 'contributors':
-                return this.formatAuthorIntext(reference, options);
-            
-            case 'issued':
-            case 'year-date':
-                return this.formatDateIntext(reference, options);
-            
-            case 'locator':
-            case 'page':
-                return this.formatCitationLocator(reference, options);
-            
-            default:
-                console.log(`❌ Unknown macro: ${macroName}, trying generic format`);
-                // Generic fallback: author + date
-                return this.formatGenericCitation(reference, options);
-        }
-    }
-
-    /**
-     * Author intext formatting (macro)
-     */
-    private formatAuthorIntext(reference: ReferencesResponse, options: any): string {
-        if (options.suppressAuthor) {
-            return '';
-        }
-
-        if (!reference.authors || reference.authors.length === 0) {
-            return '';
-        }
-
-        const authors = reference.authors;
-        
-        if (authors.length === 1) {
-            const author = authors[0];
-            const lastName = author.lastName || this.extractLastName(author.name) || 'Unknown';
-            return lastName;
-        } else if (authors.length === 2) {
-            const author1 = authors[0];
-            const author2 = authors[1];
-            const lastName1 = author1.lastName || this.extractLastName(author1.name) || 'Unknown';
-            const lastName2 = author2.lastName || this.extractLastName(author2.name) || 'Unknown';
-            return `${lastName1} & ${lastName2}`;
-        } else {
-            const firstAuthor = authors[0];
-            const lastName = firstAuthor.lastName || this.extractLastName(firstAuthor.name) || 'Unknown';
-            return `${lastName} et al.`;
-        }
-    }
-
-    /**
-     * Date intext formatting (macro)
-     */
-    private formatDateIntext(reference: ReferencesResponse, options: any): string {
-        if (options.suppressDate) {
-            return '';
-        }
-
-        return reference.year?.toString() || 'n.d.';
-    }
-
-    /**
-     * Citation locator formatting (macro)
-     */
-    private formatCitationLocator(reference: ReferencesResponse, options: any): string {
-        if (options.pageNumbers && options.pageNumbers.trim()) {
-            return `p. ${options.pageNumbers}`;
-        }
-        return '';
-    }
-
-    /**
-     * Chicago author-date citation formatting
-     */
-    private formatChicagoCitation(reference: ReferencesResponse, options: any): string {
-        const parts: string[] = [];
-
-        // Author kısmı
-        if (!options.suppressAuthor) {
-            const authorPart = this.formatAuthorIntext(reference, options);
-            if (authorPart) {
-                parts.push(authorPart);
-            }
-        }
-
-        // Date kısmı
-        if (!options.suppressDate) {
-            const datePart = this.formatDateIntext(reference, options);
-            if (datePart) {
-                parts.push(datePart);
-            }
-        }
-
-        // Page kısmı
-        const locatorPart = this.formatCitationLocator(reference, options);
-        if (locatorPart) {
-            parts.push(locatorPart);
-        }
-
-        return parts.join(', ');
-    }
-
-    /**
-     * Author short name formatting (MLA style)
-     */
-    private formatAuthorShort(reference: ReferencesResponse, options: any): string {
-        if (options.suppressAuthor || !reference.authors || reference.authors.length === 0) {
-            return '';
-        }
-
-        const authors = reference.authors;
-        
-        // ✅ DÜZELTME: MLA multiple author support
-        if (authors.length === 1) {
-            const author = authors[0];
-            return author.lastName || this.extractLastName(author.name) || 'Unknown';
-        } else if (authors.length === 2) {
-            const author1 = authors[0];
-            const author2 = authors[1];
-            const lastName1 = author1.lastName || this.extractLastName(author1.name) || 'Unknown';
-            const lastName2 = author2.lastName || this.extractLastName(author2.name) || 'Unknown';
-            
-            // ✅ DÜZELTME: Style'a göre farklı format
-            // MLA: "Doe and Smith"  
-            // Springer: "Doe and Smith" (aynı)
-            return `${lastName1} and ${lastName2}`;
-        } else {
-            const firstAuthor = authors[0];
-            const lastName = firstAuthor.lastName || this.extractLastName(firstAuthor.name) || 'Unknown';
-            return `${lastName} et al.`;
-        }
-    }
-
-    /**
-     * IEEE citation number formatting
-     */
-    private formatIEEECitationNumber(reference: ReferencesResponse, options: any): string {
-        // IEEE style için citation number'ı reference ID'sinden üret
-        const citationNumber = this.generateCitationNumber(reference.id || '');
-        return `[${citationNumber}]`;
-    }
-
-    /**
-     * Generic citation formatting (fallback)
-     */
-    private formatGenericCitation(reference: ReferencesResponse, options: any): string {
-        const parts: string[] = [];
-
-        // Author
-        if (!options.suppressAuthor) {
-            const authorPart = this.formatAuthorIntext(reference, options);
-            if (authorPart) {
-                parts.push(authorPart);
-            }
-        }
-
-        // Date
-        if (!options.suppressDate) {
-            const datePart = this.formatDateIntext(reference, options);
-            if (datePart) {
-                parts.push(datePart);
-            }
-        }
-
-        return parts.join(', ');
-    }
-
-    /**
-     * Numeric citation formatting (Science, Nature, Cell vb. için)
-     */
-    private formatNumericCitation(reference: ReferencesResponse, options: any): string {
-        const citationNumber = this.generateCitationNumber(reference.id || '');
-        return citationNumber.toString();
-    }
-
-    /**
-     * Citation number generate et (IEEE için)
-     */
-    private generateCitationNumber(referenceId: string): number {
-        // Reference ID'sinden deterministic number üret
-        let hash = 0;
-        for (let i = 0; i < referenceId.length; i++) {
-            const char = referenceId.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // 32bit integer'a convert et
-        }
-        return Math.abs(hash) % 1000 + 1; // 1-1000 arası
-    }
-
-    /**
-     * Choose element'ini process et (conditional logic)
-     */
-    private processChoose(element: any, reference: ReferencesResponse, options: any): string {
+    private processChoose(element: any, reference: any, options: any): string {
         console.log('🔀 Processing CHOOSE element');
-        
+
         const children = element.childNodes;
-        
+
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
             if (child.nodeType === 1) { // ELEMENT_NODE
                 const tagName = child.tagName.toLowerCase();
-                
+
                 if (tagName === 'if') {
-                    const result = this.processIf(child, reference, options);
-                    if (result) {
+                    const conditionMet = this.evaluateCondition(child, reference, options);
+                    console.log('🔍 IF condition result:', conditionMet);
+
+                    if (conditionMet) {
+                        const result = this.processElementChildren(child, reference, options);
                         console.log('✅ IF condition met, using result:', result);
                         return result;
                     }
                 } else if (tagName === 'else-if') {
-                    const result = this.processElseIf(child, reference, options);
-                    if (result) {
+                    const conditionMet = this.evaluateCondition(child, reference, options);
+                    console.log('🔍 ELSE-IF condition result:', conditionMet);
+
+                    if (conditionMet) {
+                        const result = this.processElementChildren(child, reference, options);
                         console.log('✅ ELSE-IF condition met, using result:', result);
                         return result;
                     }
                 } else if (tagName === 'else') {
-                    const result = this.processElse(child, reference, options);
+                    const result = this.processElementChildren(child, reference, options);
                     console.log('✅ Using ELSE result:', result);
                     return result;
                 }
             }
         }
-        
+
         console.log('❌ No choose condition met');
         return '';
     }
 
-    /**
-     * If element'ini process et
-     */
-    private processIf(element: any, reference: ReferencesResponse, options: any): string {
-        console.log('🔀 Processing IF element');
-        
-        // If condition'ı evaluate et
+    private processIf(element: any, reference: any, options: any): string {
         if (this.evaluateCondition(element, reference, options)) {
-            console.log('✅ IF condition is true');
             return this.processElementChildren(element, reference, options);
         }
-        
-        console.log('❌ IF condition is false');
         return '';
     }
 
-    /**
-     * Else-if element'ini process et
-     */
-    private processElseIf(element: any, reference: ReferencesResponse, options: any): string {
-        console.log('🔀 Processing ELSE-IF element');
-        
-        // Else-if condition'ı evaluate et
+    private processElseIf(element: any, reference: any, options: any): string {
         if (this.evaluateCondition(element, reference, options)) {
-            console.log('✅ ELSE-IF condition is true');
             return this.processElementChildren(element, reference, options);
         }
-        
-        console.log('❌ ELSE-IF condition is false');
         return '';
     }
 
-    /**
-     * Else element'ini process et
-     */
-    private processElse(element: any, reference: ReferencesResponse, options: any): string {
-        console.log('🔀 Processing ELSE element');
+    private processElse(element: any, reference: any, options: any): string {
         return this.processElementChildren(element, reference, options);
     }
 
-    /**
-     * Condition evaluate et
-     */
-    private evaluateCondition(element: any, reference: ReferencesResponse, options: any): boolean {
+    private evaluateCondition(element: any, reference: any, options: any): boolean {
         const variable = element.getAttribute('variable');
         const type = element.getAttribute('type');
         const isNumeric = element.getAttribute('is-numeric');
-        
+
         console.log('🔍 Evaluating condition:', { variable, type, isNumeric });
-        
+        console.log('🔍 Reference type:', reference.type);
+
         // Variable condition
         if (variable) {
             const variables = variable.split(' ');
             for (const varName of variables) {
                 const value = this.getVariableValue(varName.trim(), reference, options);
                 if (value && value.trim()) {
-                    console.log(`✅ Variable ${varName} has value: ${value}`);
                     return true;
                 }
             }
-            console.log(`❌ No variables have values: ${variable}`);
             return false;
         }
-        
-        // Type condition
+
+        // Type condition - FIXED: Actually check reference type
         if (type) {
-            // Basit type check - tüm reference'lar için true döndür
-            console.log(`✅ Type condition met for: ${type}`);
-            return true;
+            const referenceType = this.mapReferenceTypeToCSL(reference.type || 'article');
+            const allowedTypes = type.split(' ').map(t => t.trim());
+
+            console.log('🔍 Type check:', { referenceType, allowedTypes });
+
+            const matches = allowedTypes.includes(referenceType);
+            console.log('🔍 Type condition result:', matches);
+            return matches;
         }
-        
+
         // Numeric condition
         if (isNumeric) {
-            console.log(`✅ Numeric condition met for: ${isNumeric}`);
-            return true;
+            const variables = isNumeric.split(' ');
+            for (const varName of variables) {
+                const value = this.getVariableValue(varName.trim(), reference, options);
+                if (value && !isNaN(parseInt(value))) {
+                    return true;
+                }
+            }
+            return false;
         }
-        
+
         // Default: true
-        console.log('✅ Default condition: true');
         return true;
     }
 
-    /**
-     * Element'in child'larını process et
-     */
-    private processElementChildren(element: any, reference: ReferencesResponse, options: any): string {
+    private mapReferenceTypeToCSL(type: string): string {
+        const typeMapping = {
+            'journal': 'article-journal',
+            'article': 'article-journal',
+            'magazine': 'article-magazine',
+            'newspaper': 'article-newspaper',
+            'book': 'book',
+            'chapter': 'chapter',
+            'book-chapter': 'chapter',
+            'conference': 'paper-conference',
+            'proceedings': 'paper-conference',
+            'thesis': 'thesis',
+            'dissertation': 'thesis',
+            'report': 'report',
+            'webpage': 'webpage',
+            'website': 'webpage',
+            'blog': 'post-weblog',
+            'patent': 'patent',
+            'software': 'software',
+            'dataset': 'dataset',
+            'manuscript': 'manuscript',
+            'map': 'map',
+            'interview': 'interview',
+            'personal-communication': 'personal_communication',
+            'speech': 'speech',
+            'preprint': 'article',
+            'misc': 'document'
+        };
+
+        return typeMapping[type?.toLowerCase()] || 'article-journal';
+    }
+
+    private processElementChildren(element: any, reference: any, options: any): string {
         const children = element.childNodes;
         const processedParts: string[] = [];
 
@@ -1037,16 +610,363 @@ export class CSLProcessorService {
         return `${prefix}${result}${suffix}`;
     }
 
-    /**
-     * Term işle (Bluebook gibi legal citation'lar için)
-     */
+    private getVariableValue(variable: string, reference: any, options: any): string {
+        switch (variable) {
+            case 'citation-number':
+                return this.getCitationNumber(reference.id).toString();
+            case 'title':
+                return reference.title || '';
+            case 'container-title':
+                return reference['container-title'] || reference.publication || '';
+            case 'publisher':
+                return reference.publisher || '';
+            case 'volume':
+                return reference.volume || '';
+            case 'issue':
+                return reference.issue || '';
+            case 'page':
+                return reference.page || reference.pages || '';
+            case 'DOI':
+                return reference.DOI || reference.doi || '';
+            case 'URL':
+                return reference.URL || reference.url || '';
+            case 'issued':
+            case 'year':
+                if (reference.issued && reference.issued['date-parts']) {
+                    return reference.issued['date-parts'][0][0].toString();
+                } else if (reference.year) {
+                    return reference.year.toString();
+                }
+                return '';
+            case 'author':
+            case 'editor':
+                return '';
+            default:
+                console.log(`❓ Unknown variable: "${variable}"`);
+                return '';
+        }
+    }
+
+    private processMacro(macroName: string, reference: any, options: any): string {
+        console.log(`🔧 Processing macro: ${macroName}`);
+
+        try {
+            switch (macroName) {
+                // Author macros - STYLE AWARE
+                case 'author':
+                case 'author-bib':
+                case 'author-intext':
+                case 'contributors':
+                    return this.formatAuthorForStyle(reference, options);
+
+                // Date macros  
+                case 'date':
+                case 'date-bib':
+                    return this.formatBibliographyDate(reference);
+                case 'date-intext':
+                case 'year':
+                case 'issued':
+                    return this.formatDateForStyle(reference, options);
+
+                // Title macros
+                case 'title':
+                case 'title-and-descriptions':
+                case 'title-short':
+                    return this.formatTitleForStyle(reference);
+
+                // Container/Publication macros
+                case 'container':
+                case 'container-title':
+                case 'publication':
+                    return this.formatContainerForStyle(reference);
+
+                // Publisher macros
+                case 'publisher':
+                case 'publisher-place':
+                    return this.formatPublisherForStyle(reference);
+
+                // Access macros (URL, DOI)
+                case 'access':
+                case 'url':
+                case 'doi':
+                    return this.formatAccessForStyle(reference);
+
+                // Page/locator macros
+                case 'locator':
+                case 'page':
+                case 'pages':
+                    return this.formatPagesForStyle(reference);
+
+                // Citation macros
+                case 'citation-locator':
+                    return this.formatCitationLocator(reference, options);
+                case 'citation-author-date':
+                    return this.formatGenericCitation(reference, options);
+                case 'author-short':
+                    return this.formatAuthorShort(reference, options);
+                case 'citation-number-inline':
+                case 'citation-number':
+                    return this.getCitationNumber(reference.id).toString();
+
+                // Event macros (conference vb.)
+                case 'event':
+                    return this.formatEventForStyle(reference);
+
+                default:
+                    console.log(`❌ Unknown macro: ${macroName}`);
+                    return ''; // Don't throw error, just return empty
+            }
+        } catch (error) {
+            console.warn(`⚠️ Macro processing failed for ${macroName}:`, error.message);
+            return ''; // Return empty instead of throwing
+        }
+    }
+
+    private formatAuthorForStyle(reference: any, options: any): string {
+        if (options.suppressAuthor) return '';
+
+        const authors = reference.authors || reference.author || [];
+        if (!authors || authors.length === 0) return '';
+
+        // In-text citation için sadece soyadlar
+        if (authors.length === 1) {
+            return this.extractLastName(authors[0]);
+        } else if (authors.length === 2) {
+            const lastName1 = this.extractLastName(authors[0]);
+            const lastName2 = this.extractLastName(authors[1]);
+            return `${lastName1} & ${lastName2}`;
+        } else {
+            const lastName = this.extractLastName(authors[0]);
+            return `${lastName} et al.`;
+        }
+    }
+
+    private formatDateForStyle(reference: any, options: any): string {
+        if (options.suppressDate) return '';
+        return reference.year?.toString() || 'n.d.';
+    }
+
+    private formatTitleForStyle(reference: any): string {
+        const title = reference.title || '';
+
+        if (reference.type === 'book') {
+            return `*${title}*`;
+        }
+        return title;
+    }
+
+    private formatContainerForStyle(reference: any): string {
+        const container = reference.publication || reference['container-title'] || '';
+
+        return container ? `*${container}*` : '';
+    }
+
+    private formatPublisherForStyle(reference: any): string {
+        return reference.publisher || '';
+    }
+
+    private formatAccessForStyle(reference: any): string {
+        const doi = reference.doi || reference.DOI;
+        const url = reference.url || reference.URL;
+
+        if (doi) return `https://doi.org/${doi}`;
+        if (url) return url;
+        return '';
+    }
+
+    private formatPagesForStyle(reference: any): string {
+        return reference.pages || reference.page || '';
+    }
+
+    private formatEventForStyle(reference: any): string {
+        return reference.event || reference.conference || '';
+    }
+
+    private extractLastName(author: any): string {
+        if (!author) return 'Unknown';
+
+        if (typeof author === 'string') {
+            const parts = author.trim().split(' ');
+            return parts[parts.length - 1];
+        }
+
+        if (typeof author === 'object') {
+            // Standard fields
+            if (author.lastName || author.family) {
+                return author.lastName || author.family;
+            }
+
+            // Your data structure: {"name":"John Doe","affiliation":"MIT"}
+            if (author.name) {
+                const parts = author.name.trim().split(' ');
+                return parts[parts.length - 1];
+            }
+        }
+
+        return 'Unknown';
+    }
+
+    private formatBibliographyDate(reference: any): string {
+        console.log('🔧 formatBibliographyDate called');
+        console.log('🔧 Reference year:', reference.year);
+        console.log('🔧 Reference issued:', reference.issued);
+
+        // Try multiple sources for year - COMPREHENSIVE CHECK
+        let year = '';
+
+        // 1. Direct year field (en yaygın)
+        if (reference.year && reference.year !== '') {
+            const yearValue = reference.year.toString().trim();
+            if (yearValue !== '' && !isNaN(parseInt(yearValue))) {
+                year = yearValue;
+            }
+        }
+
+        // 2. Issued object with year property
+        if (!year && reference.issued && reference.issued.year) {
+            const yearValue = reference.issued.year.toString().trim();
+            if (yearValue !== '' && !isNaN(parseInt(yearValue))) {
+                year = yearValue;
+            }
+        }
+
+        // 3. Issued date-parts array
+        if (!year && reference.issued && reference.issued['date-parts']) {
+            const dateParts = reference.issued['date-parts'];
+            if (Array.isArray(dateParts) && dateParts.length > 0 &&
+                Array.isArray(dateParts[0]) && dateParts[0].length > 0) {
+                const yearValue = dateParts[0][0];
+                if (yearValue && !isNaN(parseInt(yearValue.toString()))) {
+                    year = yearValue.toString();
+                }
+            }
+        }
+
+        // 4. publishedDate, publicationDate gibi alternatif alanlar
+        if (!year) {
+            const altDateFields = ['publishedDate', 'publicationDate', 'datePublished'];
+            for (const field of altDateFields) {
+                if (reference[field]) {
+                    const dateStr = reference[field].toString();
+                    const yearMatch = dateStr.match(/\d{4}/);
+                    if (yearMatch) {
+                        year = yearMatch[0];
+                        break;
+                    }
+                }
+            }
+        }
+
+        console.log('🔧 Final extracted year:', year);
+
+        // Return year or fallback
+        return year || 'n.d.';
+    }
+
+    private formatAuthorIntext(reference: any, options: any): string {
+        if (options.suppressAuthor) {
+            return '';
+        }
+
+        const authors = reference.authors || reference.author || [];
+
+        if (!authors || authors.length === 0) {
+            return '';
+        }
+
+        if (authors.length === 1) {
+            const author = authors[0];
+            const lastName = this.extractLastName(author);
+            return lastName;
+        } else if (authors.length === 2) {
+            const author1 = authors[0];
+            const author2 = authors[1];
+            const lastName1 = this.extractLastName(author1);
+            const lastName2 = this.extractLastName(author2);
+            return `${lastName1} & ${lastName2}`;
+        } else {
+            const firstAuthor = authors[0];
+            const lastName = this.extractLastName(firstAuthor);
+            return `${lastName} et al.`;
+        }
+    }
+
+    private formatDateIntext(reference: any, options: any): string {
+        if (options.suppressDate) {
+            return '';
+        }
+
+        return reference.year?.toString() || 'n.d.';
+    }
+
+    private formatCitationLocator(reference: any, options: any): string {
+        if (options.pageNumbers && options.pageNumbers.trim()) {
+            return `p. ${options.pageNumbers}`;
+        }
+        return '';
+    }
+
+    private formatGenericCitation(reference: any, options: any): string {
+        const parts: string[] = [];
+
+        if (!options.suppressAuthor) {
+            const authorPart = this.formatAuthorIntext(reference, options);
+            if (authorPart) {
+                parts.push(authorPart);
+            }
+        }
+
+        if (!options.suppressDate) {
+            const datePart = this.formatDateIntext(reference, options);
+            if (datePart) {
+                parts.push(datePart);
+            }
+        }
+
+        return parts.join(', ');
+    }
+
+    private formatAuthorShort(reference: any, options: any): string {
+        if (options.suppressAuthor) {
+            return '';
+        }
+
+        const authors = reference.authors || reference.author || [];
+
+        if (!authors || authors.length === 0) {
+            return '';
+        }
+
+        if (authors.length === 1) {
+            return this.extractLastName(authors[0]);
+        } else if (authors.length === 2) {
+            const lastName1 = this.extractLastName(authors[0]);
+            const lastName2 = this.extractLastName(authors[1]);
+            return `${lastName1} and ${lastName2}`;
+        } else {
+            const lastName = this.extractLastName(authors[0]);
+            return `${lastName} et al.`;
+        }
+    }
+
+    private getElementTextContent(element: any): string {
+        let text = '';
+
+        if (element.childNodes) {
+            for (let i = 0; i < element.childNodes.length; i++) {
+                const child = element.childNodes[i];
+                if (child.nodeType === 3) { // TEXT_NODE
+                    text += child.nodeValue || '';
+                }
+            }
+        }
+
+        return text.trim();
+    }
+
     private processTerm(termName: string): string {
-        console.log(`📖 Processing term: ${termName}`);
-        
         switch (termName) {
             case 'ibid':
-                // Ibid sadece repeated citation'larda kullanılır
-                // Şimdilik boş döndür
                 return '';
             case 'and':
                 return 'and';
@@ -1059,23 +979,15 @@ export class CSLProcessorService {
             case 'at':
                 return 'at';
             default:
-                console.log(`❌ Unknown term: ${termName}`);
                 return '';
         }
     }
 
-    /**
-     * Label element işle
-     */
-    private processLabel(element: any, reference: ReferencesResponse, options: any): string {
-        console.log('🏷️ Processing LABEL element');
-        
+    private processLabel(element: any, reference: any, options: any): string {
         const variable = element.getAttribute('variable');
         const form = element.getAttribute('form') || 'long';
         const plural = element.getAttribute('plural') || 'contextual';
-        
-        console.log('🏷️ Label attributes:', { variable, form, plural });
-        
+
         switch (variable) {
             case 'page':
                 return form === 'short' ? 'p.' : 'page';
@@ -1088,14 +1000,37 @@ export class CSLProcessorService {
         }
     }
 
-    /**
-     * Fallback citation format (CSL işlenemediğinde)
-     */
-    private fallbackCitationFormat(reference: ReferencesResponse, options: any): string {
+    private fallbackCitationFormat(reference: any, options: any): string {
+        // IEEE için numbered format
+        if (this.isIEEEStyle(reference)) {
+            return this.formatNumberedCitation(reference, options);
+        }
+
+        // Diğer stiller için author-date
+        return this.formatAuthorDateCitation(reference, options);
+    }
+
+    private isIEEEStyle(reference: any): boolean {
+        // Bu method'u style detection için geliştirebilirsiniz
+        return false; // Şimdilik false
+    }
+
+    private formatAuthorDateCitation(reference: any, options: any): string {
         let authorText = '';
-        if (!options.suppressAuthor && reference.authors && reference.authors.length > 0) {
-            const firstAuthor = reference.authors[0];
-            authorText = firstAuthor.lastName || this.extractLastName(firstAuthor.name) || 'Unknown';
+        if (!options.suppressAuthor) {
+            const authors = reference.authors || reference.author || [];
+            if (authors && authors.length > 0) {
+                if (authors.length === 1) {
+                    authorText = this.extractLastName(authors[0]);
+                } else if (authors.length === 2) {
+                    const lastName1 = this.extractLastName(authors[0]);
+                    const lastName2 = this.extractLastName(authors[1]);
+                    authorText = `${lastName1} & ${lastName2}`;
+                } else {
+                    const lastName = this.extractLastName(authors[0]);
+                    authorText = `${lastName} et al.`;
+                }
+            }
         }
 
         let yearText = '';
@@ -1122,36 +1057,101 @@ export class CSLProcessorService {
         }
     }
 
-    /**
-     * Fallback bibliography format
-     */
-    private fallbackBibliographyFormat(reference: ReferencesResponse): string {
+    private fallbackBibliographyFormat(reference: any): string {
+        console.log('📚 Using fallback bibliography format for:', reference.title);
+
         let result = '';
 
-        // Author
-        if (reference.authors && reference.authors.length > 0) {
-            const authorNames = reference.authors.map(author => 
-                `${author.lastName || this.extractLastName(author.name) || 'Unknown'}, ${(author.firstName || this.extractFirstName(author.name) || '').charAt(0)}.`
-            ).join(', ');
-            result += authorNames;
+        // Author(s)
+        const authors = reference.authors || reference.author || [];
+        if (authors && authors.length > 0) {
+            if (authors.length === 1) {
+                const author = authors[0];
+                const lastName = this.extractLastName(author);
+                const firstName = this.extractFirstName(author);
+                result += `${lastName}, ${firstName.charAt(0)}.`;
+            } else if (authors.length <= 3) {
+                const authorStrings = authors.map((author, index) => {
+                    const lastName = this.extractLastName(author);
+                    const firstName = this.extractFirstName(author);
+                    if (index === 0) {
+                        return `${lastName}, ${firstName.charAt(0)}.`;
+                    } else {
+                        return `${firstName.charAt(0)}. ${lastName}`;
+                    }
+                });
+                result += authorStrings.join(', ');
+            } else {
+                const firstAuthor = authors[0];
+                const lastName = this.extractLastName(firstAuthor);
+                const firstName = this.extractFirstName(firstAuthor);
+                result += `${lastName}, ${firstName.charAt(0)}., et al.`;
+            }
         } else {
             result += 'Unknown Author';
         }
 
         // Year
-        result += ` (${reference.year || 'n.d.'}).`;
+        const year = reference.year?.toString() || 'n.d.';
+        result += ` (${year}).`;
 
         // Title
-        result += ` ${reference.title}.`;
+        const title = reference.title || 'Untitled';
+        result += ` ${title}.`;
 
-        // Publication
-        if (reference.publication) {
-            result += ` ${reference.publication}`;
-            if (reference.volume) result += `, ${reference.volume}`;
-            if (reference.issue) result += `(${reference.issue})`;
-            if (reference.pages) result += `, ${reference.pages}`;
+        // Publication details
+        const publication = reference.publication || reference['container-title'] || '';
+        if (publication) {
+            result += ` *${publication}*`;
+
+            if (reference.volume) {
+                result += `, ${reference.volume}`;
+            }
+
+            if (reference.issue) {
+                result += `(${reference.issue})`;
+            }
+
+            if (reference.pages) {
+                result += `, ${reference.pages}`;
+            }
+
+            result += '.';
         }
 
+        // DOI or URL
+        const doi = reference.doi || reference.DOI;
+        const url = reference.url || reference.URL;
+
+        if (doi) {
+            result += ` https://doi.org/${doi}`;
+        } else if (url) {
+            result += ` ${url}`;
+        }
+
+        console.log('📚 Generated fallback bibliography:', result);
+
         return result;
+    }
+
+    private extractFirstName(author: any): string {
+        if (!author) return '';
+
+        if (typeof author === 'string') {
+            const parts = author.trim().split(' ');
+            return parts.length > 1 ? parts.slice(0, -1).join(' ') : '';
+        }
+
+        if (typeof author === 'object') {
+            if (author.firstName || author.given) {
+                return author.firstName || author.given;
+            }
+            if (author.name) {
+                const parts = author.name.trim().split(' ');
+                return parts.length > 1 ? parts.slice(0, -1).join(' ') : '';
+            }
+        }
+
+        return '';
     }
 }
