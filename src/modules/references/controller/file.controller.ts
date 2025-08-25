@@ -55,7 +55,19 @@ export class FileController {
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 'text/plain',
-                'text/csv'
+                'text/csv',
+
+                'application/vnd.ms-powerpoint',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+
+                'image/jpeg',
+                'image/jpg',
+                'image/png',
+                'image/gif',
+                'image/webp',
+                'image/bmp',
+                'image/tiff',
+                'image/svg+xml'
             ];
 
             if (allowedTypes.includes(file.mimetype)) {
