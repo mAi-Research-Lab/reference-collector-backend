@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, Put, Uploade
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ApiOperation, ApiResponse, ApiSecurity, ApiConsumes, ApiBody } from '@nestjs/swagger';
-import { UserResponse } from './dto/user.response';
+import { RemainingStorageResponse, UserResponse } from './dto/user.response';
 import { COMMON_MESSAGES } from 'src/common/constants/common.messages';
 import { User as UserDecorator } from './decorators/user.decorator';
 import { ErrorDto } from 'src/common/dto/error.dto';
@@ -136,5 +136,24 @@ export class UserController {
             timestamp: new Date().toISOString(),
             data: null
         };
+    }
+
+    @Get('/remaining-storage')
+    @ApiOperation({ summary: 'Get remaining storage', description: 'Returns the remaining storage of the user' })
+    @ApiSuccessResponse(RemainingStorageResponse, 200, "Remaining storage retrieved successfully")
+    @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(403, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, COMMON_MESSAGES.USER_NOT_FOUND)
+    @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
+    async getRemainingStorage(@UserDecorator() user: any): Promise<ResponseDto> {
+        const remainingStorage = await this.userService.getRemainingStorage(user.id);
+        return {
+            message: "Remaining storage retrieved successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: remainingStorage
+        }
     }
 }

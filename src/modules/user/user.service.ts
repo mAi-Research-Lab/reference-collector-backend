@@ -130,7 +130,7 @@ export class UserService {
             return formatUserResponse(user);
         } catch (error) {
             console.log(error);
-            
+
             throw new CustomHttpException("Avatar upload error", 500, 'AVATAR_UPLOAD_ERROR');
         }
     }
@@ -155,7 +155,7 @@ export class UserService {
             };
         } catch (error) {
             console.log(error);
-            
+
             throw new CustomHttpException('An error occurred while deleting the avatar', 500, 'AVATAR_DELETE_ERROR');
         }
     }
@@ -166,7 +166,7 @@ export class UserService {
             return updatedUser;
         } catch (error) {
             console.log(error);
-            
+
             throw new CustomHttpException("Avatar update error", 500, 'AVATAR_UPDATE_ERROR');
         }
     }
@@ -220,5 +220,51 @@ export class UserService {
         if (!fs.existsSync(this.uploadPath)) {
             fs.mkdirSync(this.uploadPath, { recursive: true });
         }
+    }
+
+    async getRemainingStorage(userId: string): Promise<number> {
+        const user = await this.prisma.user.findUnique({
+            where: {
+                id: userId
+            }
+        })
+
+        if (!user) {
+            throw new CustomHttpException(COMMON_MESSAGES.USER_NOT_FOUND, 404, COMMON_MESSAGES.USER_NOT_FOUND);
+        }
+
+        const currentStorageUsed = BigInt(user.storageUsed);
+        const maxStorageLimit = BigInt(user.maxStorage);
+
+        const remainingBytes = maxStorageLimit - currentStorageUsed;
+        const remainingMB = Number(remainingBytes) / (1024 * 1024);
+
+        return remainingMB
+    }
+
+    async incrementStorageUsage(userId: string, storageUsage: bigint): Promise<void> {
+        await this.prisma.user.update({
+            where: {
+                id: userId
+            },
+            data: {
+                storageUsed: {
+                    increment: storageUsage
+                }
+            }
+        })
+    }
+
+    async decrementStorageUsage(userId: string, storageUsage: bigint): Promise<void> {
+        await this.prisma.user.update({
+            where: {
+                id: userId
+            },
+            data: {
+                storageUsed: {
+                    decrement: storageUsage
+                }
+            }
+        })
     }
 }

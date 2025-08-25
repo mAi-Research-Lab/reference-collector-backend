@@ -58,6 +58,8 @@ export class SharedService {
             avatarUrl: user.avatarUrl,
             preferences: user.preferences as Record<string, any> | null,
             emailVerified: user.emailVerified,
+            storageUsed: user.storageUsed,
+            maxStorage: user.maxStorage,
             isActive: user.isActive,
             lastLogin: user.lastLogin,
             createdAt: user.createdAt,
