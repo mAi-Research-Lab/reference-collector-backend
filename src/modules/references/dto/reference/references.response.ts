@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { JsonValue } from "generated/prisma/runtime/library";
 
 export class ReferencesResponse {
    @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
@@ -77,7 +78,7 @@ export class ReferencesResponse {
    metadata: any | null;
 
    @ApiProperty({ example: ['machine-learning', 'healthcare', 'artificial-intelligence'] })
-   tags: string[];
+   tags: JsonValue | null;
 
    @ApiProperty({ example: 'Important paper for research project. Follow up with author.' })
    notes: string | null;

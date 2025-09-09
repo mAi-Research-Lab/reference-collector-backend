@@ -16,9 +16,13 @@ import { MetadataEnhancementService } from './services/metadata-enhancement.serv
 import { MetadataEnhancementController } from './controller/metadata-enhancement.controller';
 import { QuickImportService } from './services/external/quick-import.service';
 import { QuickImportController } from './controller/quick-import.controller';
+import { UserModule } from '../user/user.module';
 
 @Module({
-  imports: [HttpModule],
+  imports: [
+    HttpModule,
+    UserModule
+  ],
   providers: [
     ReferencesService,
     FileService,

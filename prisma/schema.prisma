@@ -39,6 +39,9 @@ model User {
   memberships     LibraryMemberships[] @relation
   sentInvitations LibraryMemberships[] @relation("UserInvites")
 
+  storageUsed BigInt @default(0) @map("storage_used")
+  maxStorage  BigInt @default(209715200) @map("max_storage")
+
   LibraryInvitations LibraryInvitations[]
 
   ReferencesModifiedBy References[] @relation("ReferencesModifiedBy")
@@ -272,7 +275,7 @@ model Collections {
   library     Libraries    @relation(fields: [libraryId], references: [id], onDelete: Cascade)
   parentId    String?      @map("parent_id") @db.Uuid
   parent      Collections? @relation("CollectionHierarchy", fields: [parentId], references: [id])
-  name        String       @unique
+  name        String       
   description String?
   color       String?
   sortOrder   Int?         @map("sort_order")
@@ -324,7 +327,7 @@ model References {
   abstractText  String?                  @map("abstract_text")
   language      String?
   metadata      Json?                    @db.JsonB
-  tags          String[]
+  tags          Json?                    @db.JsonB
   notes         String?
   dateAdded     DateTime                 @default(now()) @map("date_added")
   dateModified  DateTime                 @default(now()) @updatedAt @map("date_modified")
@@ -345,6 +348,7 @@ model References {
 
   @@map("references")
 }
+
 
 // ======= FILES =============
 model Files {

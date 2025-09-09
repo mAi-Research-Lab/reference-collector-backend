@@ -87,4 +87,7 @@ export class UpdateUserDto {
     @IsOptional()
     @IsBoolean()
     emailVerified?: boolean
+
+    @ApiPropertyOptional({example: 0})
+    storageUsed?: bigint
 }

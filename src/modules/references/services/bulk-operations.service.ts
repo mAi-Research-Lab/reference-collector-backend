@@ -1,23 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma/prisma.service';
-import { 
-    BulkDeleteDto, 
-    BulkMoveDto, 
-    BulkTagDto, 
+import {
+    BulkDeleteDto,
+    BulkMoveDto,
+    BulkTagDto,
     BulkExportDto,
-    BulkOperationResultDto 
+    BulkOperationResultDto
 } from '../dto/bulk/bulk-operations.dto';
+import { InputJsonValue } from 'generated/prisma/runtime/library';
 
 @Injectable()
 export class BulkOperationsService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(private readonly prisma: PrismaService) { }
 
     /**
      * Bulk delete references
      */
     async bulkDelete(libraryId: string, bulkDeleteDto: BulkDeleteDto): Promise<BulkOperationResultDto> {
         const { referenceIds, permanent = false } = bulkDeleteDto;
-        
+
         const successfulIds: string[] = [];
         const failures: Array<{ id: string; error: string }> = [];
 
@@ -25,17 +26,17 @@ export class BulkOperationsService {
             try {
                 // Verify reference exists and belongs to library
                 const reference = await this.prisma.references.findFirst({
-                    where: { 
-                        id: referenceId, 
+                    where: {
+                        id: referenceId,
                         libraryId,
-                        isDeleted: false 
+                        isDeleted: false
                     }
                 });
 
                 if (!reference) {
-                    failures.push({ 
-                        id: referenceId, 
-                        error: 'Reference not found or already deleted' 
+                    failures.push({
+                        id: referenceId,
+                        error: 'Reference not found or already deleted'
                     });
                     continue;
                 }
@@ -45,10 +46,10 @@ export class BulkOperationsService {
                     await this.prisma.$transaction(async (tx) => {
                         // Delete annotations first
                         await tx.annotations.deleteMany({
-                            where: { 
-                                file: { 
-                                    referenceId: referenceId 
-                                } 
+                            where: {
+                                file: {
+                                    referenceId: referenceId
+                                }
                             }
                         });
 
@@ -76,7 +77,7 @@ export class BulkOperationsService {
                     // Soft delete
                     await this.prisma.references.update({
                         where: { id: referenceId },
-                        data: { 
+                        data: {
                             isDeleted: true,
                             dateModified: new Date()
                         }
@@ -85,9 +86,9 @@ export class BulkOperationsService {
 
                 successfulIds.push(referenceId);
             } catch (error) {
-                failures.push({ 
-                    id: referenceId, 
-                    error: error.message || 'Unknown error occurred' 
+                failures.push({
+                    id: referenceId,
+                    error: error.message || 'Unknown error occurred'
                 });
             }
         }
@@ -108,7 +109,7 @@ export class BulkOperationsService {
      */
     async bulkMove(libraryId: string, bulkMoveDto: BulkMoveDto): Promise<BulkOperationResultDto> {
         const { referenceIds, targetLibraryId, targetCollectionId } = bulkMoveDto;
-        
+
         // Verify target library exists
         const targetLibrary = await this.prisma.libraries.findFirst({
             where: { id: targetLibraryId, isDeleted: false }
@@ -124,17 +125,17 @@ export class BulkOperationsService {
         for (const referenceId of referenceIds) {
             try {
                 const reference = await this.prisma.references.findFirst({
-                    where: { 
-                        id: referenceId, 
+                    where: {
+                        id: referenceId,
                         libraryId,
-                        isDeleted: false 
+                        isDeleted: false
                     }
                 });
 
                 if (!reference) {
-                    failures.push({ 
-                        id: referenceId, 
-                        error: 'Reference not found' 
+                    failures.push({
+                        id: referenceId,
+                        error: 'Reference not found'
                     });
                     continue;
                 }
@@ -143,7 +144,7 @@ export class BulkOperationsService {
                     // Update reference library
                     await tx.references.update({
                         where: { id: referenceId },
-                        data: { 
+                        data: {
                             libraryId: targetLibraryId,
                             dateModified: new Date()
                         }
@@ -167,9 +168,9 @@ export class BulkOperationsService {
 
                 successfulIds.push(referenceId);
             } catch (error) {
-                failures.push({ 
-                    id: referenceId, 
-                    error: error.message || 'Unknown error occurred' 
+                failures.push({
+                    id: referenceId,
+                    error: error.message || 'Unknown error occurred'
                 });
             }
         }
@@ -190,30 +191,40 @@ export class BulkOperationsService {
      */
     async bulkTag(libraryId: string, bulkTagDto: BulkTagDto): Promise<BulkOperationResultDto> {
         const { referenceIds, tags, action } = bulkTagDto;
-        
+
         const successfulIds: string[] = [];
         const failures: Array<{ id: string; error: string }> = [];
 
         for (const referenceId of referenceIds) {
             try {
                 const reference = await this.prisma.references.findFirst({
-                    where: { 
-                        id: referenceId, 
+                    where: {
+                        id: referenceId,
                         libraryId,
-                        isDeleted: false 
+                        isDeleted: false
                     }
                 });
 
                 if (!reference) {
-                    failures.push({ 
-                        id: referenceId, 
-                        error: 'Reference not found' 
+                    failures.push({
+                        id: referenceId,
+                        error: 'Reference not found'
                     });
                     continue;
                 }
 
+                // JsonValue'yi string array'e dönüştür
+                let currentTags: string[] = [];
+                if (reference.tags) {
+                    if (Array.isArray(reference.tags)) {
+                        currentTags = reference.tags.filter(tag => typeof tag === 'string') as string[];
+                    } else {
+                        // Eğer tags bir array değilse, boş array kullan
+                        currentTags = [];
+                    }
+                }
+
                 let newTags: string[] = [];
-                const currentTags = reference.tags || [];
 
                 switch (action) {
                     case 'add':
@@ -229,17 +240,17 @@ export class BulkOperationsService {
 
                 await this.prisma.references.update({
                     where: { id: referenceId },
-                    data: { 
-                        tags: newTags,
+                    data: {
+                        tags: { set: newTags } as InputJsonValue, // JsonValue olarak cast et
                         dateModified: new Date()
                     }
                 });
 
                 successfulIds.push(referenceId);
             } catch (error) {
-                failures.push({ 
-                    id: referenceId, 
-                    error: error.message || 'Unknown error occurred' 
+                failures.push({
+                    id: referenceId,
+                    error: error.message || 'Unknown error occurred'
                 });
             }
         }
@@ -260,12 +271,12 @@ export class BulkOperationsService {
      */
     async bulkExport(libraryId: string, bulkExportDto: BulkExportDto): Promise<BulkOperationResultDto> {
         const { referenceIds, format, filename, includeFiles = false } = bulkExportDto;
-        
+
         const references = await this.prisma.references.findMany({
-            where: { 
+            where: {
                 id: { in: referenceIds },
                 libraryId,
-                isDeleted: false 
+                isDeleted: false
             },
             include: {
                 Files: includeFiles
@@ -308,7 +319,7 @@ export class BulkOperationsService {
 
         // Save export file (implement file storage logic)
         const exportFilename = `${filename || 'references'}.${fileExtension}`;
-        const exportPath = await this.saveExportFile(exportData, exportFilename, mimeType);
+        const exportPath = this.saveExportFile(exportData, exportFilename, mimeType);
 
         return {
             operation: 'export',
@@ -332,7 +343,7 @@ export class BulkOperationsService {
         return references.map(ref => {
             const type = ref.type || 'article';
             const key = `${ref.authors?.[0]?.name?.split(' ').pop() || 'unknown'}${ref.year || ''}`;
-            
+
             return `@${type}{${key},
   title={${ref.title}},
   author={${ref.authors?.map(a => a.name).join(' and ') || ''}},
@@ -369,15 +380,15 @@ ER  - `;
             ref.doi || '',
             ref.url || ''
         ]);
-        
-        return [headers, ...rows].map(row => 
+
+        return [headers, ...rows].map(row =>
             row.map(cell => `"${cell}"`).join(',')
         ).join('\n');
     }
 
-    private async saveExportFile(data: string, filename: string, mimeType: string): Promise<string> {
+    private saveExportFile(data: string, filename: string, mimeType: string): string {
         // Implement file storage logic (local storage, S3, etc.)
         // For now, return a placeholder path
-        return `/exports/${filename}`;
+        return `/exports/${filename}.${mimeType}`;
     }
 }

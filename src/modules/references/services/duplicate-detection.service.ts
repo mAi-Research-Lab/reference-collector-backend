@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma/prisma.service';
 import { References } from 'generated/prisma';
+import { InputJsonValue, JsonValue } from 'generated/prisma/runtime/library';
 
 export interface DuplicateMatch {
     reference: References;
@@ -17,7 +18,7 @@ export interface DuplicateDetectionResult {
 
 @Injectable()
 export class DuplicateDetectionService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(private readonly prisma: PrismaService) { }
 
     /**
      * Ana duplicate detection metodu
@@ -161,15 +162,15 @@ export class DuplicateDetectionService {
      */
     private calculateStringSimilarity(str1: string, str2: string): number {
         if (!str1 || !str2) return 0;
-        
+
         const s1 = str1.toLowerCase().trim();
         const s2 = str2.toLowerCase().trim();
-        
+
         if (s1 === s2) return 1;
-        
+
         const distance = this.levenshteinDistance(s1, s2);
         const maxLength = Math.max(s1.length, s2.length);
-        
+
         return 1 - (distance / maxLength);
     }
 
@@ -178,25 +179,25 @@ export class DuplicateDetectionService {
      */
     private calculateAuthorSimilarity(authors1: any, authors2: any): number {
         if (!authors1 || !authors2) return 0;
-        
+
         const auth1 = Array.isArray(authors1) ? authors1 : [authors1];
         const auth2 = Array.isArray(authors2) ? authors2 : [authors2];
-        
+
         let matches = 0;
         const maxAuthors = Math.max(auth1.length, auth2.length);
-        
+
         for (const a1 of auth1) {
             for (const a2 of auth2) {
                 const name1 = typeof a1 === 'string' ? a1 : a1.name || '';
                 const name2 = typeof a2 === 'string' ? a2 : a2.name || '';
-                
+
                 if (this.calculateStringSimilarity(name1, name2) > 0.8) {
                     matches++;
                     break;
                 }
             }
         }
-        
+
         return maxAuthors > 0 ? matches / maxAuthors : 0;
     }
 
@@ -205,15 +206,15 @@ export class DuplicateDetectionService {
      */
     private levenshteinDistance(str1: string, str2: string): number {
         const matrix: number[][] = [];
-        
+
         for (let i = 0; i <= str2.length; i++) {
             matrix[i] = [i];
         }
-        
+
         for (let j = 0; j <= str1.length; j++) {
             matrix[0][j] = j;
         }
-        
+
         for (let i = 1; i <= str2.length; i++) {
             for (let j = 1; j <= str1.length; j++) {
                 if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
@@ -227,7 +228,7 @@ export class DuplicateDetectionService {
                 }
             }
         }
-        
+
         return matrix[str2.length][str1.length];
     }
 
@@ -246,23 +247,23 @@ export class DuplicateDetectionService {
      */
     private getMatchingFields(ref1: Partial<References>, ref2: References): string[] {
         const matchingFields: string[] = [];
-        
+
         if (ref1.doi && ref2.doi && ref1.doi.toLowerCase() === ref2.doi.toLowerCase()) {
             matchingFields.push('doi');
         }
-        
+
         if (ref1.isbn && ref2.isbn && ref1.isbn.replace(/[-\s]/g, '') === ref2.isbn.replace(/[-\s]/g, '')) {
             matchingFields.push('isbn');
         }
-        
+
         if (ref1.title && ref2.title && this.calculateStringSimilarity(ref1.title, ref2.title) > 0.8) {
             matchingFields.push('title');
         }
-        
+
         if (ref1.year && ref2.year && ref1.year === ref2.year) {
             matchingFields.push('year');
         }
-        
+
         return matchingFields;
     }
 
@@ -322,14 +323,36 @@ export class DuplicateDetectionService {
             }
         });
 
+        // Helper fonksiyon - JsonValue'yu string array'e çevir
+        const normalizeTagsToStringArray = (tags: JsonValue | null): string[] => {
+            if (!tags) return [];
+
+            if (Array.isArray(tags)) {
+                return tags
+                    .map(tag => {
+                        if (typeof tag === 'string') return tag;
+                        if (typeof tag === 'object' && tag !== null && 'name' in tag) {
+                            return String(tag.name);
+                        }
+                        return String(tag);
+                    })
+                    .filter(tag => tag.length > 0);
+            }
+
+            return [];
+        };
+
         // Merge işlemi
         const mergedData: any = { ...masterRef };
 
         for (const ref of referencesToMerge) {
             // Tags merge
             if (fieldsToMerge.includes('tags') && ref.tags) {
-                const existingTags = mergedData.tags || [];
-                const newTags = ref.tags.filter(tag => !existingTags.includes(tag));
+                const existingTags = normalizeTagsToStringArray(mergedData.tags);
+                const refTags = normalizeTagsToStringArray(ref.tags);
+
+                // Duplicate tag'leri filtrele
+                const newTags = refTags.filter(tag => !existingTags.includes(tag));
                 mergedData.tags = [...existingTags, ...newTags];
             }
 
@@ -342,10 +365,19 @@ export class DuplicateDetectionService {
 
             // Metadata merge
             if (fieldsToMerge.includes('metadata') && ref.metadata) {
-                mergedData.metadata = {
-                    ...(mergedData.metadata || {}),
-                    ...(typeof ref.metadata === 'object' ? ref.metadata : {})
-                };
+                const existingMetadata = mergedData.metadata;
+                const refMetadata = ref.metadata;
+
+                // Her iki metadata da object olduğundan emin ol
+                if (typeof existingMetadata === 'object' && existingMetadata !== null &&
+                    typeof refMetadata === 'object' && refMetadata !== null) {
+                    mergedData.metadata = {
+                        ...existingMetadata,
+                        ...refMetadata
+                    };
+                } else if (typeof refMetadata === 'object' && refMetadata !== null) {
+                    mergedData.metadata = refMetadata;
+                }
             }
         }
 
@@ -353,9 +385,9 @@ export class DuplicateDetectionService {
         await this.prisma.references.update({
             where: { id: masterReferenceId },
             data: {
-                tags: mergedData.tags,
+                tags: mergedData.tags as InputJsonValue,
                 notes: mergedData.notes,
-                metadata: mergedData.metadata,
+                metadata: mergedData.metadata as InputJsonValue,
                 dateModified: new Date()
             }
         });

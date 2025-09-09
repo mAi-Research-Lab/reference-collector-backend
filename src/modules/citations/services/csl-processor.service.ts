@@ -76,22 +76,15 @@ export class CSLProcessorService {
 
         let result = `[${citationNumber}]`;
 
-        // Page numbers varsa ekle
         if (options.pageNumbers && options.pageNumbers.trim()) {
-            result += `, p. ${options.pageNumbers}`;
+            const pagePrefix = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') ? 'pp.' : 'p.';
+            result += `, ${pagePrefix} ${options.pageNumbers}`;
         }
 
         const prefix = options.prefix || '';
         const suffix = options.suffix || '';
 
         return `${prefix}${result}${suffix}`;
-    }
-
-    private getCitationNumber(referenceId: string): number {
-        if (!this.citationNumbers.has(referenceId)) {
-            this.citationNumbers.set(referenceId, this.nextNumber++);
-        }
-        return this.citationNumbers.get(referenceId)!;
     }
 
     resetCitationNumbers(): void {
@@ -129,13 +122,15 @@ export class CSLProcessorService {
 
             const result = this.processLayout(layoutElement, reference, {});
 
+            // Italic formatını koru - sadece gereksiz işaretleri temizle
             const cleanedResult = result
-                .replace(/\.\./g, '.')
-                .replace(/\s+/g, ' ')
-                .replace(/<em>/g, '*')
-                .replace(/<\/em>/g, '*')
+                .replace(/\.\./g, '.')          // Çift nokta -> tek nokta
+                .replace(/\s+/g, ' ')           // Çoklu boşluk -> tek boşluk
+                // .replace(/<em>/g, '*')       // <em> -> * (KALDIRDIK - HTML'i koru)
+                // .replace(/<\/em>/g, '*')     // </em> -> * (KALDIRDIK - HTML'i koru)  
                 .trim();
 
+            console.log('📚 CSL bibliography result with formatting preserved:', cleanedResult.substring(0, 100));
             return cleanedResult;
 
         } catch (error) {
@@ -152,8 +147,6 @@ export class CSLProcessorService {
         const prefix = layoutElement.getAttribute('prefix') || '';
         const suffix = layoutElement.getAttribute('suffix') || '';
         const delimiter = layoutElement.getAttribute('delimiter') || '';
-
-        console.log('🔍 Layout attributes:', { prefix, suffix, delimiter });
 
         const children = layoutElement.childNodes;
         const processedParts: string[] = [];
@@ -750,7 +743,7 @@ export class CSLProcessorService {
         const title = reference.title || '';
 
         if (reference.type === 'book') {
-            return `*${title}*`;
+            return `<em>${title}</em>`;  // HTML em tag'i kullan
         }
         return title;
     }
@@ -758,7 +751,8 @@ export class CSLProcessorService {
     private formatContainerForStyle(reference: any): string {
         const container = reference.publication || reference['container-title'] || '';
 
-        return container ? `*${container}*` : '';
+        // Container title'ı italic yapmak için HTML em tag'i kullan
+        return container ? `<em>${container}</em>` : '';
     }
 
     private formatPublisherForStyle(reference: any): string {
@@ -1153,5 +1147,46 @@ export class CSLProcessorService {
         }
 
         return '';
+    }
+
+    setCitationNumbers(referenceNumberMap: Map<string, number>): void {
+        console.log('🔢 CSL Processor: Setting citation numbers from map');
+
+        this.citationNumbers.clear();
+        referenceNumberMap.forEach((number, referenceId) => {
+            this.citationNumbers.set(referenceId, number);
+        });
+
+        this.nextNumber = Math.max(...Array.from(referenceNumberMap.values())) + 1;
+
+        console.log('✅ CSL Processor citation numbers updated:',
+            Array.from(this.citationNumbers.entries()).slice(0, 3).map(([id, num]) => `${id.substring(0, 8)}... -> ${num}`)
+        );
+    }
+    presetCitationNumbers(referenceNumberMap: Map<string, number>): void {
+        console.log('🔢 CSLProcessorService: Presetting citation numbers');
+
+        // Citation numbers map'ini temizle ve yeniden set et
+        this.citationNumbers.clear();
+        referenceNumberMap.forEach((number, referenceId) => {
+            this.citationNumbers.set(referenceId, number);
+            console.log(`🔢 CSL: Set reference ${referenceId.substring(0, 8)}... -> [${number}]`);
+        });
+
+        // Next number'ı güncel tut
+        this.nextNumber = Math.max(...Array.from(referenceNumberMap.values())) + 1;
+
+        console.log('✅ CSL citation numbers preset complete');
+    }
+
+    // getCitationNumber methodunu da güncelle - debug log ekle
+    private getCitationNumber(referenceId: string): number {
+        if (!this.citationNumbers.has(referenceId)) {
+            this.citationNumbers.set(referenceId, this.nextNumber++);
+            console.log(`🔢 CSL: NEW citation number assigned: ${referenceId.substring(0, 8)}... -> [${this.citationNumbers.get(referenceId)}]`);
+        } else {
+            console.log(`🔢 CSL: EXISTING citation number used: ${referenceId.substring(0, 8)}... -> [${this.citationNumbers.get(referenceId)}]`);
+        }
+        return this.citationNumbers.get(referenceId)!;
     }
 }

@@ -48,4 +48,15 @@ export class UserResponse {
 
     @ApiProperty()
     updatedAt: Date
+
+    @ApiPropertyOptional()
+    storageUsed: bigint
+
+    @ApiPropertyOptional()
+    maxStorage: bigint
+}
+
+export class RemainingStorageResponse {
+    @ApiProperty()
+    remainingStorage: bigint
 }

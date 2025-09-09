@@ -8,6 +8,7 @@ import { UpdateFileDto } from "../dto/file/update-file.dto";
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
+import { UserService } from "src/modules/user/user.service";
 
 const writeFile = promisify(fs.writeFile);
 const readFile = promisify(fs.readFile);
@@ -19,7 +20,8 @@ export class FileService {
     private readonly uploadsDir = 'uploads';
 
     constructor(
-        private readonly prisma: PrismaService
+        private readonly prisma: PrismaService,
+        private readonly userService: UserService
     ) {
         this.ensureUploadsDirectory();
     }
@@ -31,6 +33,8 @@ export class FileService {
     }
 
     async create(document: Express.Multer.File, referenceId: string, uploadedBy: string): Promise<FileResponse> {
+        await this.checkStorage(document, uploadedBy);
+
         const localPath = await this.saveDocument(document, uploadedBy, referenceId);
 
         const fileData = {
@@ -49,6 +53,8 @@ export class FileService {
             data: fileData
         });
 
+        await this.userService.incrementStorageUsage(uploadedBy, file.fileSize);
+
         return file;
     }
 
@@ -65,7 +71,7 @@ export class FileService {
 
         return file
     }
-    
+
     async getFilesByReference(referenceId: string): Promise<FileResponse[]> {
         return this.prisma.files.findMany({
             where: {
@@ -249,6 +255,8 @@ export class FileService {
             console.warn(`Failed to delete physical file: ${file.storagePath}`, error);
         }
 
+        await this.userService.decrementStorageUsage(file.uploadedBy, file.fileSize);
+
         await this.prisma.files.delete({
             where: {
                 id: id
@@ -280,5 +288,28 @@ export class FileService {
                 storageProvider: file.storageProvider
             }
         })
+    }
+
+    async checkStorage(document: Express.Multer.File, userId: string): Promise<boolean> {
+        const user = await this.userService.findById(userId);
+
+        const currentStorageUsed = BigInt(user.storageUsed);
+        const maxStorageLimit = BigInt(user.maxStorage);
+        const documentSize = BigInt(document.size);
+
+        const newTotalSize = currentStorageUsed + documentSize;
+
+        if (newTotalSize > maxStorageLimit) {
+            const remainingBytes = maxStorageLimit - currentStorageUsed;
+            const remainingMB = Number(remainingBytes) / (1024 * 1024);
+
+            throw new CustomHttpException(
+                `Storage limit exceeded. You have ${remainingMB.toFixed(2)}MB remaining.`,
+                413, // Payload Too Large
+                'STORAGE_LIMIT_EXCEEDED'
+            );
+        }
+
+        return true;
     }
 }

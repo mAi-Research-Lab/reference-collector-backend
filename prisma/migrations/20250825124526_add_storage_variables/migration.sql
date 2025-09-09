@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "max_storage" BIGINT NOT NULL DEFAULT 209715200,
+ADD COLUMN     "storage_used" BIGINT NOT NULL DEFAULT 0;

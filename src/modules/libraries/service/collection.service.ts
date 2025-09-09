@@ -15,12 +15,6 @@ export class CollectionService {
     ) { }
 
     async create(data: CreateCollectionData): Promise<CollectionResponse> {
-        const isExistCollection = await this.prisma.collections.findFirst({ where: { name: data.name } })
-
-        if (isExistCollection) {
-            throw new CustomHttpException(LIBRARY_MESSAGES.COLLECTIONS_ALREADY_EXISTS, 409, LIBRARY_MESSAGES.COLLECTIONS_ALREADY_EXISTS)
-        }
-
         const collection = await this.prisma.collections.create({ data })
 
         return collection
