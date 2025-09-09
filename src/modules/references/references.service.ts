@@ -20,7 +20,6 @@ export class ReferencesService {
     async create(libraryId: string, data: CreateReferenceDto): Promise<ReferencesResponse> {
         const { addedBy, ...referenceData } = data;
 
-        // Validation check before creating
         const validationResult = await this.validationService.validateReference(referenceData);
 
         if (!validationResult.isValid && validationResult.score < 60) {
@@ -31,29 +30,16 @@ export class ReferencesService {
             );
         }
 
-        // Duplicate check before creating
-        const duplicateResult = await this.duplicateDetectionService.detectDuplicates(
-            libraryId,
-            referenceData
-        );
-
-        if (duplicateResult.isDuplicate) {
-            throw new CustomHttpException(
-                `Potential duplicate found. Similarity: ${duplicateResult.confidence.toFixed(2)}`,
-                409,
-                'DUPLICATE_REFERENCE_DETECTED'
-            );
-        }
-
         return await this.prismaService.references.create({
             data: {
                 ...referenceData,
                 collectionId: data.collectionId ? data.collectionId : null,
                 libraryId: libraryId,
                 addedBy: addedBy,
-                type: data.type ? data.type : ""
+                type: data.type ? data.type : "",
+                tags: data.tags ? { set: data.tags } : undefined,
             }
-        });
+        }) as ReferencesResponse;
     }
 
     async getReferencesByLibrary(libraryId: string): Promise<ReferencesResponse[]> {

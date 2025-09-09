@@ -1,11 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsString, IsNotEmpty, IsOptional, IsInt, IsArray, IsUUID, Min, Max } from "class-validator";
+import { JsonValue } from "generated/prisma/runtime/library";
 
 export class CreateReferenceDto {
     @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
     @IsOptional()
     @IsString()
-    collectionId?: string 
+    collectionId?: string
 
     @ApiProperty({ example: 'journal', description: 'Type of reference (journal, book, conference, etc.)' })
     @IsString()
@@ -112,13 +113,15 @@ export class CreateReferenceDto {
     metadata?: any;
 
     @ApiPropertyOptional({
-        example: ['machine-learning', 'healthcare', 'artificial-intelligence'],
+        example: [
+            { name: 'machine-learning', color: '#ff0000' },
+            { name: 'healthcare', color: '#00ff00' },],
         description: 'Array of tags'
     })
     @IsArray()
     @IsString({ each: true })
     @IsOptional()
-    tags?: string[];
+    tags?: JsonValue;
 
     @ApiPropertyOptional({
         example: 'Important paper for research project. Follow up with author.',
