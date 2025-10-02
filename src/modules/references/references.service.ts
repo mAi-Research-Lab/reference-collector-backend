@@ -133,17 +133,48 @@ export class ReferencesService {
     }
 
     async removeTagsFromReference(id: string, tags: string[]): Promise<ReferencesResponse> {
+        const reference = await this.prismaService.references.findUnique({
+            where: { id }
+        });
+
+        if (!reference) {
+            throw new CustomHttpException('Reference not found', 404, 'REFERENCE_NOT_FOUND');
+        }
+
+        let currentTags: string[] = [];
+        if (reference.tags && Array.isArray(reference.tags)) {
+            currentTags = reference.tags.filter(tag => typeof tag === 'string') as string[];
+        }
+
+        const updatedTags = currentTags.filter(tag => !tags.includes(tag));
+
         return await this.prismaService.references.update({
             where: { id },
-            data: { tags: { set: tags } }
-        })
+            data: { tags: updatedTags }
+        });
+    }
+
+    async updateTagsInReference(id: string, tags: Array<{ name: string; color?: string }>): Promise<ReferencesResponse> {
+        const reference = await this.prismaService.references.findUnique({
+            where: { id }
+        });
+
+        if (!reference) {
+            throw new CustomHttpException('Reference not found', 404, 'REFERENCE_NOT_FOUND');
+        }
+
+        return await this.prismaService.references.update({
+            where: { id },
+            data: { tags: tags }
+        });
     }
 
     async searchReferencesWithLibrary(
         searchTerm: string,
         libraryId: string,
         page: number = 1,
-        limit: number = 10
+        limit: number = 10,
+        userId?: string
     ): Promise<{
         data: ReferencesResponse[];
         total: number;
@@ -152,8 +183,9 @@ export class ReferencesService {
     }> {
         const skip = (page - 1) * limit;
 
-        const searchConditions = {
+        const searchConditions: any = {
             libraryId,
+            isDeleted: false,
             OR: [
                 { title: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
                 { publication: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
@@ -169,6 +201,19 @@ export class ReferencesService {
                 }
             ]
         };
+
+        if (userId) {
+            const libraryAccess = await this.prismaService.libraryMemberships.findFirst({
+                where: {
+                    libraryId: libraryId,
+                    userId: userId
+                }
+            });
+
+            if (!libraryAccess) {
+                throw new CustomHttpException('Access denied to this library', 403, 'LIBRARY_ACCESS_DENIED');
+            }
+        }
 
         const [data, total] = await Promise.all([
             this.prismaService.references.findMany({
@@ -190,23 +235,39 @@ export class ReferencesService {
         };
     }
 
-    async searchReferences(searchTerm: string): Promise<ReferencesResponse[]> {
-        return await this.prismaService.references.findMany({
-            where: {
-                OR: [
-                    { title: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-                    { publication: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-                    { publisher: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-                    { doi: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-                    { isbn: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-                    { abstractText: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-                    {
-                        authors: {
-                            path: [],
-                            string_contains: searchTerm
-                        }
+    async searchReferences(searchTerm: string, userId?: string): Promise<ReferencesResponse[]> {
+        const whereConditions: any = {
+            isDeleted: false,
+            OR: [
+                { title: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { publication: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { publisher: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { doi: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { isbn: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { abstractText: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                {
+                    authors: {
+                        path: [],
+                        string_contains: searchTerm
                     }
-                ]
+                }
+            ]
+        };
+
+        if (userId) {
+            whereConditions.library = {
+                libraryMemberships: {
+                    some: {
+                        userId: userId,
+                    }
+                }
+            };
+        }
+
+        return await this.prismaService.references.findMany({
+            where: whereConditions,
+            include: {
+                library: true
             }
         })
     }

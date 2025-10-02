@@ -56,6 +56,8 @@ export class FileController {
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 'text/plain',
                 'text/csv',
+                'text/html',
+                'application/xhtml+xml',
 
                 'application/vnd.ms-powerpoint',
                 'application/vnd.openxmlformats-officedocument.presentationml.presentation',

@@ -16,6 +16,10 @@ import { MetadataEnhancementService } from './services/metadata-enhancement.serv
 import { MetadataEnhancementController } from './controller/metadata-enhancement.controller';
 import { QuickImportService } from './services/external/quick-import.service';
 import { QuickImportController } from './controller/quick-import.controller';
+import { ReportGenerationService } from './services/report-generation.service';
+import { ReportGenerationController } from './controller/report-generation.controller';
+import { BibliographyCreationService } from './services/bibliography-creation.service';
+import { BibliographyCreationController } from './controller/bibliography-creation.controller';
 import { UserModule } from '../user/user.module';
 
 @Module({
@@ -31,7 +35,9 @@ import { UserModule } from '../user/user.module';
     BulkOperationsService,
     ReferenceValidationService,
     MetadataEnhancementService,
-    QuickImportService
+    QuickImportService,
+    ReportGenerationService,
+    BibliographyCreationService
   ],
   controllers: [
     ReferencesController,
@@ -41,7 +47,9 @@ import { UserModule } from '../user/user.module';
     BulkOperationsController,
     ReferenceValidationController,
     MetadataEnhancementController,
-    QuickImportController
+    QuickImportController,
+    ReportGenerationController,
+    BibliographyCreationController
   ],
   exports: [ReferencesService, DuplicateDetectionService, BulkOperationsService, ReferenceValidationService, MetadataEnhancementService]
 })
