@@ -9,6 +9,7 @@ import { UpdateReferenceDto } from "./dto/reference/update-reference.dto";
 import { ApiSuccessArrayResponse, ApiSuccessResponse, ApiErrorResponse } from "src/common/decorators/api-response-wrapper.decorator";
 import { ResponseDto } from "src/common/dto/api-response.dto";
 import { COMMON_MESSAGES } from "src/common/constants/common.messages";
+import { User } from "src/modules/user/decorators/user.decorator";
 
 @Controller('references')
 @ApiTags('References')
@@ -92,9 +93,11 @@ export class ReferencesController {
     @ApiErrorResponse(404, "Library not found")
     async searchReferences(
         @Query('q') searchTerm: string,
+        @User('id') userId?: string
     ): Promise<ResponseDto> {
         const searchResults = await this.referencesService.searchReferences(
             searchTerm,
+            userId
         );
 
         return {
@@ -143,13 +146,15 @@ export class ReferencesController {
         @Param('libraryId') libraryId: string,
         @Query('q') searchTerm: string,
         @Query('page') page?: number,
-        @Query('limit') limit?: number
+        @Query('limit') limit?: number,
+        @User('id') userId?: string
     ): Promise<ResponseDto> {
         const searchResults = await this.referencesService.searchReferencesWithLibrary(
             searchTerm,
             libraryId,
             page || 1,
-            limit || 10
+            limit || 10,
+            userId
         );
 
         return {
@@ -378,6 +383,41 @@ export class ReferencesController {
 
         return {
             message: "Tags removed from reference successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: result
+        };
+    }
+
+    @Put(':id/tags')
+    @ApiOperation({ summary: 'Update tags in reference (with color support)' })
+    @ApiParam({ name: 'id', description: 'Reference ID' })
+    @ApiBody({
+        schema: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string', example: 'machine-learning' },
+                    color: { type: 'string', example: '#FF6B6B', description: 'Optional color for the tag' }
+                },
+                required: ['name']
+            }
+        }
+    })
+    @ApiSuccessResponse(ReferencesResponse, 200, "Tags updated in reference successfully")
+    @ApiErrorResponse(400, "Bad request - Invalid tags data")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Reference not found")
+    async updateTagsInReference(
+        @Param('id') referenceId: string,
+        @Body() tags: Array<{ name: string; color?: string }>
+    ): Promise<ResponseDto> {
+        const result = await this.referencesService.updateTagsInReference(referenceId, tags);
+
+        return {
+            message: "Tags updated in reference successfully",
             statusCode: 200,
             success: true,
             timestamp: new Date().toISOString(),
