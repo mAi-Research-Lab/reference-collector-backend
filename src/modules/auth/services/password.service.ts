@@ -76,7 +76,6 @@ export class PasswordService {
 
             return { valid: true };
         } catch (error) {
-            console.log(error);
 
             throw new CustomHttpException(AUTH_MESSAGES.INVALID_RESET_TOKEN, 400, AUTH_MESSAGES.INVALID_RESET_TOKEN);
         }

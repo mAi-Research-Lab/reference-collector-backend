@@ -9,16 +9,13 @@ export class BootstrapService implements OnModuleInit {
 
     async onModuleInit() {
         if (process.env.NODE_ENV === 'production') {
-            console.log('⏭️  Skipping bootstrap in production environment');
             return;
         }
 
-        console.log('🚀 Running application bootstrap...');
 
         try {
             await this.checkDatabaseConnection();
             await this.seedMissingCitationStyles();
-            console.log('✅ Bootstrap completed successfully!');
         } catch (error) {
             console.error('❌ Bootstrap failed:', error);
         }
@@ -29,7 +26,6 @@ export class BootstrapService implements OnModuleInit {
      */
     private async seedMissingCitationStyles(): Promise<void> {
         try {
-            console.log('📚 Checking for missing citation styles...');
 
             const seeder = new CitationStyleSeeder();
             
@@ -54,13 +50,10 @@ export class BootstrapService implements OnModuleInit {
             );
 
             if (missingStyles.length === 0) {
-                console.log(`✅ All citation styles are up to date (${existingStyles.length} styles found)`);
                 await seeder.disconnect();
                 return;
             }
 
-            console.log(`📥 Found ${missingStyles.length} missing styles out of ${allRequiredStyles.length} total styles`);
-            console.log(`Missing styles: ${missingStyles.map(s => s.shortName).join(', ')}`);
 
             // Sadece eksik stilleri seed et
             await seeder.seedSpecificStyles(missingStyles);
@@ -70,7 +63,6 @@ export class BootstrapService implements OnModuleInit {
                 where: { isCustom: false }
             });
 
-            console.log(`✅ Citation styles updated successfully (${finalCount} system styles total)`);
 
         } catch (error) {
             console.error('❌ Failed to seed missing citation styles:', error);
@@ -81,7 +73,6 @@ export class BootstrapService implements OnModuleInit {
     private async checkDatabaseConnection(): Promise<void> {
         try {
             await this.prisma.$queryRaw`SELECT 1`;
-            console.log('✅ Database connection successful');
         } catch (error) {
             console.error('❌ Database connection failed:', error);
             throw new Error(`Database connection failed: ${error.message}`);

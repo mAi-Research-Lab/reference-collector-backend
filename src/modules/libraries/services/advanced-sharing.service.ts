@@ -362,7 +362,6 @@ export class AdvancedSharingService {
 
     private async sendShareNotification(shareId: string, recipientEmail: string): Promise<void> {
         // Mock implementation - in real app, would send email
-        console.log(`Sending share notification to ${recipientEmail} for share ${shareId}`);
     }
 
     private formatShareResponse(share: any): ShareResponseDto {

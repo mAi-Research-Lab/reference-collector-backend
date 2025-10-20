@@ -491,41 +491,44 @@ enum CollaboratorRoles {
 
 // ======= CITATIONS ==========
 model Citation {
-  id             String   @id @default(uuid()) @db.Uuid
-  documentId     String   @map("document_id")
-  styleId        String   @map("style_id") @db.Uuid
-  fieldId        String?  @map("field_id")
-  referenceId    String   @map("reference_id") @db.Uuid
-  locationData   Json?    @map("location_data")
-  citationText   String   @map("citation_text")
-  pageNumbers    String?  @map("page_numbers")
+  id             String           @id @default(uuid()) @db.Uuid
+  documentId     String?          @map("document_id") @db.Uuid
+  styleId        String           @map("style_id") @db.Uuid
+  fieldId        String?          @map("field_id")
+  referenceId    String           @map("reference_id") @db.Uuid
+  locationData   Json?            @map("location_data")
+  citationText   String           @map("citation_text")
+  pageNumbers    String?          @map("page_numbers")
   prefix         String?
   suffix         String?
-  suppressAuthor Boolean  @default(false) @map("suppress_author")
-  suppressDate   Boolean  @default(false) @map("suppress_date")
-  styleOverride  Json?    @map("style_override")
-  sortOrder      Int      @default(0) @map("sort_order")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  suppressAuthor Boolean          @default(false) @map("suppress_author")
+  suppressDate   Boolean          @default(false) @map("suppress_date")
+  styleOverride  Json?            @map("style_override")
+  sortOrder      Int              @default(0) @map("sort_order")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
 
-  reference References    @relation(fields: [referenceId], references: [id])
-  style     CitationStyle @relation(fields: [styleId], references: [id])
+  reference      References       @relation(fields: [referenceId], references: [id])
+  style          CitationStyle    @relation(fields: [styleId], references: [id])
+  officeDocument OfficeDocuments? @relation(fields: [documentId], references: [id])
 }
 
 model CitationStyle {
-  id            String     @id @default(uuid()) @db.Uuid
-  name          String
-  shortName     String     @map("short_name")
-  description   String?
-  cslContent    String     @map("csl_content")
-  category      String
-  isDefault     Boolean    @default(false) @map("is_default")
-  isCustom      Boolean    @default(false) @map("is_custom")
-  createdBy     String?    @map("created_by") @db.Uuid
-  downloadCount Int        @default(0) @map("download_count")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
-  Citation      Citation[]
+  id              String            @id @default(uuid()) @db.Uuid
+  name            String
+  shortName       String            @map("short_name")
+  description     String?
+  cslContent      String            @map("csl_content")
+  category        String
+  isDefault       Boolean           @default(false) @map("is_default")
+  isCustom        Boolean           @default(false) @map("is_custom")
+  createdBy       String?           @map("created_by") @db.Uuid
+  downloadCount   Int               @default(0) @map("download_count")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  
+  Citation        Citation[]
+  OfficeDocuments OfficeDocuments[]
 }
 
 // ====== COLLABORATION SESSION ==========
@@ -549,24 +552,31 @@ model CollaborationSession {
 
 // ========== OFFICE DOCUMENTS ==============
 model OfficeDocuments {
-  id                 String     @id @default(uuid()) @db.Uuid
-  userId             String     @map("user_id") @db.Uuid
-  documentPath       String     @map("document_path")
-  documentName       String     @map("document_name")
-  documentHash       String     @map("document_hash")
-  platform           Platforms  @default(word)
-  platformDocumentId String?    @map("platform_document_id") // Google Docs ID, Word internal ID
-  citationMapping    Json       @default("{}") @map("citation_mapping")
-  libraryLinks       Json       @default("{}") @map("library_links")
-  lastSync           DateTime?  @map("last_sync")
-  wordProcessorType  String     @default("microsoft-word") @map("word_processor_type")
-  versionInfo        Json       @default("{}") @map("version_info")
-  syncStatus         SyncStatus @default(pending)
-  createdAt          DateTime   @default(now()) @map("created_at")
-  updatedAt          DateTime   @updatedAt @map("updated_at")
+  id                 String         @id @default(uuid()) @db.Uuid
+  userId             String         @map("user_id") @db.Uuid
+  documentPath       String         @map("document_path")
+  documentName       String         @map("document_name")
+  documentHash       String         @map("document_hash")
+  platform           Platforms      @default(word)
+  platformDocumentId String?        @map("platform_document_id") // Google Docs ID, Word internal ID
+  citationMapping    Json           @default("{}") @map("citation_mapping")
+  libraryLinks       Json           @default("{}") @map("library_links")
+  lastSync           DateTime?      @map("last_sync")
+  wordProcessorType  String         @default("microsoft-word") @map("word_processor_type")
+  versionInfo        Json           @default("{}") @map("version_info")
+  syncStatus         SyncStatus     @default(pending)
+  
+  // Citation Style Management
+  styleId            String?        @map("style_id") @db.Uuid
+  citationStyle      String?        @map("citation_style") // Style short name for quick access
+  
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
 
-  user         User           @relation(fields: [userId], references: [id])
+  user         User            @relation(fields: [userId], references: [id])
+  style        CitationStyle?  @relation(fields: [styleId], references: [id])
   SyncSessions SyncSessions[]
+  citations    Citation[]
 
   @@map("office_documents")
 }

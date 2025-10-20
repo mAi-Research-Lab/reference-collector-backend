@@ -53,13 +53,19 @@ export class ReferencesService {
     }
 
     async getReferencesByIds(ids: string[]): Promise<ReferencesResponse[]> {
-        return await this.prismaService.references.findMany({
+        const references = await this.prismaService.references.findMany({
             where: {
                 id: {
                     in: ids
                 }
             }
-        })
+        });
+        
+        // ✅ İstenen sırayla döndür (Prisma 'in' sıralamayı garanti etmez)
+        const referenceMap = new Map(references.map(ref => [ref.id, ref]));
+        return ids
+            .map(id => referenceMap.get(id))
+            .filter(ref => ref !== undefined) as ReferencesResponse[];
     }
 
     async getReference(id: string): Promise<ReferencesResponse> {
@@ -255,12 +261,14 @@ export class ReferencesService {
         };
 
         if (userId) {
+            // Kullanıcının erişebildiği library'lerde ara
             whereConditions.library = {
-                libraryMemberships: {
-                    some: {
-                        userId: userId,
-                    }
-                }
+                OR: [
+                    // Owner olduğu library'ler
+                    { ownerId: userId },
+                    // Üye olduğu library'ler
+                    { memberships: { some: { userId: userId } } }
+                ]
             };
         }
 
@@ -269,7 +277,7 @@ export class ReferencesService {
             include: {
                 library: true
             }
-        })
+        });
     }
 
     async filterReferencesAdvanced(

@@ -6,8 +6,8 @@ export class CitationResponse {
     @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
     id: string;
 
-    @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
-    documentId: string;
+    @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d', required: false })
+    documentId?: string | null;
 
     @ApiProperty({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
     referenceId: string;

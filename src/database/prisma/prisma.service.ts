@@ -23,14 +23,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     });
 
     // Query loglama için middleware
-    this.$use(async (params, next) => {
-      const before = Date.now();
-      const result = await next(params);
-      const after = Date.now();
-      
-      this.logger.debug(`Query ${params.model}.${params.action} took ${after - before}ms`);
-      return result;
-    });
+    // (this as unknown as PrismaClient).$use(async (params, next) => {
+    //   const before = Date.now();
+    //   const result = await next(params);
+    //   const after = Date.now();
+
+    //   this.logger.debug(`Query ${params.model}.${params.action} took ${after - before}ms`);
+    //   return result;
+    // });
   }
 
   async onModuleInit() {

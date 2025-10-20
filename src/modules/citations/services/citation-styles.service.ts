@@ -33,7 +33,26 @@ export class CitationStylesService {
     }
 
     async getStyleById(id: string): Promise<CitationStyleResponse> {
-        const style = await this.prisma.citationStyle.findUnique({ where: { id } });
+        // ✅ UUID mi yoksa shortName mi kontrol et
+        let style;
+        
+        // UUID formatında mı kontrol et (8-4-4-4-12 karakter)
+        const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i.test(id);
+        
+        if (isUUID) {
+            // UUID ile arama
+            style = await this.prisma.citationStyle.findUnique({ where: { id } });
+        } else {
+            // shortName ile arama
+            style = await this.prisma.citationStyle.findFirst({ 
+                where: { 
+                    shortName: {
+                        equals: id,
+                        mode: 'insensitive'
+                    }
+                } 
+            });
+        }
 
         if (!style) {
             throw new CustomHttpException(CITATIONS_MESSAGES.STYLE_NOT_FOUND, 404, CITATIONS_MESSAGES.STYLE_NOT_FOUND);
@@ -48,13 +67,10 @@ export class CitationStylesService {
 
         await this.incrementDownloadCount(styleId);
 
-        console.log('🔍 Formatting citation with style:', style.name);
-        console.log('🔍 Style short name:', style.shortName);
 
-        // CSL content varsa ve valid ise önce onu dene
-        if (style.cslContent && this.isValidCSLContent(style.cslContent)) {
+        // CSL content varsa direkt citeproc-js kullan (validation gereksiz)
+        if (style.cslContent) {
             try {
-                console.log('📝 Using CSL Processor for formatting');
 
                 // Reference'ı CSL formatına normalize et
                 const normalizedRef = this.normalizeReferenceForCSL(reference);
@@ -71,43 +87,36 @@ export class CitationStylesService {
                     }
                 );
 
-                console.log('✅ CSL formatting successful:', formattedCitation);
 
                 // Eğer CSL boş sonuç döndürdüyse fallback'e git
                 if (!formattedCitation || formattedCitation.trim() === '') {
-                    console.warn('⚠️ CSL returned empty result, using fallback');
+                    console.warn('⚠️ Citeproc returned empty, using fallback');
                     return this.formatReferenceByStyleFallback(reference, style, data);
                 }
 
                 return formattedCitation;
 
             } catch (error) {
-                console.warn('⚠️ CSL processing failed, falling back to hardcoded format:', error.message);
+                console.error('❌ Citeproc-JS failed:', error.message);
                 return this.formatReferenceByStyleFallback(reference, style, data);
             }
         } else {
-            console.log('📝 Using fallback formatting (no valid CSL content)');
             return this.formatReferenceByStyleFallback(reference, style, data);
         }
     }
 
     async generateBibliography(referenceIds: string[], styleId: string): Promise<string[]> {
-        console.log('🔧 CitationStylesService.generateBibliography called with:');
-        console.log(`  Style ID: ${styleId}`);
-        console.log(`  Reference IDs order:`, referenceIds.map((id, index) => `${index + 1}. ${id.substring(0, 8)}...`));
 
         const references = await this.referenceService.getReferencesByIds(referenceIds);
         const validReferences = references.filter(ref => ref !== undefined);
         const style = await this.getStyleById(styleId);
 
-        console.log(`🔧 Retrieved ${validReferences.length} valid references`);
 
         const bibliographyEntries: string[] = [];
 
         for (let i = 0; i < validReferences.length; i++) {
             const reference = validReferences[i];
 
-            console.log(`🔧 Processing reference ${i + 1}/${validReferences.length}: ${reference.id.substring(0, 8)}... (title: "${reference.title?.substring(0, 30)}...")`);
 
             try {
                 let entry = '';
@@ -116,13 +125,11 @@ export class CitationStylesService {
                 if (style.cslContent) {
                     const normalizedRef = this.normalizeReferenceForCSL(reference);
                     entry = this.cslProcessor.formatBibliography(style.cslContent, normalizedRef);
-                    console.log(`🔧 CSL bibliography result for ${reference.id.substring(0, 8)}...: "${entry.substring(0, 50)}..."`);
                 }
 
                 // CSL başarısız olursa fallback
                 if (!entry || entry.trim() === '') {
                     entry = this.formatBibliographyEntryWithFormatting(reference, style);
-                    console.log(`🔧 Fallback bibliography result for ${reference.id.substring(0, 8)}...: "${entry.substring(0, 50)}..."`);
                 }
 
                 if (entry && entry.trim()) {
@@ -135,13 +142,10 @@ export class CitationStylesService {
             }
         }
 
-        console.log(`🔧 Generated ${bibliographyEntries.length} bibliography entries`);
 
         const sortedEntries = this.sortAndFormatBibliographyEntries(bibliographyEntries, validReferences, style);
 
-        console.log(`🔧 After sorting: ${sortedEntries.length} entries`);
         sortedEntries.forEach((entry, index) => {
-            console.log(`  ${index + 1}. "${entry.substring(0, 50)}..."`);
         });
 
         return sortedEntries;
@@ -159,33 +163,27 @@ export class CitationStylesService {
 
             const parserError = doc.querySelector('parsererror');
             if (parserError) {
-                console.log('❌ CSL XML parse error');
                 return false;
             }
 
             const styleElement = doc.documentElement;
             if (!styleElement || styleElement.tagName !== 'style') {
-                console.log('❌ No style element found');
                 return false;
             }
 
             const namespace = styleElement.getAttribute('xmlns');
             if (namespace !== 'http://purl.org/net/xbiblio/csl') {
-                console.log('❌ Invalid CSL namespace');
                 return false;
             }
 
             // Citation element var mı?
             const citationElements = styleElement.getElementsByTagName('citation');
             if (citationElements.length === 0) {
-                console.log('❌ No citation element found');
                 return false;
             }
 
-            console.log('✅ CSL content is valid');
             return true;
         } catch (error) {
-            console.log('❌ CSL validation error:', error);
             return false;
         }
     }
@@ -195,7 +193,6 @@ export class CitationStylesService {
         style: any,
         options?: FormatCitationDto
     ): string {
-        console.log('🔄 Using fallback formatting for style:', style.shortName);
 
         const suppressAuthor = options?.suppressAuthor || false;
         const suppressDate = options?.suppressDate || false;
@@ -220,7 +217,6 @@ export class CitationStylesService {
             case 'harvard':
                 return this.formatHarvardFallback(reference, { suppressAuthor, suppressDate, pageNumbers, prefix, suffix });
             default:
-                console.log('⚠️ Unknown style, defaulting to APA');
                 return this.formatAPAFallback(reference, { suppressAuthor, suppressDate, pageNumbers, prefix, suffix });
         }
     }
@@ -272,7 +268,6 @@ export class CitationStylesService {
     }
 
     private normalizeReferenceForCSL(reference: any): any {
-        console.log('🔄 Normalizing reference for CSL:', reference.title);
 
         // Authors normalize et - Sizin data structure için
         const authors = this.normalizeAuthorsForCSL(reference.authors);
@@ -320,7 +315,24 @@ export class CitationStylesService {
             language: reference.language || 'en',
             note: reference.notes || '',
 
-            keyword: reference.tags ? reference.tags.join(', ') : '',
+            // Tags parse et (JSON formatından)
+            keyword: (() => {
+                if (!reference.tags) return '';
+                
+                // Tags JSON object ise parse et
+                if (typeof reference.tags === 'object' && reference.tags.set) {
+                    return Array.isArray(reference.tags.set) 
+                        ? reference.tags.set.map((t: any) => t.name || t).join(', ')
+                        : '';
+                }
+                
+                // Array ise direkt kullan
+                if (Array.isArray(reference.tags)) {
+                    return reference.tags.map((t: any) => t.name || t).join(', ');
+                }
+                
+                return '';
+            })(),
 
             source: 'user-input'
         };
@@ -332,7 +344,6 @@ export class CitationStylesService {
             }
         });
 
-        console.log('✅ Normalized reference:', { id: normalized.id, title: normalized.title, authorsCount: authors.length });
         return normalized;
     }
 
@@ -616,11 +627,6 @@ export class CitationStylesService {
     }
 
     private formatAPABibliographyEntry(reference: any): string {
-        console.log('🔍 APA Entry Debug:', {
-            title: reference.title,
-            type: reference.type,
-            publication: reference.publication
-        });
         let entry = '';
 
         if (reference.authors && reference.authors.length > 0) {
@@ -968,7 +974,6 @@ export class CitationStylesService {
     }
 
     setCitationNumbersForReferences(referenceNumberMap: Map<string, number>): void {
-        console.log('📍 Setting citation numbers from reference map');
 
         // Kendi citation numbers map'ini güncelle
         this.citationNumbers.clear();
@@ -982,17 +987,14 @@ export class CitationStylesService {
         // CSL processor'daki numbering'i de sync et
         this.cslProcessor.setCitationNumbers(referenceNumberMap);
 
-        console.log('✅ Citation numbers synchronized');
     }
 
     presetCitationNumbers(referenceNumberMap: Map<string, number>): void {
-        console.log('🔧 CitationStylesService: Presetting citation numbers');
 
         // Kendi citation numbers map'ini güncelle
         this.citationNumbers.clear();
         referenceNumberMap.forEach((number, referenceId) => {
             this.citationNumbers.set(referenceId, number);
-            console.log(`🔧 Set reference ${referenceId.substring(0, 8)}... -> [${number}]`);
         });
 
         // Next number'ı güncel tut
@@ -1001,6 +1003,5 @@ export class CitationStylesService {
         // CSL Processor'da da aynı numbering'i set et
         this.cslProcessor.presetCitationNumbers(referenceNumberMap);
 
-        console.log('✅ Citation numbers preset complete');
     }
 }

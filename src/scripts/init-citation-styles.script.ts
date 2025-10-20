@@ -131,19 +131,16 @@ export class CitationStyleSeeder {
    * Belirli stilleri seed et (bootstrap service için)
    */
   async seedSpecificStyles(styleConfigs: StyleConfig[]): Promise<void> {
-    console.log(`🚀 Starting to seed ${styleConfigs.length} missing citation styles...`);
 
     let successCount = 0;
     let failureCount = 0;
 
     for (const styleConfig of styleConfigs) {
       try {
-        console.log(`📥 Processing style: ${styleConfig.shortName}`);
         
         // Double-check: stil gerçekten yok mu?
         const existingStyle = await this.checkIfStyleExists(styleConfig.shortName);
         if (existingStyle) {
-          console.log(`⏭️  Style already exists, skipping: ${styleConfig.shortName}`);
           continue;
         }
 
@@ -156,7 +153,6 @@ export class CitationStyleSeeder {
         // Veritabanına kaydet
         await this.saveStyleToDatabase(styleData);
         
-        console.log(`✅ Successfully processed: ${styleConfig.shortName}`);
         successCount++;
         
         // Rate limiting için kısa bekleme
@@ -168,26 +164,22 @@ export class CitationStyleSeeder {
       }
     }
 
-    console.log(`🎉 Specific styles seeding completed! Success: ${successCount}, Failures: ${failureCount}`);
   }
 
   /**
    * Tüm stilleri seed et (manuel çalıştırma için)
    */
   async seedCitationStyles(): Promise<void> {
-    console.log('🚀 Starting citation styles seeding...');
 
     let successCount = 0;
     let failureCount = 0;
 
     for (const styleConfig of this.POPULAR_STYLES) {
       try {
-        console.log(`📥 Processing style: ${styleConfig.shortName}`);
         
         // Stil zaten var mı kontrol et
         const existingStyle = await this.checkIfStyleExists(styleConfig.shortName);
         if (existingStyle) {
-          console.log(`⏭️  Style already exists: ${styleConfig.shortName}`);
           continue;
         }
 
@@ -200,7 +192,6 @@ export class CitationStyleSeeder {
         // Veritabanına kaydet
         await this.saveStyleToDatabase(styleData);
         
-        console.log(`✅ Successfully processed: ${styleConfig.shortName}`);
         successCount++;
         
         // Rate limiting için kısa bekleme
@@ -212,7 +203,6 @@ export class CitationStyleSeeder {
       }
     }
 
-    console.log(`🎉 Seeding completed! Success: ${successCount}, Failures: ${failureCount}`);
   }
 
   /**
@@ -220,7 +210,6 @@ export class CitationStyleSeeder {
    */
   private async downloadCSLFile(url: string): Promise<string> {
     try {
-      console.log(`📡 Downloading from: ${url}`);
       
       const response = await fetch(url);
       
@@ -381,7 +370,6 @@ if (require.main === module) {
   
   seeder.seedCitationStyles()
     .then(() => {
-      console.log('✅ Citation styles seeding completed successfully!');
       process.exit(0);
     })
     .catch((error) => {

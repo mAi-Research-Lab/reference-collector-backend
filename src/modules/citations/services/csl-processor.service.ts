@@ -34,7 +34,6 @@ export class CSLProcessorService {
             const styleElement = doc.documentElement;
             const styleClass = styleElement.getAttribute('class') || 'in-text';
 
-            console.log('🔍 Style class:', styleClass);
 
             const citationElements = doc.getElementsByTagName('citation');
             if (citationElements.length === 0) {
@@ -53,7 +52,6 @@ export class CSLProcessorService {
 
             // IEEE gibi numbered styles için özel işlem
             if (styleClass === 'in-text' && this.isNumberedStyle(layoutElement)) {
-                console.log('🔢 Detected numbered citation style (IEEE)');
                 return this.formatNumberedCitation(reference, options);
             }
 
@@ -62,7 +60,6 @@ export class CSLProcessorService {
             const prefix = options.prefix || '';
             const suffix = options.suffix || '';
 
-            console.log('✅ CSL processing successful:', formattedText);
             return `${prefix}${formattedText}${suffix}`;
 
         } catch (error) {
@@ -130,7 +127,6 @@ export class CSLProcessorService {
                 // .replace(/<\/em>/g, '*')     // </em> -> * (KALDIRDIK - HTML'i koru)  
                 .trim();
 
-            console.log('📚 CSL bibliography result with formatting preserved:', cleanedResult.substring(0, 100));
             return cleanedResult;
 
         } catch (error) {
@@ -444,7 +440,6 @@ export class CSLProcessorService {
     }
 
     private processChoose(element: any, reference: any, options: any): string {
-        console.log('🔀 Processing CHOOSE element');
 
         const children = element.childNodes;
 
@@ -455,31 +450,25 @@ export class CSLProcessorService {
 
                 if (tagName === 'if') {
                     const conditionMet = this.evaluateCondition(child, reference, options);
-                    console.log('🔍 IF condition result:', conditionMet);
 
                     if (conditionMet) {
                         const result = this.processElementChildren(child, reference, options);
-                        console.log('✅ IF condition met, using result:', result);
                         return result;
                     }
                 } else if (tagName === 'else-if') {
                     const conditionMet = this.evaluateCondition(child, reference, options);
-                    console.log('🔍 ELSE-IF condition result:', conditionMet);
 
                     if (conditionMet) {
                         const result = this.processElementChildren(child, reference, options);
-                        console.log('✅ ELSE-IF condition met, using result:', result);
                         return result;
                     }
                 } else if (tagName === 'else') {
                     const result = this.processElementChildren(child, reference, options);
-                    console.log('✅ Using ELSE result:', result);
                     return result;
                 }
             }
         }
 
-        console.log('❌ No choose condition met');
         return '';
     }
 
@@ -506,8 +495,6 @@ export class CSLProcessorService {
         const type = element.getAttribute('type');
         const isNumeric = element.getAttribute('is-numeric');
 
-        console.log('🔍 Evaluating condition:', { variable, type, isNumeric });
-        console.log('🔍 Reference type:', reference.type);
 
         // Variable condition
         if (variable) {
@@ -526,10 +513,8 @@ export class CSLProcessorService {
             const referenceType = this.mapReferenceTypeToCSL(reference.type || 'article');
             const allowedTypes = type.split(' ').map(t => t.trim());
 
-            console.log('🔍 Type check:', { referenceType, allowedTypes });
 
             const matches = allowedTypes.includes(referenceType);
-            console.log('🔍 Type condition result:', matches);
             return matches;
         }
 
@@ -635,13 +620,11 @@ export class CSLProcessorService {
             case 'editor':
                 return '';
             default:
-                console.log(`❓ Unknown variable: "${variable}"`);
                 return '';
         }
     }
 
     private processMacro(macroName: string, reference: any, options: any): string {
-        console.log(`🔧 Processing macro: ${macroName}`);
 
         try {
             switch (macroName) {
@@ -706,7 +689,6 @@ export class CSLProcessorService {
                     return this.formatEventForStyle(reference);
 
                 default:
-                    console.log(`❌ Unknown macro: ${macroName}`);
                     return ''; // Don't throw error, just return empty
             }
         } catch (error) {
@@ -801,9 +783,6 @@ export class CSLProcessorService {
     }
 
     private formatBibliographyDate(reference: any): string {
-        console.log('🔧 formatBibliographyDate called');
-        console.log('🔧 Reference year:', reference.year);
-        console.log('🔧 Reference issued:', reference.issued);
 
         // Try multiple sources for year - COMPREHENSIVE CHECK
         let year = '';
@@ -851,7 +830,6 @@ export class CSLProcessorService {
             }
         }
 
-        console.log('🔧 Final extracted year:', year);
 
         // Return year or fallback
         return year || 'n.d.';
@@ -1052,7 +1030,6 @@ export class CSLProcessorService {
     }
 
     private fallbackBibliographyFormat(reference: any): string {
-        console.log('📚 Using fallback bibliography format for:', reference.title);
 
         let result = '';
 
@@ -1123,7 +1100,6 @@ export class CSLProcessorService {
             result += ` ${url}`;
         }
 
-        console.log('📚 Generated fallback bibliography:', result);
 
         return result;
     }
@@ -1150,7 +1126,6 @@ export class CSLProcessorService {
     }
 
     setCitationNumbers(referenceNumberMap: Map<string, number>): void {
-        console.log('🔢 CSL Processor: Setting citation numbers from map');
 
         this.citationNumbers.clear();
         referenceNumberMap.forEach((number, referenceId) => {
@@ -1158,35 +1133,26 @@ export class CSLProcessorService {
         });
 
         this.nextNumber = Math.max(...Array.from(referenceNumberMap.values())) + 1;
-
-        console.log('✅ CSL Processor citation numbers updated:',
-            Array.from(this.citationNumbers.entries()).slice(0, 3).map(([id, num]) => `${id.substring(0, 8)}... -> ${num}`)
-        );
     }
+    
     presetCitationNumbers(referenceNumberMap: Map<string, number>): void {
-        console.log('🔢 CSLProcessorService: Presetting citation numbers');
 
         // Citation numbers map'ini temizle ve yeniden set et
         this.citationNumbers.clear();
         referenceNumberMap.forEach((number, referenceId) => {
             this.citationNumbers.set(referenceId, number);
-            console.log(`🔢 CSL: Set reference ${referenceId.substring(0, 8)}... -> [${number}]`);
         });
 
         // Next number'ı güncel tut
         this.nextNumber = Math.max(...Array.from(referenceNumberMap.values())) + 1;
 
-        console.log('✅ CSL citation numbers preset complete');
     }
 
     // getCitationNumber methodunu da güncelle - debug log ekle
     private getCitationNumber(referenceId: string): number {
         if (!this.citationNumbers.has(referenceId)) {
             this.citationNumbers.set(referenceId, this.nextNumber++);
-            console.log(`🔢 CSL: NEW citation number assigned: ${referenceId.substring(0, 8)}... -> [${this.citationNumbers.get(referenceId)}]`);
-        } else {
-            console.log(`🔢 CSL: EXISTING citation number used: ${referenceId.substring(0, 8)}... -> [${this.citationNumbers.get(referenceId)}]`);
-        }
+        } 
         return this.citationNumbers.get(referenceId)!;
     }
 }

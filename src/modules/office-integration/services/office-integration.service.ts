@@ -11,28 +11,48 @@ export class OfficeDocumentsService {
     constructor(private readonly prisma: PrismaService) {}
 
     async registerDocument(userId: string, data: RegisterDocumentDto): Promise<OfficeDocumentResponse> {
+        // Check if document already exists
         const existingDocument = await this.prisma.officeDocuments.findFirst({
             where: {
                 userId,
                 documentPath: data.documentPath,
-                documentHash: data.documentHash
+            },
+            include: {
+                style: true,
+                citations: true
             }
         });
 
+        // If exists, update hash and return existing document
         if (existingDocument) {
-            throw new CustomHttpException(
-                OFFICE_MESSAGES.DOCUMENT_ALREADY_REGISTERED,
-                409,
-                OFFICE_MESSAGES.DOCUMENT_ALREADY_REGISTERED
-            );
+            const updatedDocument = await this.prisma.officeDocuments.update({
+                where: { id: existingDocument.id },
+                data: {
+                    documentHash: data.documentHash,
+                    lastSync: new Date()
+                },
+                include: {
+                    style: true,
+                    citations: true
+                }
+            });
+
+            return updatedDocument as OfficeDocumentResponse;
         }
 
+        // Create new document
         const officeDocument = await this.prisma.officeDocuments.create({
             data: {
                 userId,
                 ...data,
                 citationMapping: data.libraryLinks || {},
-                syncStatus: SyncStatus.pending
+                syncStatus: SyncStatus.pending,
+                styleId: data.styleId,
+                citationStyle: data.citationStyle
+            },
+            include: {
+                style: true,
+                citations: true
             }
         });
 
@@ -209,5 +229,100 @@ export class OfficeDocumentsService {
             referenceId,
             reference: references.find(ref => ref.id === referenceId)
         }));
+    }
+
+    /**
+     * Set or update citation style for a document
+     */
+    async setDocumentStyle(
+        documentId: string,
+        userId: string,
+        styleId: string,
+        citationStyle?: string
+    ): Promise<OfficeDocumentResponse> {
+        await this.getDocumentById(documentId, userId);
+
+        // Verify style exists
+        const style = await this.prisma.citationStyle.findUnique({
+            where: { id: styleId }
+        });
+
+        if (!style) {
+            throw new CustomHttpException(
+                'Citation style not found',
+                404,
+                'STYLE_NOT_FOUND'
+            );
+        }
+
+        const updatedDocument = await this.prisma.officeDocuments.update({
+            where: { id: documentId },
+            data: {
+                styleId: styleId,
+                citationStyle: citationStyle || style.shortName,
+                lastSync: new Date()
+            },
+            include: {
+                style: true,
+                citations: true
+            }
+        });
+
+        return updatedDocument as OfficeDocumentResponse;
+    }
+
+    /**
+     * Get document style
+     */
+    async getDocumentStyle(documentId: string, userId: string): Promise<any> {
+        const document = await this.prisma.officeDocuments.findFirst({
+            where: {
+                id: documentId,
+                userId
+            },
+            include: {
+                style: true
+            }
+        });
+
+        if (!document) {
+            throw new CustomHttpException(
+                OFFICE_MESSAGES.DOCUMENT_NOT_FOUND,
+                404,
+                OFFICE_MESSAGES.DOCUMENT_NOT_FOUND
+            );
+        }
+
+        return {
+            styleId: document.styleId,
+            citationStyle: document.citationStyle,
+            style: document.style
+        };
+    }
+
+    /**
+     * Get document by path (for re-opening documents)
+     */
+    async getDocumentByPath(userId: string, documentPath: string): Promise<OfficeDocumentResponse | null> {
+        const document = await this.prisma.officeDocuments.findFirst({
+            where: {
+                userId,
+                documentPath
+            },
+            include: {
+                style: true,
+                citations: {
+                    include: {
+                        reference: true,
+                        style: true
+                    },
+                    orderBy: {
+                        sortOrder: 'asc'
+                    }
+                }
+            }
+        });
+
+        return document as OfficeDocumentResponse | null;
     }
 }

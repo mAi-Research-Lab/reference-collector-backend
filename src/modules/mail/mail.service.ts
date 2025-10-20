@@ -28,7 +28,6 @@ export class MailService {
             const templatePath = path.join(process.cwd(), 'src', 'resources', 'email-templates', `${templateName}.html`);
             return fs.promises.readFile(templatePath, 'utf8');
         } catch (error) {
-            console.log(error);
             throw new BadRequestException(MailMessages.TEMPLATE_NOT_FOUND);
         }
     }
@@ -39,7 +38,6 @@ export class MailService {
                 return result.replace(new RegExp(`{{${key}}}`, 'g'), value);
             }, template);
         } catch (error) {
-            console.log(error);
             throw new BadRequestException(MailMessages.TEMPLATE_RENDERING_ERROR);
         }
     }

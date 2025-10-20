@@ -228,4 +228,53 @@ export class OfficeIntegrationController {
             data: officeDocument
         }
     }
+
+    @Put(':officeDocumentId/style')
+    @ApiOperation({ summary: 'Set Document Citation Style' })
+    @ApiSuccessResponse(OfficeDocumentResponse, 200,
+        "Document style updated successfully",
+    )
+    @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
+    @ApiErrorResponse(404, OFFICE_MESSAGES.DOCUMENT_NOT_FOUND)
+    @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
+    async setDocumentStyle(
+        @User() user: any, 
+        @Param('officeDocumentId') officeDocumentId: string,
+        @Body() data: { styleId: string; citationStyle?: string }
+    ): Promise<ResponseDto> {
+        const officeDocument = await this.officeDocumentsService.setDocumentStyle(
+            officeDocumentId, 
+            user.id, 
+            data.styleId,
+            data.citationStyle
+        );
+
+        return {
+            message: "Document style updated successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: officeDocument
+        }
+    }
+
+    @Get(':officeDocumentId/style')
+    @ApiOperation({ summary: 'Get Document Citation Style' })
+    @ApiSuccessResponse({}, 200,
+        "Get Document Citation Style",
+    )
+    @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
+    @ApiErrorResponse(404, OFFICE_MESSAGES.DOCUMENT_NOT_FOUND)
+    @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
+    async getDocumentStyle(@User() user: any, @Param('officeDocumentId') officeDocumentId: string): Promise<ResponseDto> {
+        const styleInfo = await this.officeDocumentsService.getDocumentStyle(officeDocumentId, user.id);
+
+        return {
+            message: "Get Document Citation Style",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: styleInfo
+        }
+    }
 }

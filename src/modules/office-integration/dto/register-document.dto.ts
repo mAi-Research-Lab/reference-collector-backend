@@ -67,4 +67,22 @@ export class RegisterDocumentDto {
     @IsOptional()
     @IsObject()
     versionInfo?: any;
+
+    @ApiProperty({
+        example: 'uuid-of-citation-style',
+        description: 'Citation style ID',
+        required: false
+    })
+    @IsOptional()
+    @IsString()
+    styleId?: string;
+
+    @ApiProperty({
+        example: 'apa',
+        description: 'Citation style short name',
+        required: false
+    })
+    @IsOptional()
+    @IsString()
+    citationStyle?: string;
 }
