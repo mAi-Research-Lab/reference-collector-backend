@@ -133,29 +133,24 @@ export class WordAdapter extends BasePlatformAdapter {
   async insertCitation(citation: Citation, position: Position): Promise<void> {
     // Word'e citation ekleme logic'i
     // Frontend'den gelecek Office.js API calls'ları burada handle edilecek
-    console.log('Inserting citation in Word:', citation, position);
   }
 
   async updateCitation(citationId: string, citation: Citation): Promise<void> {
     // Word'de citation güncelleme logic'i
-    console.log('Updating citation in Word:', citationId, citation);
   }
 
   async syncDocument(): Promise<any> {
     // Word dokümantını sync etme logic'i
-    console.log('Syncing Word document');
     return { success: true };
   }
 
   async getCitations(): Promise<Citation[]> {
     // Word'den citation'ları alma logic'i
-    console.log('Getting citations from Word');
     return [];
   }
 
   async validateDocument(documentId: string): Promise<boolean> {
     // Word dokümantının geçerli olup olmadığını kontrol et
-    console.log('Validating Word document:', documentId);
     return true;
   }
 }

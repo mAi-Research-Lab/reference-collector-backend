@@ -23,21 +23,26 @@ export class CitationsService {
     ) { }
 
     async create(userId: string, data: CreateCitationDto): Promise<CitationResponse> {
-        // if (data.documentId && !data.documentId.startsWith('doc_')) {
-        //     if (!await this.checkDocumentAccess(data.documentId, userId)) {
-        //         throw new CustomHttpException(CITATIONS_MESSAGES.USER_NOT_COLLABORATOR, 403, CITATIONS_MESSAGES.USER_NOT_COLLABORATOR);
-        //     }
-        // }
-
         await this.referenceService.getReference(data.referenceId);
 
-        const sortOrder = await this.getNextSortOrder(data.documentId);
-        const styleId = data.styleId || await this.getDefaultStyleId();
+        const sortOrder = data.documentId ? await this.getNextSortOrder(data.documentId) : 0;
+        
+        let styleId = data.styleId;
+        
+        if (!styleId) {
+            const officeDoc = await this.prisma.officeDocuments.findUnique({
+                where: { id: data.documentId }
+            });
+            
+            if (officeDoc && officeDoc.styleId) {
+                styleId = officeDoc.styleId;
+            } else {
+                styleId = await this.getDefaultStyleId();
+            }
+        }
 
-        console.log('🔄 Creating citation with style ID:', styleId);
 
         try {
-            // Citation text'i formatla
             const citation_text = await this.citationStylesService.formatCitationWithStyle(styleId, {
                 referenceId: data.referenceId,
                 suppressAuthor: data.suppressAuthor,
@@ -47,7 +52,6 @@ export class CitationsService {
                 suffix: data.suffix
             });
 
-            console.log('✅ Generated citation text:', citation_text);
 
             const citation = await this.prisma.citation.create({
                 data: {
@@ -119,7 +123,6 @@ export class CitationsService {
                     suffix: data.suffix ?? citation.suffix!
                 });
 
-                console.log('✅ Updated citation text:', citation_text);
             } catch (error) {
                 console.error('❌ Citation update formatting failed:', error);
                 // Eski citation text'i koru
@@ -215,7 +218,6 @@ export class CitationsService {
 
         try {
             if (styleShortName === 'ieee' || styleShortName === 'vancouver') {
-                console.log('📍 IEEE/Vancouver: Pre-setting citation numbers');
 
                 this.citationStylesService.resetCitationNumbers();
 
@@ -227,7 +229,6 @@ export class CitationsService {
                         const nextNumber = uniqueReferenceIds.length + 1;
                         referenceNumberMap.set(citation.referenceId, nextNumber);
                         uniqueReferenceIds.push(citation.referenceId);
-                        console.log(`📍 Assigned reference ${citation.referenceId.substring(0, 8)}... -> [${nextNumber}]`);
                     }
                 });
 
@@ -260,9 +261,7 @@ export class CitationsService {
                 finalStyleId
             );
 
-            const sortedEntries = bibliographyEntries;
-
-            const bibliographyText = this.formatFinalBibliography(sortedEntries, style);
+            const bibliographyText = this.formatFinalBibliography(bibliographyEntries, style);
 
             return {
                 bibliographyText,
@@ -270,7 +269,7 @@ export class CitationsService {
                 citationCount: citations.length,
                 uniqueReferences: uniqueReferenceIds.length,
                 style: style.name,
-                entries: sortedEntries
+                // entries: sortedEntries
             };
 
         } catch (error) {
@@ -293,36 +292,28 @@ export class CitationsService {
         let bibliography = '';
         const styleShortName = style.shortName?.toLowerCase();
 
-        bibliography = 'References\n\n';
+        // ✅ "References" başlığını kaldırdık - Word'de kullanıcı isterse ekler
 
         if (styleShortName === 'ieee' || styleShortName === 'vancouver') {
             entries.forEach((entry, index) => {
                 const cleanEntry = entry.trim();
                 if (cleanEntry) {
-                    // CSL'den gelen entry'de zaten doğru numara var mı kontrol et
                     const hasNumber = cleanEntry.match(/^\[\d+\]/);
 
                     if (hasNumber) {
-                        // CSL'den gelen numarayı koru - sadece formatı düzelt, italic formatını koru
                         const numberMatch = cleanEntry.match(/^\[(\d+)\]/);
                         const number = numberMatch ? numberMatch[1] : (index + 1).toString();
                         const contentWithoutNumber = cleanEntry.replace(/^\[\d+\]\s*/, '').trim();
 
                         bibliography += `[${number}] ${contentWithoutNumber}\n\n`;
-                        console.log(`📍 IEEE Entry: Kept CSL number [${number}] with italics preserved`);
                     } else {
-                        // Fallback: Sequential numbering, italic formatını koru
                         const processedEntry = cleanEntry
                             .replace(/^\[\d+\]\s*/, '')
                             .replace(/^[\d+]\s*/, '')
                             .replace(/^\([^)]+\)\s*/, '')
                             .trim();
 
-                        // Italic formatını koru - CSL'den gelen *text* formatını temizleme
-                        // processedEntry'de *text* formatı varsa koru
-
                         bibliography += `[${index + 1}] ${processedEntry}\n\n`;
-                        console.log(`📍 IEEE Entry: Added sequential number [${index + 1}] with italics preserved`);
                     }
                 }
             });
@@ -359,9 +350,7 @@ export class CitationsService {
             where: whereClause
         });
 
-        console.log(`🔄 Refreshing ${citations.length} citations with new style`);
 
-        // Style değişikliği için citation numbering'i reset et
         this.citationStylesService.resetCitationNumbers();
 
         let updatedCount = 0;
@@ -386,13 +375,11 @@ export class CitationsService {
                 });
 
                 updatedCount++;
-                console.log(`✅ Updated citation ${citation.id}: ${newCitationText}`);
             } catch (error) {
                 console.error(`❌ Failed to update citation ${citation.id}:`, error);
             }
         }
 
-        console.log(`✅ Successfully updated ${updatedCount} citations`);
         return updatedCount;
     }
 

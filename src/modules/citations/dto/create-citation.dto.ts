@@ -1,10 +1,10 @@
 // dto/create-citation.dto.ts - Style ID ekle
 import { IsString, IsOptional, IsBoolean, IsNumber } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCitationDto {
-    @ApiProperty({ description: 'Document ID' })
-    @IsString()
+    @ApiPropertyOptional({ description: 'Document ID' })
+    @IsOptional()
     documentId: string;
 
     @ApiProperty({ description: 'Reference ID' })

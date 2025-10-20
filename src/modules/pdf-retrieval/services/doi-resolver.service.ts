@@ -19,7 +19,6 @@ export class DoiResolverService {
         }
 
         const normalizedDoi = this.normalizeDoi(doi);
-        console.log(normalizedDoi);
 
         const { baseUrl, endpoints } = OPEN_ACCESS_APIS.CROSSREF;
         const crossrefUrl = `${baseUrl}${endpoints.works.replace('{doi}', encodeURIComponent(normalizedDoi))}`;

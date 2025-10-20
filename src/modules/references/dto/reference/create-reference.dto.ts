@@ -118,8 +118,6 @@ export class CreateReferenceDto {
             { name: 'healthcare', color: '#00ff00' },],
         description: 'Array of tags'
     })
-    @IsArray()
-    @IsString({ each: true })
     @IsOptional()
     tags?: JsonValue;
 

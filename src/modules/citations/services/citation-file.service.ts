@@ -253,7 +253,6 @@ export class CSLFileHandlerService {
     async importCSLFromURL(userId: string, url: string): Promise<CitationStyleResponse> {
         try {
             const response = await fetch(url);
-            console.log('🔍 Response status:', response);
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch CSL from URL: ${response.statusText}`);
@@ -277,7 +276,6 @@ export class CSLFileHandlerService {
             return await this.uploadCSLFile(userId, mockFile);
 
         } catch (error) {
-            console.log(error);
             
             throw new CustomHttpException(
                 `CSL import from URL failed: ${error.message}`,

@@ -50,7 +50,6 @@ export class ExportController {
             });
 
         } catch (error) {
-            console.log(error);
 
             throw new CustomHttpException(`Export failed: ${error.message}`, 500, 'EXPORT_FAILED');
         }
@@ -100,7 +99,6 @@ export class ExportController {
             }
 
         } catch (error) {
-            console.log(error);
             res.status(500).json({
                 success: false,
                 message: `Export download failed: ${error.message}`,
@@ -164,7 +162,6 @@ export class ExportController {
             }
 
         } catch (error) {
-            console.log(error);
             res.status(500).json({
                 success: false,
                 message: `Library export download failed: ${error.message}`,
@@ -227,7 +224,6 @@ export class ExportController {
                 res.send(result.content);
             }
         } catch (error) {
-            console.log(error);
             res.status(500).json({
                 success: false,
                 message: `Library export download failed: ${error.message}`,

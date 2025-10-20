@@ -39,7 +39,6 @@ export class AnnotationController {
         @User() user: any,
         @Body() createAnnotationDto: CreateAnnotationDto
     ): Promise<ResponseDto> {
-        console.log(createAnnotationDto);
 
         const annotation = await this.annotationService.create(fileId, user.id,createAnnotationDto);
 

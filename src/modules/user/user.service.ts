@@ -129,7 +129,6 @@ export class UserService {
 
             return formatUserResponse(user);
         } catch (error) {
-            console.log(error);
 
             throw new CustomHttpException("Avatar upload error", 500, 'AVATAR_UPLOAD_ERROR');
         }
@@ -154,7 +153,6 @@ export class UserService {
                 message: 'Avatar başarıyla silindi'
             };
         } catch (error) {
-            console.log(error);
 
             throw new CustomHttpException('An error occurred while deleting the avatar', 500, 'AVATAR_DELETE_ERROR');
         }
@@ -165,7 +163,6 @@ export class UserService {
             const updatedUser = await this.userRepository.update(userId, { avatarUrl });
             return updatedUser;
         } catch (error) {
-            console.log(error);
 
             throw new CustomHttpException("Avatar update error", 500, 'AVATAR_UPDATE_ERROR');
         }
