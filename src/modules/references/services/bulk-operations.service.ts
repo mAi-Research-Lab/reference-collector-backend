@@ -213,35 +213,60 @@ export class BulkOperationsService {
                     continue;
                 }
 
-                // JsonValue'yi string array'e dönüştür
-                let currentTags: string[] = [];
+                // Tag formatını koru: hem string hem { name, color } formatını destekle
+                let currentTags: Array<string | { name: string; color?: string }> = [];
                 if (reference.tags) {
                     if (Array.isArray(reference.tags)) {
-                        currentTags = reference.tags.filter(tag => typeof tag === 'string') as string[];
+                        currentTags = reference.tags as Array<string | { name: string; color?: string }>;
                     } else {
-                        // Eğer tags bir array değilse, boş array kullan
                         currentTags = [];
                     }
                 }
 
-                let newTags: string[] = [];
+                // Tag isimlerini normalize et (hem string hem object formatından)
+                const normalizeTagName = (tag: string | { name: string; color?: string }): string => {
+                    return typeof tag === 'string' ? tag : tag.name;
+                };
+
+                // Tag'ları object formatına çevir (renk bilgisini koru)
+                const toTagObject = (tag: string | { name: string; color?: string }): { name: string; color?: string } => {
+                    if (typeof tag === 'string') {
+                        return { name: tag, color: '#3b82f6' };
+                    }
+                    return tag;
+                };
+
+                let newTags: Array<{ name: string; color?: string }> = [];
 
                 switch (action) {
                     case 'add':
-                        newTags = [...new Set([...currentTags, ...tags])];
+                        // Mevcut tag'ları object formatına çevir
+                        const existingTagObjects = currentTags.map(toTagObject);
+                        // Yeni tag'ları ekle (string olarak geldiği için object'e çevir)
+                        const newTagObjects = tags.map(tag => ({ name: tag, color: '#3b82f6' }));
+                        // Birleştir ve duplicate'leri kaldır (name'e göre)
+                        const allTags = [...existingTagObjects, ...newTagObjects];
+                        const uniqueTags = allTags.filter((tag, index, self) => 
+                            index === self.findIndex(t => normalizeTagName(t) === normalizeTagName(tag))
+                        );
+                        newTags = uniqueTags;
                         break;
                     case 'remove':
-                        newTags = currentTags.filter(tag => !tags.includes(tag));
+                        // Sadece silinmeyecek tag'ları tut (name'e göre karşılaştır)
+                        newTags = currentTags
+                            .map(toTagObject)
+                            .filter(tag => !tags.includes(normalizeTagName(tag)));
                         break;
                     case 'replace':
-                        newTags = tags;
+                        // Tüm tag'ları replace et
+                        newTags = tags.map(tag => ({ name: tag, color: '#3b82f6' }));
                         break;
                 }
 
                 await this.prisma.references.update({
                     where: { id: referenceId },
                     data: {
-                        tags: { set: newTags } as InputJsonValue, // JsonValue olarak cast et
+                        tags: { set: newTags } as InputJsonValue,
                         dateModified: new Date()
                     }
                 });

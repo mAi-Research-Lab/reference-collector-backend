@@ -8,13 +8,15 @@ import { COLLABORATOR_MESSAGES } from "../constants/collaborator/collaborator.me
 import { CollaboratorResponse, CollaboratorResponseWithUser } from "../dto/collaborator/collaborator.response";
 import { CollaboratorRoles } from "generated/prisma";
 import { DocumentsService } from "./documents.service";
+import { MailService } from "src/modules/mail/mail.service";
 
 @Injectable()
 export class DocumentCollaboratorService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly userService: UserService,
-        private readonly documentService: DocumentsService
+        private readonly documentService: DocumentsService,
+        private readonly mailService: MailService
     ) { }
 
     async inviteCollaborator(invitedBy: string, documentId:string, data: CreateCollaboratorDto): Promise<{ message: string }> {
@@ -66,7 +68,22 @@ export class DocumentCollaboratorService {
             }
         })
 
-        // TODO: Send email to user
+        // Send email to user
+        try {
+            const document = await this.documentService.getDocument(documentId);
+            const inviter = await this.userService.findById(invitedBy);
+            
+            await this.mailService.sendCollaborationInvitationEmail(
+                user.email,
+                user.fullName,
+                inviter.fullName,
+                document.title,
+                documentId
+            );
+        } catch (error) {
+            console.error('Error sending collaboration invitation email:', error);
+            // Email gönderme hatası olsa bile davet başarılı sayılır
+        }
 
         return { message: COLLABORATOR_MESSAGES.USER_INVITED_SUCCESSFULLY }
     }

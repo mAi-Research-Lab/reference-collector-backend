@@ -18,8 +18,7 @@ export class OfficeDocumentsService {
                 documentPath: data.documentPath,
             },
             include: {
-                style: true,
-                citations: true
+                style: true
             }
         });
 
@@ -32,8 +31,7 @@ export class OfficeDocumentsService {
                     lastSync: new Date()
                 },
                 include: {
-                    style: true,
-                    citations: true
+                    style: true
                 }
             });
 
@@ -51,8 +49,7 @@ export class OfficeDocumentsService {
                 citationStyle: data.citationStyle
             },
             include: {
-                style: true,
-                citations: true
+                style: true
             }
         });
 
@@ -209,7 +206,6 @@ export class OfficeDocumentsService {
         const document = await this.getDocumentById(documentId, userId);
         
         const citationMapping = (document.citationMapping as any) || {};
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
         const referenceIds = Object.values(citationMapping) as string[];
 
         if (referenceIds.length === 0) {
@@ -263,8 +259,7 @@ export class OfficeDocumentsService {
                 lastSync: new Date()
             },
             include: {
-                style: true,
-                citations: true
+                style: true
             }
         });
 
@@ -310,16 +305,7 @@ export class OfficeDocumentsService {
                 documentPath
             },
             include: {
-                style: true,
-                citations: {
-                    include: {
-                        reference: true,
-                        style: true
-                    },
-                    orderBy: {
-                        sortOrder: 'asc'
-                    }
-                }
+                style: true
             }
         });
 

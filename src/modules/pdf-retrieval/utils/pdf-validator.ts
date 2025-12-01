@@ -9,7 +9,8 @@ export class PdfValidator {
             const stats = await fs.stat(filePath);
             const fileSize = stats.size;
 
-            if (fileSize < 1024) {
+            // Minimum size check - allow very small PDFs (100 bytes minimum)
+            if (fileSize < 100) {
                 return {
                     isValid: false,
                     fileSize,

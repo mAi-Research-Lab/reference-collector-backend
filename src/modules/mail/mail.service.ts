@@ -76,7 +76,7 @@ export class MailService {
 
         try {
             await this.transporter.sendMail({
-                from: 'your_email@gmail.com',
+                from: this.configService.get('EMAIL_APP_MAIL') || 'noreply@airisto.com',
                 to: message.to,
                 subject: message.subject,
                 html: message.html
@@ -295,6 +295,35 @@ export class MailService {
                 throw error;
             }
             throw new InternalServerErrorException('İletişim e-postaları gönderilemedi');
+        }
+    }
+
+    async sendCollaborationInvitationEmail(
+        recipientEmail: string,
+        recipientName: string,
+        inviterName: string,
+        documentTitle: string,
+        documentId: string
+    ): Promise<{ message: string }> {
+        try {
+            const template = await this.loadTemplate('collaboration-invitation');
+            const documentUrl = `${this.configService.get('FRONTEND_URL')}/documents/${documentId}`;
+
+            const html = this.replaceTemplateVariables(template, {
+                recipientName,
+                inviterName,
+                documentTitle,
+                documentUrl,
+            });
+
+            return this.sendMail(
+                recipientEmail,
+                `${inviterName} sizi bir belgeye davet etti - Airisto`,
+                html,
+            );
+        } catch (error) {
+            console.error('Error sending collaboration invitation email:', error);
+            throw new InternalServerErrorException('Davet e-postası gönderilemedi');
         }
     }
 }
