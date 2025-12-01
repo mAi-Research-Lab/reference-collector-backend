@@ -9,12 +9,16 @@ import { CitationStylesService } from './services/citation-styles.service';
 import { CitationStylesController } from './controller/citation-styles.controller';
 import { CSLFileHandlerService } from './services/citation-file.service';
 import { CSLProcessorService } from './services/csl-processor.service';
+import { ConfigModule } from '@nestjs/config';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     UserModule,
     DocumentsModule,
     ReferencesModule,
+    ConfigModule,
+    MailModule
   ],
   providers: [
     CitationsService, 

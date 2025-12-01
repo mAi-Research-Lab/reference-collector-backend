@@ -147,12 +147,27 @@ export class ReferencesService {
             throw new CustomHttpException('Reference not found', 404, 'REFERENCE_NOT_FOUND');
         }
 
-        let currentTags: string[] = [];
+        // Tag formatını koru: hem string hem { name, color } formatını destekle
+        let currentTags: Array<string | { name: string; color?: string }> = [];
         if (reference.tags && Array.isArray(reference.tags)) {
-            currentTags = reference.tags.filter(tag => typeof tag === 'string') as string[];
+            currentTags = reference.tags as Array<string | { name: string; color?: string }>;
         }
 
-        const updatedTags = currentTags.filter(tag => !tags.includes(tag));
+        // Tag isimlerini normalize et
+        const normalizeTagName = (tag: string | { name: string; color?: string }): string => {
+            return typeof tag === 'string' ? tag : tag.name;
+        };
+
+        // Sadece silinmeyecek tag'ları tut (name'e göre karşılaştır)
+        const updatedTags = currentTags
+            .map(tag => {
+                // Object formatına çevir
+                if (typeof tag === 'string') {
+                    return { name: tag, color: '#3b82f6' };
+                }
+                return tag;
+            })
+            .filter(tag => !tags.includes(normalizeTagName(tag)));
 
         return await this.prismaService.references.update({
             where: { id },

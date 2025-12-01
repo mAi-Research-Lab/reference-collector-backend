@@ -5,11 +5,13 @@ import { OperationalTransformService } from './services/operational-transform.se
 import { DocumentsModule } from '../documents/documents.module';
 import { DocumentCollaboratorService } from '../documents/services/document-collaborator.service';
 import { UserModule } from '../user/user.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
     imports:[
         DocumentsModule,
-        UserModule
+        UserModule,
+        MailModule
     ],
     providers:[
         CollaborationService,

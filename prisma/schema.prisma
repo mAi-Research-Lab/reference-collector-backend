@@ -492,7 +492,7 @@ enum CollaboratorRoles {
 // ======= CITATIONS ==========
 model Citation {
   id             String           @id @default(uuid()) @db.Uuid
-  documentId     String?          @map("document_id") @db.Uuid
+  documentId     String?          @map("document_id")
   styleId        String           @map("style_id") @db.Uuid
   fieldId        String?          @map("field_id")
   referenceId    String           @map("reference_id") @db.Uuid
@@ -510,7 +510,6 @@ model Citation {
 
   reference      References       @relation(fields: [referenceId], references: [id])
   style          CitationStyle    @relation(fields: [styleId], references: [id])
-  officeDocument OfficeDocuments? @relation(fields: [documentId], references: [id])
 }
 
 model CitationStyle {
@@ -576,7 +575,6 @@ model OfficeDocuments {
   user         User            @relation(fields: [userId], references: [id])
   style        CitationStyle?  @relation(fields: [styleId], references: [id])
   SyncSessions SyncSessions[]
-  citations    Citation[]
 
   @@map("office_documents")
 }

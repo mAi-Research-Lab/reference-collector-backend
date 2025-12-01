@@ -77,12 +77,7 @@ export class CitationsService {
     }
 
     async getCitationsByDocument(documentId: string, userId: string): Promise<CitationResponseWithReferences[]> {
-        if (!documentId.startsWith('doc_')) {
-            if (!await this.checkDocumentAccess(documentId, userId)) {
-                throw new CustomHttpException(CITATIONS_MESSAGES.USER_NOT_COLLABORATOR, 403, CITATIONS_MESSAGES.USER_NOT_COLLABORATOR);
-            }
-        }
-
+        // ✅ Önce citation'ları kontrol et - eğer citation'lar varsa document access var demektir
         const citations = await this.prisma.citation.findMany({
             where: {
                 documentId,
@@ -94,6 +89,30 @@ export class CitationsService {
                 reference: true
             }
         });
+
+        // Eğer citation'lar varsa, document access var demektir (Word document'ler için)
+        if (citations.length > 0) {
+            return citations;
+        }
+
+        // Eğer citation yoksa ve documentId office_documents'te değilse, boş array döndür
+        // (Hata fırlatma - kullanıcı henüz citation oluşturmamış olabilir)
+        if (!documentId.startsWith('doc_')) {
+            // Office document kontrolü yap (opsiyonel - sadece bilgi için)
+            const officeDoc = await this.prisma.officeDocuments.findUnique({
+                where: { id: documentId }
+            });
+            
+            // Office document yoksa ve citation da yoksa, boş array döndür
+            if (!officeDoc) {
+                return [];
+            }
+            
+            // Office document varsa access kontrolü yap
+            if (!await this.checkDocumentAccess(documentId, userId)) {
+                throw new CustomHttpException(CITATIONS_MESSAGES.USER_NOT_COLLABORATOR, 403, CITATIONS_MESSAGES.USER_NOT_COLLABORATOR);
+            }
+        }
 
         return citations;
     }

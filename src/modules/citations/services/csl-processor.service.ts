@@ -3,12 +3,74 @@ import { Injectable } from '@nestjs/common';
 import { DOMParser } from 'xmldom';
 
 /**
+ * Türkçe dil terimleri
+ */
+const TURKISH_TERMS = {
+    'et-al': 'vd.',
+    'and': 've',
+    'page': 's.',
+    'pages': 'ss.',
+    'volume': 'C.',
+    'issue': 'S.',
+    'edition': 'bs.',
+    'editor': 'ed.',
+    'editors': 'ed.',
+    'translator': 'çev.',
+    'accessed': 'erişim tarihi',
+    'retrieved': 'erişildi',
+    'from': 'kaynak',
+    'no-date': 't.y.',
+    'in-press': 'baskıda',
+    'forthcoming': 'yayımlanacak',
+    'chapter': 'böl.',
+    'book': 'kt.',
+    'article': 'makale'
+};
+
+const ENGLISH_TERMS = {
+    'et-al': 'et al.',
+    'and': 'and',
+    'page': 'p.',
+    'pages': 'pp.',
+    'volume': 'Vol.',
+    'issue': 'No.',
+    'edition': 'ed.',
+    'editor': 'Ed.',
+    'editors': 'Eds.',
+    'translator': 'Trans.',
+    'accessed': 'accessed',
+    'retrieved': 'retrieved',
+    'from': 'from',
+    'no-date': 'n.d.',
+    'in-press': 'in press',
+    'forthcoming': 'forthcoming',
+    'chapter': 'chap.',
+    'book': 'bk.',
+    'article': 'article'
+};
+
+/**
  * CSL Content'i parse edip citation formatting yapan servis
  */
 @Injectable()
 export class CSLProcessorService {
     private citationNumbers = new Map<string, number>();
     private nextNumber = 1;
+    private locale: 'tr-TR' | 'en-US' = 'tr-TR'; // Default Türkçe
+
+    /**
+     * Locale'i ayarla
+     */
+    setLocale(locale: 'tr-TR' | 'en-US') {
+        this.locale = locale;
+    }
+
+    /**
+     * Locale'e göre terim döndür (public - diğer servislerden kullanılabilir)
+     */
+    getTerm(term: keyof typeof TURKISH_TERMS): string {
+        return this.locale === 'tr-TR' ? TURKISH_TERMS[term] : ENGLISH_TERMS[term];
+    }
 
     formatCitation(
         cslContent: string,
@@ -74,7 +136,9 @@ export class CSLProcessorService {
         let result = `[${citationNumber}]`;
 
         if (options.pageNumbers && options.pageNumbers.trim()) {
-            const pagePrefix = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') ? 'pp.' : 'p.';
+            const pagePrefix = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') 
+                ? this.getTerm('pages') 
+                : this.getTerm('page');
             result += `, ${pagePrefix} ${options.pageNumbers}`;
         }
 
@@ -321,7 +385,7 @@ export class CSLProcessorService {
         }
 
         if (useEtAl) {
-            result += ' et al.';
+            result += ` ${this.getTerm('et-al')}`;
         }
 
         return result;
@@ -712,13 +776,13 @@ export class CSLProcessorService {
             return `${lastName1} & ${lastName2}`;
         } else {
             const lastName = this.extractLastName(authors[0]);
-            return `${lastName} et al.`;
+            return `${lastName} ${this.getTerm('et-al')}`;
         }
     }
 
     private formatDateForStyle(reference: any, options: any): string {
         if (options.suppressDate) return '';
-        return reference.year?.toString() || 'n.d.';
+        return reference.year?.toString() || this.getTerm('no-date');
     }
 
     private formatTitleForStyle(reference: any): string {
@@ -859,7 +923,7 @@ export class CSLProcessorService {
         } else {
             const firstAuthor = authors[0];
             const lastName = this.extractLastName(firstAuthor);
-            return `${lastName} et al.`;
+            return `${lastName} ${this.getTerm('et-al')}`;
         }
     }
 
@@ -914,10 +978,10 @@ export class CSLProcessorService {
         } else if (authors.length === 2) {
             const lastName1 = this.extractLastName(authors[0]);
             const lastName2 = this.extractLastName(authors[1]);
-            return `${lastName1} and ${lastName2}`;
+            return `${lastName1} ${this.getTerm('and')} ${lastName2}`;
         } else {
             const lastName = this.extractLastName(authors[0]);
-            return `${lastName} et al.`;
+            return `${lastName} ${this.getTerm('et-al')}`;
         }
     }
 
@@ -937,19 +1001,38 @@ export class CSLProcessorService {
     }
 
     private processTerm(termName: string): string {
+        // Türkçe çeviriler
         switch (termName) {
             case 'ibid':
                 return '';
             case 'and':
-                return 'and';
+                return 've';
             case 'et-al':
-                return 'et al.';
+                return 'vd.';
             case 'page':
-                return 'p.';
+                return 's.';
             case 'pages':
-                return 'pp.';
+                return 'ss.';
             case 'at':
-                return 'at';
+                return '';
+            case 'editor':
+                return 'ed.';
+            case 'editors':
+                return 'ed.';
+            case 'translator':
+                return 'çev.';
+            case 'translators':
+                return 'çev.';
+            case 'volume':
+                return 'c.';
+            case 'volumes':
+                return 'c.';
+            case 'number':
+                return 'no.';
+            case 'issue':
+                return 'sayı';
+            case 'edition':
+                return 'baskı';
             default:
                 return '';
         }
@@ -960,13 +1043,14 @@ export class CSLProcessorService {
         const form = element.getAttribute('form') || 'long';
         const plural = element.getAttribute('plural') || 'contextual';
 
+        // Türkçe çeviriler
         switch (variable) {
             case 'page':
-                return form === 'short' ? 'p.' : 'page';
+                return form === 'short' ? 's.' : 'sayfa';
             case 'volume':
-                return form === 'short' ? 'vol.' : 'volume';
+                return form === 'short' ? 'c.' : 'cilt';
             case 'issue':
-                return form === 'short' ? 'no.' : 'number';
+                return form === 'short' ? 'no.' : 'sayı';
             default:
                 return '';
         }
@@ -1000,7 +1084,7 @@ export class CSLProcessorService {
                     authorText = `${lastName1} & ${lastName2}`;
                 } else {
                     const lastName = this.extractLastName(authors[0]);
-                    authorText = `${lastName} et al.`;
+                    authorText = `${lastName} ${this.getTerm('et-al')}`;
                 }
             }
         }
@@ -1056,14 +1140,14 @@ export class CSLProcessorService {
                 const firstAuthor = authors[0];
                 const lastName = this.extractLastName(firstAuthor);
                 const firstName = this.extractFirstName(firstAuthor);
-                result += `${lastName}, ${firstName.charAt(0)}., et al.`;
+                result += `${lastName}, ${firstName.charAt(0)}., ${this.getTerm('et-al')}`;
             }
         } else {
             result += 'Unknown Author';
         }
 
         // Year
-        const year = reference.year?.toString() || 'n.d.';
+        const year = reference.year?.toString() || this.getTerm('no-date');
         result += ` (${year}).`;
 
         // Title

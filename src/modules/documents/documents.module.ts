@@ -6,10 +6,12 @@ import { DocumentTemplatesController } from './controllers/document-template.con
 import { DocumentCollaboratorService } from './services/document-collaborator.service';
 import { DocumentCollaboratorController } from './controllers/document-collaborator.controller';
 import { UserModule } from '../user/user.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
-    UserModule
+    UserModule,
+    MailModule
   ],
   providers: [
     DocumentsService,
