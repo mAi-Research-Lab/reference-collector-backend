@@ -14,10 +14,12 @@ import { AdvancedSharingController } from './controllers/advanced-sharing.contro
 import { CollaborationService } from './services/collaboration.service';
 import { CollaborationController } from './controllers/collaboration.controller';
 import { ReferencesModule } from '../references/references.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
-    ReferencesModule
+    ReferencesModule,
+    MailModule
   ],
   providers: [
     LibrariesService,

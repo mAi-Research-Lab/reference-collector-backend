@@ -27,7 +27,7 @@ export class MailService {
         try {
             const templatePath = path.join(process.cwd(), 'src', 'resources', 'email-templates', `${templateName}.html`);
             return fs.promises.readFile(templatePath, 'utf8');
-        } catch (error) {
+        } catch {
             throw new BadRequestException(MailMessages.TEMPLATE_NOT_FOUND);
         }
     }
@@ -37,7 +37,7 @@ export class MailService {
             return Object.entries(variables).reduce((result, [key, value]) => {
                 return result.replace(new RegExp(`{{${key}}}`, 'g'), value);
             }, template);
-        } catch (error) {
+        } catch {
             throw new BadRequestException(MailMessages.TEMPLATE_RENDERING_ERROR);
         }
     }
@@ -100,7 +100,7 @@ export class MailService {
 
         return this.sendMail(
             user.email,
-            'E-posta Adresinizi Doğrulayın - Airisto',
+            'E-posta Adresinizi Doğrulayın - Citext',
             html,
         );
     }
@@ -119,7 +119,7 @@ export class MailService {
 
         return this.sendMail(
             email,
-            'Şifre Sıfırlama - Airisto',
+            'Şifre Sıfırlama - Citext',
             html,
         );
     }
@@ -203,7 +203,7 @@ export class MailService {
 
             return this.sendMail(
                 contactData.email,
-                'Mesajınız Alındı - Airisto',
+                'Mesajınız Alındı - Citext',
                 html
             );
         } catch (error) {
@@ -318,12 +318,41 @@ export class MailService {
 
             return this.sendMail(
                 recipientEmail,
-                `${inviterName} sizi bir belgeye davet etti - Airisto`,
+                `${inviterName} sizi bir belgeye davet etti - Citext`,
                 html,
             );
         } catch (error) {
             console.error('Error sending collaboration invitation email:', error);
             throw new InternalServerErrorException('Davet e-postası gönderilemedi');
+        }
+    }
+
+    async sendLibraryInvitationEmail(
+        recipientEmail: string,
+        recipientName: string,
+        inviterName: string,
+        libraryName: string,
+        inviteToken: string
+    ): Promise<{ message: string }> {
+        try {
+            const template = await this.loadTemplate('library-invitation');
+            const inviteUrl = `${this.configService.get('FRONTEND_URL')}/accept-invitation/${inviteToken}`;
+
+            const html = this.replaceTemplateVariables(template, {
+                recipientName: recipientName || 'Kullanıcı',
+                inviterName,
+                libraryName,
+                inviteUrl,
+            });
+
+            return this.sendMail(
+                recipientEmail,
+                `${inviterName} sizi "${libraryName}" kütüphanesine davet etti - Citext`,
+                html,
+            );
+        } catch (error) {
+            console.error('Error sending library invitation email:', error);
+            throw new InternalServerErrorException('Kütüphane davet e-postası gönderilemedi');
         }
     }
 }

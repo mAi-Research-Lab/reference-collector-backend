@@ -7,11 +7,13 @@ import { CustomHttpException } from "src/common/exceptions/custom-http-exception
 import { LIBRARY_MESSAGES } from "../constants/library.messages";
 import { InvitationDetailsResponse } from "../dto/response/invitation-details.response";
 import { randomBytes } from "crypto";
+import { MailService } from "src/modules/mail/mail.service";
 
 @Injectable()
 export class SharedService {
     constructor(
-        private readonly prisma: PrismaService
+        private readonly prisma: PrismaService,
+        private readonly mailService: MailService
     ) { }
 
     async getUserSharedLibraries(userId: string): Promise<LibraryResponse[]> {
@@ -97,9 +99,19 @@ export class SharedService {
             throw new CustomHttpException(LIBRARY_MESSAGES.LIBRARY_NOT_FOUND, 404, LIBRARY_MESSAGES.LIBRARY_NOT_FOUND);
         }
 
+        // Davet eden kullanıcının bilgilerini al
+        const inviter = await this.prisma.user.findUnique({
+            where: { id: invitedBy },
+            select: { id: true, fullName: true, email: true }
+        });
+
+        if (!inviter) {
+            throw new CustomHttpException('Davet eden kullanıcı bulunamadı', 404, 'INVITER_NOT_FOUND');
+        }
+
         const invitedUser = await this.prisma.user.findUnique({
             where: { email },
-            select: { id: true }
+            select: { id: true, fullName: true }
         });
 
         if (invitedUser) {
@@ -143,20 +155,18 @@ export class SharedService {
                 }
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const inviteLink = `${process.env.FRONTEND_URL}/accept-invitation/${invitation.token}`;
-
-            // TODO: Email service i
-            // await this.emailService.sendLibraryInvitation({
-            //     to: email,
-            //     libraryName: libraryExists.name,
-            //     inviteLink,
-            //     expiresAt: invitation.expiresAt
-            // });
+            // Kütüphane davet emaili gönder
+            await this.mailService.sendLibraryInvitationEmail(
+                email,
+                invitedUser?.fullName || email.split('@')[0],
+                inviter.fullName || inviter.email,
+                libraryExists.name,
+                invitation.token
+            );
 
             return { message: LIBRARY_MESSAGES.MEMBERSHIP_EMAIL_SENT_SUCCESSFULLY };
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (error) {
+            console.error('Library invitation email error:', error);
             throw new CustomHttpException(LIBRARY_MESSAGES.MEMBERSHIP_EMAIL_SENT_FAILED, 400, LIBRARY_MESSAGES.MEMBERSHIP_EMAIL_SENT_FAILED);
         }
     }
