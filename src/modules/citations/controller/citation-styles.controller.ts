@@ -216,12 +216,19 @@ export class CitationStylesController {
     @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
     async generateBibliography(@Param('styleId') styleId: string, @Body() data: { referenceIds: string[] }): Promise<ResponseDto> {
-        const bibliography = await this.citationStylesService.generateBibliography(data.referenceIds, styleId);
+        const bibliographyEntries = await this.citationStylesService.generateBibliography(data.referenceIds, styleId);
+        
+        // VBA için bibliographyText formatında döndür
+        const bibliographyText = bibliographyEntries.join('\n\n');
 
         return {
             statusCode: 200,
             message: CITATIONS_MESSAGES.BIBLIOGRAPHY_GENERATED_SUCCESSFULLY,
-            data: bibliography,
+            data: {
+                bibliographyText: bibliographyText,
+                entries: bibliographyEntries,
+                referenceCount: data.referenceIds.length
+            },
             success: true,
             timestamp: new Date().toISOString()
         }

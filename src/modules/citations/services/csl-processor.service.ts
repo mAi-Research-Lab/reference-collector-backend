@@ -895,8 +895,8 @@ export class CSLProcessorService {
         }
 
 
-        // Return year or fallback
-        return year || 'n.d.';
+        // Return year or Turkish fallback (t.y. = tarih yok)
+        return year || this.getTerm('no-date');
     }
 
     private formatAuthorIntext(reference: any, options: any): string {
@@ -932,7 +932,7 @@ export class CSLProcessorService {
             return '';
         }
 
-        return reference.year?.toString() || 'n.d.';
+        return reference.year?.toString() || this.getTerm('no-date');
     }
 
     private formatCitationLocator(reference: any, options: any): string {
@@ -1109,7 +1109,7 @@ export class CSLProcessorService {
         } else if (yearText) {
             return `${prefix}(${yearText}${pageText})${suffix}`;
         } else {
-            return `${prefix}(n.d.${pageText})${suffix}`;
+            return `${prefix}(${this.getTerm('no-date')}${pageText})${suffix}`;
         }
     }
 
