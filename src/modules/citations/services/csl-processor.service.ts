@@ -782,7 +782,24 @@ export class CSLProcessorService {
 
     private formatDateForStyle(reference: any, options: any): string {
         if (options.suppressDate) return '';
-        return reference.year?.toString() || this.getTerm('no-date');
+        
+        // Birden fazla yıl kaynağını kontrol et
+        let year = '';
+        
+        // 1. Direkt year alanı
+        if (reference.year) {
+            year = reference.year.toString();
+        }
+        // 2. issued.year
+        else if (reference.issued?.year) {
+            year = reference.issued.year.toString();
+        }
+        // 3. issued['date-parts']
+        else if (reference.issued?.['date-parts']?.[0]?.[0]) {
+            year = reference.issued['date-parts'][0][0].toString();
+        }
+        
+        return year || this.getTerm('no-date');
     }
 
     private formatTitleForStyle(reference: any): string {
@@ -895,8 +912,8 @@ export class CSLProcessorService {
         }
 
 
-        // Return year or fallback
-        return year || 'n.d.';
+        // Return year or Turkish fallback (t.y. = tarih yok)
+        return year || this.getTerm('no-date');
     }
 
     private formatAuthorIntext(reference: any, options: any): string {
@@ -932,7 +949,16 @@ export class CSLProcessorService {
             return '';
         }
 
-        return reference.year?.toString() || 'n.d.';
+        // Birden fazla yıl kaynağını kontrol et
+        if (reference.year) {
+            return reference.year.toString();
+        } else if (reference.issued?.year) {
+            return reference.issued.year.toString();
+        } else if (reference.issued?.['date-parts']?.[0]?.[0]) {
+            return reference.issued['date-parts'][0][0].toString();
+        }
+        
+        return this.getTerm('no-date');
     }
 
     private formatCitationLocator(reference: any, options: any): string {
@@ -1089,9 +1115,16 @@ export class CSLProcessorService {
             }
         }
 
+        // Yılı birden fazla kaynaktan al
         let yearText = '';
-        if (!options.suppressDate && reference.year) {
-            yearText = reference.year.toString();
+        if (!options.suppressDate) {
+            if (reference.year) {
+                yearText = reference.year.toString();
+            } else if (reference.issued?.year) {
+                yearText = reference.issued.year.toString();
+            } else if (reference.issued?.['date-parts']?.[0]?.[0]) {
+                yearText = reference.issued['date-parts'][0][0].toString();
+            }
         }
 
         let pageText = '';
@@ -1105,11 +1138,11 @@ export class CSLProcessorService {
         if (authorText && yearText) {
             return `${prefix}(${authorText}, ${yearText}${pageText})${suffix}`;
         } else if (authorText) {
-            return `${prefix}(${authorText}${pageText})${suffix}`;
+            return `${prefix}(${authorText}, ${this.getTerm('no-date')}${pageText})${suffix}`;
         } else if (yearText) {
             return `${prefix}(${yearText}${pageText})${suffix}`;
         } else {
-            return `${prefix}(n.d.${pageText})${suffix}`;
+            return `${prefix}(${this.getTerm('no-date')}${pageText})${suffix}`;
         }
     }
 

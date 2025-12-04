@@ -224,14 +224,46 @@ export class CitationsService {
 
         if (citations.length === 0) {
             return {
-                bibliographyText: 'No citations found for this document.',
+                bibliographyText: 'Kaynakça bulunamadı.',
                 citationCount: 0,
                 uniqueReferences: 0,
                 style: 'none'
             };
         }
 
-        const finalStyleId = styleId || citations[0]?.styleId || await this.getDefaultStyleId();
+        // ✅ Silinmiş referansları filtrele - sadece var olanları al
+        const allReferenceIds = [...new Set(citations.map(c => c.referenceId))];
+        const existingReferences = await this.prisma.references.findMany({
+            where: { id: { in: allReferenceIds } },
+            select: { id: true }
+        });
+        const existingReferenceIds = new Set(existingReferences.map(r => r.id));
+        
+        // Silinmiş referanslara ait citation'ları da sil (opsiyonel - temizlik)
+        const deletedReferenceIds = allReferenceIds.filter(id => !existingReferenceIds.has(id));
+        if (deletedReferenceIds.length > 0) {
+            console.log(`🗑️ Cleaning up ${deletedReferenceIds.length} citations with deleted references`);
+            await this.prisma.citation.deleteMany({
+                where: { 
+                    documentId,
+                    referenceId: { in: deletedReferenceIds }
+                }
+            });
+        }
+
+        // Sadece var olan referansları içeren citation'ları al
+        const validCitations = citations.filter(c => existingReferenceIds.has(c.referenceId));
+        
+        if (validCitations.length === 0) {
+            return {
+                bibliographyText: 'Kaynakça bulunamadı.',
+                citationCount: 0,
+                uniqueReferences: 0,
+                style: 'none'
+            };
+        }
+
+        const finalStyleId = styleId || validCitations[0]?.styleId || await this.getDefaultStyleId();
         const style = await this.citationStylesService.getStyleById(finalStyleId);
         const styleShortName = style.shortName?.toLowerCase();
 
@@ -243,7 +275,7 @@ export class CitationsService {
                 const referenceNumberMap = new Map<string, number>();
                 const uniqueReferenceIds: string[] = [];
 
-                citations.forEach((citation) => {
+                validCitations.forEach((citation) => {
                     if (!referenceNumberMap.has(citation.referenceId)) {
                         const nextNumber = uniqueReferenceIds.length + 1;
                         referenceNumberMap.set(citation.referenceId, nextNumber);
@@ -263,7 +295,7 @@ export class CitationsService {
                 return {
                     bibliographyText,
                     bibliographyHtml: this.convertToHTML(bibliographyText, style),
-                    citationCount: citations.length,
+                    citationCount: validCitations.length,
                     uniqueReferences: uniqueReferenceIds.length,
                     style: style.name,
                     entries: bibliographyEntries
@@ -271,7 +303,7 @@ export class CitationsService {
             }
 
             // Diğer stiller için normal flow
-            const uniqueReferenceIds = [...new Set(citations.map(c => c.referenceId))];
+            const uniqueReferenceIds = [...new Set(validCitations.map(c => c.referenceId))];
 
             this.citationStylesService.resetCitationNumbers();
 
@@ -285,7 +317,7 @@ export class CitationsService {
             return {
                 bibliographyText,
                 bibliographyHtml: this.convertToHTML(bibliographyText, style),
-                citationCount: citations.length,
+                citationCount: validCitations.length,
                 uniqueReferences: uniqueReferenceIds.length,
                 style: style.name,
                 // entries: sortedEntries
@@ -294,8 +326,8 @@ export class CitationsService {
         } catch (error) {
             console.error('❌ Bibliography generation failed:', error);
             return {
-                bibliographyText: 'Error generating bibliography with the selected citation style.',
-                citationCount: citations.length,
+                bibliographyText: 'Kaynakça oluşturulurken hata oluştu.',
+                citationCount: validCitations.length,
                 uniqueReferences: 0,
                 style: style.name,
                 error: error.message
