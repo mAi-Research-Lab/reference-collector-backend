@@ -19,6 +19,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { join } from 'path';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { BootstrapService } from './common/services/bootstrap.service';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -37,6 +38,10 @@ import { BootstrapService } from './common/services/bootstrap.service';
     ExportModule,
     PdfRetrievalModule,
     MailModule,
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
