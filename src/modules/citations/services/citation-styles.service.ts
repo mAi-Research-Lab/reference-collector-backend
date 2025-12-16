@@ -566,7 +566,10 @@ export class CitationStylesService {
         let result = `[${citationNumber}]`;
 
         if (options.pageNumbers) {
-            result += `, p. ${options.pageNumbers}`;
+            const pagePrefix = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') 
+                ? 's.' 
+                : 's.';
+            result += `, ${pagePrefix} ${options.pageNumbers}`;
         }
 
         const prefix = options.prefix || '';

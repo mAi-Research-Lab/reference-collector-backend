@@ -117,12 +117,37 @@ export class CSLProcessorService {
                 return this.formatNumberedCitation(reference, options);
             }
 
+            // pageNumbers'ı reference'a locator olarak ekle
+            if (options.pageNumbers && options.pageNumbers.trim()) {
+                reference.locator = options.pageNumbers;
+            }
+
             const formattedText = this.processLayout(layoutElement, reference, options);
+
+            // Eğer CSL sonucunda locator (sayfa numarası) yoksa, manuel olarak ekle
+            let result = formattedText;
+            if (options.pageNumbers && options.pageNumbers.trim()) {
+                // Sonuçta sayfa numarası var mı kontrol et
+                const hasPageNumber = formattedText.includes(options.pageNumbers);
+                if (!hasPageNumber) {
+                    // Parantez içine ekle (örn: "(Author, 2023)" -> "(Author, 2023, s. 42)")
+                    const pagePrefix = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') 
+                        ? this.getTerm('pages') 
+                        : this.getTerm('page');
+                    
+                    // Eğer sonuç parantez ile bitiyorsa, parantezin içine ekle
+                    if (result.endsWith(')')) {
+                        result = result.slice(0, -1) + `, ${pagePrefix} ${options.pageNumbers})`;
+                    } else {
+                        result += `, ${pagePrefix} ${options.pageNumbers}`;
+                    }
+                }
+            }
 
             const prefix = options.prefix || '';
             const suffix = options.suffix || '';
 
-            return `${prefix}${formattedText}${suffix}`;
+            return `${prefix}${result}${suffix}`;
 
         } catch (error) {
             console.error('CSL processing error:', error);
@@ -733,6 +758,14 @@ export class CSLProcessorService {
 
                 // Page/locator macros
                 case 'locator':
+                    // Citation-specific locator (sayfa numarası)
+                    if (reference.locator) {
+                        const pagePrefix = reference.locator.includes('-') || reference.locator.includes('–') 
+                            ? this.getTerm('pages') 
+                            : this.getTerm('page');
+                        return `${pagePrefix} ${reference.locator}`;
+                    }
+                    return '';
                 case 'page':
                 case 'pages':
                     return this.formatPagesForStyle(reference);
@@ -963,7 +996,10 @@ export class CSLProcessorService {
 
     private formatCitationLocator(reference: any, options: any): string {
         if (options.pageNumbers && options.pageNumbers.trim()) {
-            return `p. ${options.pageNumbers}`;
+            const pagePrefix = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') 
+                ? this.getTerm('pages') 
+                : this.getTerm('page');
+            return `${pagePrefix} ${options.pageNumbers}`;
         }
         return '';
     }
@@ -1129,7 +1165,10 @@ export class CSLProcessorService {
 
         let pageText = '';
         if (options.pageNumbers) {
-            pageText = `, p. ${options.pageNumbers}`;
+            const pagePrefix = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') 
+                ? this.getTerm('pages') 
+                : this.getTerm('page');
+            pageText = `, ${pagePrefix} ${options.pageNumbers}`;
         }
 
         const prefix = options.prefix || '';

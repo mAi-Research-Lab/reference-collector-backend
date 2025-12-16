@@ -126,10 +126,12 @@ export class CitationsService {
             throw new CustomHttpException(CITATIONS_MESSAGES.CITATION_NOT_FOUND, 404, CITATIONS_MESSAGES.CITATION_NOT_FOUND);
         }
 
-        let citation_text = citation.citationText;
+        // ✅ Eğer citationText data'da varsa, onu kullan (refresh'ten geliyor)
+        let citation_text = data.citationText || citation.citationText;
 
         // Style değişmişse veya citation parametreleri değişmişse yeniden formatla
-        if (this.needsReformatting(citation, data)) {
+        // Ama eğer citationText zaten data'da varsa, formatlamaya gerek yok
+        if (!data.citationText && this.needsReformatting(citation, data)) {
             try {
                 const styleId = data.styleId || citation.styleId;
 
@@ -137,9 +139,9 @@ export class CitationsService {
                     referenceId: citation.referenceId,
                     suppressAuthor: data.suppressAuthor ?? citation.suppressAuthor,
                     suppressDate: data.suppressDate ?? citation.suppressDate,
-                    pageNumbers: data.pageNumbers ?? citation.pageNumbers!,
-                    prefix: data.prefix ?? citation.prefix!,
-                    suffix: data.suffix ?? citation.suffix!
+                    pageNumbers: data.pageNumbers ?? citation.pageNumbers ?? '',
+                    prefix: data.prefix ?? citation.prefix ?? '',
+                    suffix: data.suffix ?? citation.suffix ?? ''
                 });
 
             } catch (error) {
@@ -148,12 +150,26 @@ export class CitationsService {
             }
         }
 
+        // ✅ pageNumbers, prefix, suffix korunmalı (undefined gelirse eski değer korunur)
+        const updateData: any = {
+            ...data,
+            citationText: citation_text
+        };
+        
+        // Eğer pageNumbers undefined gelirse, eski değeri koru
+        if (data.pageNumbers === undefined) {
+            updateData.pageNumbers = citation.pageNumbers ?? '';
+        }
+        if (data.prefix === undefined) {
+            updateData.prefix = citation.prefix ?? '';
+        }
+        if (data.suffix === undefined) {
+            updateData.suffix = citation.suffix ?? '';
+        }
+
         const updatedCitation = await this.prisma.citation.update({
             where: { id },
-            data: {
-                ...data,
-                citationText: citation_text
-            }
+            data: updateData
         });
 
         return updatedCitation;
