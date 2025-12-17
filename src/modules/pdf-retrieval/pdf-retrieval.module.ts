@@ -20,6 +20,10 @@ import { SnapshotService } from './services/snapshot.service';
     PublisherApiService,
     SnapshotService
   ],
-  controllers: [PdfRetrievalController]
+  controllers: [PdfRetrievalController],
+  exports: [
+    DoiResolverService,
+    OpenAccessFinderService
+  ]
 })
 export class PdfRetrievalModule {}

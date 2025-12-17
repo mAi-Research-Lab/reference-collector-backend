@@ -3,12 +3,16 @@ import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiSecurity, Ap
 import { RoleGuard } from "src/common/guard/role.guard";
 import { JwtAuthGuard } from "src/modules/auth/guards/jwt-auth.guard";
 import { ReferencesService } from "./references.service";
+import { SemanticScholarService } from "./services/external/semantic-scholar.service";
 import { CreateReferenceDto } from "./dto/reference/create-reference.dto";
 import { ReferencesResponse } from "./dto/reference/references.response";
 import { UpdateReferenceDto } from "./dto/reference/update-reference.dto";
+import { SearchPapersDto } from "./dto/semantic-scholar/search-papers.dto";
+import { AddFromSemanticScholarDto } from "./dto/semantic-scholar/add-from-semantic-scholar.dto";
 import { ApiSuccessArrayResponse, ApiSuccessResponse, ApiErrorResponse } from "src/common/decorators/api-response-wrapper.decorator";
 import { ResponseDto } from "src/common/dto/api-response.dto";
 import { COMMON_MESSAGES } from "src/common/constants/common.messages";
+import { CustomHttpException } from "src/common/exceptions/custom-http-exception";
 import { User } from "src/modules/user/decorators/user.decorator";
 
 @Controller('references')
@@ -17,8 +21,54 @@ import { User } from "src/modules/user/decorators/user.decorator";
 @ApiSecurity('bearer')
 export class ReferencesController {
     constructor(
-        private readonly referencesService: ReferencesService
+        private readonly referencesService: ReferencesService,
+        private readonly semanticScholarService: SemanticScholarService
     ) { }
+
+    @Post('add-from-semantic-scholar')
+    @ApiOperation({ summary: 'Add reference from Semantic Scholar to collection' })
+    @ApiSuccessResponse(ReferencesResponse, 201, 'Reference added successfully')
+    @ApiErrorResponse(400, 'Invalid request data')
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, 'Library or collection not found')
+    @ApiErrorResponse(409, 'Duplicate reference')
+    async addFromSemanticScholar(
+        @Body() dto: AddFromSemanticScholarDto,
+        @User('id') userId: string,
+    ): Promise<ResponseDto> {
+        try {
+            // Check for duplicate
+            const isDuplicate = await this.referencesService.checkDuplicateSemanticScholar(
+                dto.libraryId,
+                dto.paperId,
+            );
+
+            if (isDuplicate) {
+                throw new CustomHttpException('This paper already exists in your library', 409, 'DUPLICATE_REFERENCE');
+            }
+
+            // Add userId from decorator to DTO
+            const dtoWithUser = { ...dto, addedBy: userId };
+            const reference = await this.referencesService.addFromSemanticScholar(dtoWithUser);
+
+            return {
+                message: 'Reference added successfully from Semantic Scholar',
+                statusCode: 201,
+                success: true,
+                timestamp: new Date().toISOString(),
+                data: reference,
+            };
+        } catch (error: any) {
+            if (error instanceof CustomHttpException) {
+                throw error;
+            }
+            throw new CustomHttpException(
+                error.message || 'Failed to add reference from Semantic Scholar',
+                500,
+                'ADD_FAILED',
+            );
+        }
+    }
 
     @Post(':libraryId')
     @ApiOperation({ summary: 'Create new reference' })
@@ -232,6 +282,58 @@ export class ReferencesController {
         };
     }
 
+    @Get('search-papers')
+    @ApiOperation({
+        summary: 'Search papers in Semantic Scholar',
+        description: 'Search for academic papers in Semantic Scholar. Results are paginated for performance optimization.'
+    })
+    @ApiQuery({ name: 'query', required: true, description: 'Search query (paper title or keywords)', example: 'Machine Learning in Healthcare' })
+    @ApiQuery({ name: 'limit', required: false, description: 'Number of results to return (default: 20, max: 100)', example: 20, type: Number })
+    @ApiQuery({ name: 'offset', required: false, description: 'Number of results to skip for pagination (default: 0)', example: 0, type: Number })
+    @ApiSuccessResponse(Array, 200, 'Papers retrieved successfully')
+    @ApiErrorResponse(400, 'Invalid query parameter')
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(429, 'Rate limit exceeded')
+    @ApiErrorResponse(503, 'Semantic Scholar service unavailable')
+    async searchPapers(@Query() dto: SearchPapersDto): Promise<ResponseDto> {
+        try {
+            const limit = dto.limit || 20;
+            const offset = dto.offset || 0;
+
+            const result = await this.semanticScholarService.searchPapers(dto.query, limit, offset);
+
+            return {
+                message: 'Papers retrieved successfully',
+                statusCode: 200,
+                success: true,
+                timestamp: new Date().toISOString(),
+                data: {
+                    papers: result.papers,
+                    total: result.total,
+                    limit: result.limit,
+                    offset: result.offset,
+                    hasMore: result.hasMore,
+                },
+            };
+        } catch (error: any) {
+            if (error.message.includes('Rate limit')) {
+                throw new CustomHttpException(
+                    'Rate limit exceeded. Please try again later.',
+                    429,
+                    'RATE_LIMIT_EXCEEDED',
+                );
+            }
+            if (error.message.includes('not configured')) {
+                throw new CustomHttpException('Semantic Scholar API key not configured', 503, 'SERVICE_UNAVAILABLE');
+            }
+            throw new CustomHttpException(
+                error.message || 'Failed to search papers',
+                500,
+                'SEARCH_FAILED',
+            );
+        }
+    }
+
     @Get(':id')
     @ApiOperation({ summary: 'Get reference by ID' })
     @ApiParam({ name: 'id', description: 'Reference ID' })
@@ -424,4 +526,6 @@ export class ReferencesController {
             data: result
         };
     }
+
+
 }
