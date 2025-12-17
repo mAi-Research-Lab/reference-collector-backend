@@ -339,5 +339,117 @@ export class SemanticScholarService {
 
         await this.rateLimitChain;
     }
+
+    async searchPapers(
+        query: string,
+        limit: number = 20,
+        offset: number = 0,
+    ): Promise<{ papers: any[]; total: number; limit: number; offset: number; hasMore: boolean }> {
+        if (!this.apiKey) {
+            this.logger.warn('Semantic Scholar API key not configured');
+            throw new Error('Semantic Scholar API key not configured');
+        }
+
+        // Validate and normalize pagination parameters
+        const requestedLimit = Math.min(Math.max(1, limit), 100); // Between 1 and 100
+        const requestedOffset = Math.max(0, offset);
+
+        // For search, we use a simpler cleaning approach that preserves user input
+        // buildQuery is too aggressive for search queries (removes too many characters)
+        let cleanQuery = query.trim();
+
+        // Remove excessive whitespace
+        cleanQuery = cleanQuery.replace(/\s+/g, ' ').trim();
+
+        // Basic validation - just check minimum length
+        if (!cleanQuery || cleanQuery.length < 3) {
+            this.logger.debug(`Query too short: "${query}" (length: ${query?.length || 0})`);
+            throw new Error('Query too short or invalid (minimum 3 characters)');
+        }
+
+        // Limit length to prevent API issues (Semantic Scholar has limits)
+        if (cleanQuery.length > 200) {
+            cleanQuery = cleanQuery.substring(0, 200).trim();
+            this.logger.debug(`Query truncated to 200 chars`);
+        }
+
+        this.logger.log(
+            `Searching Semantic Scholar papers for: ${cleanQuery.substring(0, 50)}... (limit: ${requestedLimit}, offset: ${requestedOffset})`,
+        );
+
+        // Note: Semantic Scholar API's /paper/search/bulk endpoint doesn't respect limit parameter properly
+        // We'll fetch more results and slice them on the backend side
+        const endpoint = `${this.baseUrl}/paper/search/bulk`;
+        const params = {
+            query: cleanQuery,
+            limit: 1000, // Request more results (API may ignore this, but we'll handle it)
+            fields:
+                'paperId,corpusId,externalIds,title,abstract,venue,year,referenceCount,citationCount,influentialCitationCount,isOpenAccess,openAccessPdf,fieldsOfStudy,publicationTypes,publicationDate,journal,authors',
+        };
+
+        try {
+            await this.waitForRateLimitWindow();
+
+            const response = await firstValueFrom(
+                this.httpService.get(endpoint, {
+                    params,
+                    headers: {
+                        'x-api-key': this.apiKey,
+                    },
+                    timeout: 10000,
+                }),
+            );
+
+            if (!response.data) {
+                this.logger.warn('[Response] Empty response from Semantic Scholar');
+                return {
+                    papers: [],
+                    total: 0,
+                    limit: requestedLimit,
+                    offset: requestedOffset,
+                    hasMore: false,
+                };
+            }
+
+            const { data, total } = response.data;
+
+            if (!data || !Array.isArray(data)) {
+                this.logger.log(`No results found in Semantic Scholar`);
+                return {
+                    papers: [],
+                    total: total || 0,
+                    limit: requestedLimit,
+                    offset: requestedOffset,
+                    hasMore: false,
+                };
+            }
+
+            // Slice results on backend side for pagination
+            // API returns all results, so we need to paginate manually
+            const totalAvailable = data.length;
+            const paginatedPapers = data.slice(requestedOffset, requestedOffset + requestedLimit);
+            const hasMore = requestedOffset + requestedLimit < totalAvailable;
+
+            this.logger.log(
+                `Found ${totalAvailable} papers from Semantic Scholar (total available in API: ${total || 'unknown'}). Returning ${paginatedPapers.length} papers (offset: ${requestedOffset}, limit: ${requestedLimit})`,
+            );
+
+            return {
+                papers: paginatedPapers,
+                total: total || totalAvailable, // Use API's total if available, otherwise use actual data length
+                limit: requestedLimit,
+                offset: requestedOffset,
+                hasMore: hasMore,
+            };
+        } catch (error) {
+            this.logger.error('Semantic Scholar search error:', error.message);
+
+            if (error.response?.status === 429) {
+                throw new Error('Rate limit exceeded. Please try again later.');
+            }
+
+            throw new Error(`Failed to search Semantic Scholar: ${error.message}`);
+        }
+    }
 }
 

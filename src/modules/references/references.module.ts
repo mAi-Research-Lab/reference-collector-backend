@@ -26,11 +26,13 @@ import { DOIService } from './services/external/doi.service';
 import { SemanticScholarService } from './services/external/semantic-scholar.service';
 import { OpenAlexService } from './services/external/openalex.service';
 import { UserModule } from '../user/user.module';
+import { PdfRetrievalModule } from '../pdf-retrieval/pdf-retrieval.module';
 
 @Module({
   imports: [
     HttpModule,
-    UserModule
+    UserModule,
+    PdfRetrievalModule
   ],
   providers: [
     ReferencesService,

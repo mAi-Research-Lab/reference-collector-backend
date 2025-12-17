@@ -8,13 +8,21 @@ import { UpdateReferenceDto } from './dto/reference/update-reference.dto';
 import { Prisma } from 'generated/prisma';
 import { DuplicateDetectionService } from './services/duplicate-detection.service';
 import { ReferenceValidationService } from './services/reference-validation.service';
+import { AddFromSemanticScholarDto } from './dto/semantic-scholar/add-from-semantic-scholar.dto';
+import { DoiResolverService } from '../pdf-retrieval/services/doi-resolver.service';
+import { OpenAccessFinderService } from '../pdf-retrieval/services/open-access-finder.service';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class ReferencesService {
+    private readonly logger = new Logger(ReferencesService.name);
+
     constructor(
         private readonly prismaService: PrismaService,
         private readonly duplicateDetectionService: DuplicateDetectionService,
-        private readonly validationService: ReferenceValidationService
+        private readonly validationService: ReferenceValidationService,
+        private readonly doiResolverService: DoiResolverService,
+        private readonly openAccessFinderService: OpenAccessFinderService
     ) { }
 
     async create(libraryId: string, data: CreateReferenceDto): Promise<ReferencesResponse> {
@@ -421,5 +429,172 @@ export class ReferencesService {
             where: { id },
             data: updateData
         });
+    }
+
+    async checkDuplicateSemanticScholar(libraryId: string, paperId: string): Promise<boolean> {
+        // Find all references in the library
+        const references = await this.prismaService.references.findMany({
+            where: {
+                libraryId,
+            },
+            select: {
+                id: true,
+                metadata: true,
+            },
+        });
+
+        // Check if any reference has matching paperId in metadata.semanticScholar.paperId
+        for (const ref of references) {
+            if (ref.metadata && typeof ref.metadata === 'object') {
+                const metadata = ref.metadata as any;
+                if (
+                    metadata.semanticScholar &&
+                    metadata.semanticScholar.paperId === paperId
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    async addFromSemanticScholar(dto: AddFromSemanticScholarDto): Promise<ReferencesResponse> {
+        // Validate addedBy is provided
+        if (!dto.addedBy) {
+            throw new CustomHttpException('User ID is required', 400, 'USER_ID_REQUIRED');
+        }
+
+        // Check for duplicate
+        const isDuplicate = await this.checkDuplicateSemanticScholar(dto.libraryId, dto.paperId);
+
+        if (isDuplicate) {
+            throw new CustomHttpException(
+                'This paper already exists in your library',
+                409,
+                'DUPLICATE_REFERENCE',
+            );
+        }
+
+        // Determine reference type from paper data
+        const type = this.determineReferenceTypeFromSemanticScholar(dto.paperData);
+
+        // Build authors array
+        const authors = dto.paperData.authors?.map((author: any) => ({
+            name: author.name || `${author.givenName || ''} ${author.familyName || ''}`.trim(),
+            authorId: author.authorId,
+        })) || [];
+
+        // Build metadata with Semantic Scholar data
+        const metadata = {
+            semanticScholar: {
+                paperId: dto.paperId,
+                corpusId: dto.paperData.corpusId,
+                externalIds: dto.paperData.externalIds,
+                influentialCitationCount: dto.paperData.influentialCitationCount,
+                isOpenAccess: dto.paperData.isOpenAccess,
+                openAccessPdf: dto.paperData.openAccessPdf,
+                fieldsOfStudy: dto.paperData.fieldsOfStudy,
+                publicationTypes: dto.paperData.publicationTypes,
+                publicationDate: dto.paperData.publicationDate,
+            },
+        };
+
+        // Determine URL: Try multiple sources for PDF
+        let url = dto.paperData.openAccessPdf?.url || null;
+
+        // If no PDF from Semantic Scholar, try to find PDF from DOI
+        if (!url && dto.paperData.externalIds?.DOI) {
+            const doi = dto.paperData.externalIds.DOI;
+
+            // 1. Try Crossref API
+            try {
+                const crossrefPdfUrl = await this.doiResolverService.findPdfFromDoi(doi);
+                if (crossrefPdfUrl) {
+                    url = crossrefPdfUrl;
+                    this.logger.log(`Found PDF from Crossref for DOI: ${doi}`);
+                }
+            } catch (error) {
+                this.logger.debug(`Crossref PDF search failed for DOI ${doi}: ${error.message}`);
+                // Continue to try Unpaywall
+            }
+
+            // 2. If still not found, try Unpaywall API
+            if (!url) {
+                try {
+                    const unpaywallResult = await this.openAccessFinderService.searchUnpaywall(doi);
+                    if (unpaywallResult?.url) {
+                        url = unpaywallResult.url;
+                        this.logger.log(`Found PDF from Unpaywall for DOI: ${doi}`);
+                    }
+                } catch (error) {
+                    this.logger.debug(`Unpaywall PDF search failed for DOI ${doi}: ${error.message}`);
+                    // Fallback to DOI URL
+                }
+            }
+
+            // 3. Final fallback: Use DOI URL if no PDF found
+            if (!url) {
+                url = `https://doi.org/${doi}`;
+            }
+        }
+
+        // Create reference (skip validation since it's from Semantic Scholar)
+        return await this.prismaService.references.create({
+            data: {
+                libraryId: dto.libraryId,
+                collectionId: dto.collectionId || null,
+                type: type || 'journal',
+                title: dto.paperData.title || '',
+                authors: authors.length > 0 ? (authors as any) : null,
+                publication: dto.paperData.venue || dto.paperData.journal?.name || null,
+                publisher: null,
+                year: dto.paperData.year || null,
+                volume: dto.paperData.journal?.volume || null,
+                issue: null,
+                pages: dto.paperData.journal?.pages || null,
+                doi: dto.paperData.externalIds?.DOI || null,
+                isbn: null,
+                issn: null,
+                url: url,
+                abstractText: dto.paperData.abstract || null,
+                language: null,
+                citationCount: dto.paperData.citationCount || 0,
+                addedBy: dto.addedBy,
+                metadata: metadata as any,
+            },
+        }) as ReferencesResponse;
+    }
+
+    private determineReferenceTypeFromSemanticScholar(paperData: any): string {
+        // Check publication types from Semantic Scholar
+        if (paperData.publicationTypes && Array.isArray(paperData.publicationTypes)) {
+            const types = paperData.publicationTypes.map((t: string) => t.toLowerCase());
+
+            if (types.includes('journalarticle') || types.includes('article')) {
+                return 'journal';
+            }
+            if (types.includes('book') || types.includes('bookchapter')) {
+                return 'book';
+            }
+            if (types.includes('conference') || types.includes('workshop')) {
+                return 'conference';
+            }
+            if (types.includes('thesis') || types.includes('dissertation')) {
+                return 'thesis';
+            }
+        }
+
+        // Fallback: check venue
+        const venue = (paperData.venue || '').toLowerCase();
+        if (venue.includes('conference') || venue.includes('workshop') || venue.includes('proceedings')) {
+            return 'conference';
+        }
+        if (venue.includes('journal') || paperData.journal) {
+            return 'journal';
+        }
+
+        // Default to journal
+        return 'journal';
     }
 }

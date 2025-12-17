@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsNotEmpty, IsOptional, IsInt, IsArray, IsUUID, Min, Max } from "class-validator";
+import { IsString, IsNotEmpty, IsOptional, IsInt, IsUUID, Min, Max } from "class-validator";
 import { JsonValue } from "generated/prisma/runtime/library";
 
 export class CreateReferenceDto {
