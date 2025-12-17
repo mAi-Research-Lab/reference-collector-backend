@@ -46,7 +46,7 @@ import { UserModule } from '../user/user.module';
     CollectionValidationService,
     DOIService,
     SemanticScholarService,
-    OpenAlexService
+    OpenAlexService,
   ],
   controllers: [
     ReferencesController,
