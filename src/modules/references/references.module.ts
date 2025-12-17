@@ -20,6 +20,11 @@ import { ReportGenerationService } from './services/report-generation.service';
 import { ReportGenerationController } from './controller/report-generation.controller';
 import { BibliographyCreationService } from './services/bibliography-creation.service';
 import { BibliographyCreationController } from './controller/bibliography-creation.controller';
+import { CollectionValidationService } from './services/collection-validation.service';
+import { CollectionValidationController } from './controller/collection-validation.controller';
+import { DOIService } from './services/external/doi.service';
+import { SemanticScholarService } from './services/external/semantic-scholar.service';
+import { OpenAlexService } from './services/external/openalex.service';
 import { UserModule } from '../user/user.module';
 
 @Module({
@@ -37,7 +42,11 @@ import { UserModule } from '../user/user.module';
     MetadataEnhancementService,
     QuickImportService,
     ReportGenerationService,
-    BibliographyCreationService
+    BibliographyCreationService,
+    CollectionValidationService,
+    DOIService,
+    SemanticScholarService,
+    OpenAlexService,
   ],
   controllers: [
     ReferencesController,
@@ -49,7 +58,8 @@ import { UserModule } from '../user/user.module';
     MetadataEnhancementController,
     QuickImportController,
     ReportGenerationController,
-    BibliographyCreationController
+    BibliographyCreationController,
+    CollectionValidationController
   ],
   exports: [ReferencesService, DuplicateDetectionService, BulkOperationsService, ReferenceValidationService, MetadataEnhancementService]
 })

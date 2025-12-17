@@ -30,7 +30,8 @@ export function formatAPA(reference: any, options: { suppressAuthor: boolean; su
 
     let pageText = '';
     if (pageNumbers) {
-        pageText = `, p. ${pageNumbers}`;
+        const pagePrefix = pageNumbers.includes('-') || pageNumbers.includes('–') ? 'ss.' : 's.';
+        pageText = `, ${pagePrefix} ${pageNumbers}`;
     }
 
     let citation = '';
@@ -121,7 +122,8 @@ export function formatIEEE(reference: any, options: any): string {
 
     let pageText = '';
     if (pageNumbers) {
-        pageText = `, p. ${pageNumbers}`;
+        const pagePrefix = pageNumbers.includes('-') || pageNumbers.includes('–') ? 'ss.' : 's.';
+        pageText = `, ${pagePrefix} ${pageNumbers}`;
     }
 
     const refNumber = Math.abs(reference.id.split('').reduce((a: number, b: string) => a + b.charCodeAt(0), 0)) % 1000;
