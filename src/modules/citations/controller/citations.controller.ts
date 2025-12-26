@@ -11,6 +11,8 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RoleGuard } from 'src/common/guard/role.guard';
 import { CitationsService } from '../services/citations.service';
 import { CitationStylesService } from '../services/citation-styles.service';
+import { QuoteParaphraseDto, QuoteParaphraseResponse } from '../dto/quote-paraphrase.dto';
+import { CustomHttpException } from 'src/common/exceptions/custom-http-exception';
 
 @Controller('citations')
 @ApiTags('Citations')
@@ -196,6 +198,36 @@ export class CitationsController {
             success: true,
             timestamp: new Date().toISOString(),
             data: styles
+        };
+    }
+
+    @Post('quote-paraphrase')
+    @ApiOperation({ summary: 'Process quote or paraphrase for Word insertion' })
+    @ApiSuccessResponse(QuoteParaphraseResponse, 200, 'Quote/paraphrase processed successfully')
+    @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, CITATIONS_MESSAGES.CITATION_NOT_FOUND)
+    async quoteParaphrase(
+        @Body() data: QuoteParaphraseDto,
+        @User() user: any
+    ): Promise<ResponseDto> {
+        // Manual validation: at least one of referenceId or referenceData must be provided
+        if (!data.referenceId && !data.referenceData) {
+            throw new CustomHttpException(
+                'Either referenceId or referenceData must be provided',
+                400,
+                'MISSING_REFERENCE_INFO'
+            );
+        }
+
+        const result = await this.citationsService.processQuoteParaphrase(data);
+
+        return {
+            message: 'Quote/paraphrase processed successfully',
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: result
         };
     }
 }

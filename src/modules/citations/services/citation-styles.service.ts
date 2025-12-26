@@ -105,6 +105,55 @@ export class CitationStylesService {
         }
     }
 
+    async formatCitationWithReference(
+        styleId: string,
+        reference: any,
+        options: {
+            suppressAuthor?: boolean;
+            suppressDate?: boolean;
+            pageNumbers?: string;
+            prefix?: string;
+            suffix?: string;
+        } = {}
+    ): Promise<string> {
+        const style = await this.getStyleById(styleId);
+        await this.incrementDownloadCount(styleId);
+
+        // CSL content varsa direkt citeproc-js kullan
+        if (style.cslContent) {
+            try {
+                // Reference'ı CSL formatına normalize et
+                const normalizedRef = this.normalizeReferenceForCSL(reference);
+
+                const formattedCitation = this.cslProcessor.formatCitation(
+                    style.cslContent,
+                    normalizedRef,
+                    {
+                        suppressAuthor: options.suppressAuthor,
+                        suppressDate: options.suppressDate,
+                        pageNumbers: options.pageNumbers,
+                        prefix: options.prefix,
+                        suffix: options.suffix
+                    }
+                );
+
+                // Eğer CSL boş sonuç döndürdüyse fallback'e git
+                if (!formattedCitation || formattedCitation.trim() === '') {
+                    console.warn('⚠️ Citeproc returned empty, using fallback');
+                    return this.formatReferenceByStyleFallback(reference, style, options);
+                }
+
+                return formattedCitation;
+
+            } catch (error) {
+                console.error('❌ Citeproc-JS failed:', error.message);
+                return this.formatReferenceByStyleFallback(reference, style, options);
+            }
+        } else {
+            return this.formatReferenceByStyleFallback(reference, style, options);
+        }
+    }
+
     async generateBibliography(referenceIds: string[], styleId: string): Promise<string[]> {
 
         const references = await this.referenceService.getReferencesByIds(referenceIds);
@@ -191,7 +240,13 @@ export class CitationStylesService {
     private formatReferenceByStyleFallback(
         reference: any,
         style: any,
-        options?: FormatCitationDto
+        options?: {
+            suppressAuthor?: boolean;
+            suppressDate?: boolean;
+            pageNumbers?: string;
+            prefix?: string;
+            suffix?: string;
+        }
     ): string {
 
         const suppressAuthor = options?.suppressAuthor || false;

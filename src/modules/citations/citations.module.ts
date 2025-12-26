@@ -11,6 +11,7 @@ import { CSLFileHandlerService } from './services/citation-file.service';
 import { CSLProcessorService } from './services/csl-processor.service';
 import { ConfigModule } from '@nestjs/config';
 import { MailModule } from '../mail/mail.module';
+import { GeminiService } from './external/gemini.service';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { MailModule } from '../mail/mail.module';
     DocumentCollaboratorService,
     CitationStylesService,
     CSLFileHandlerService,
-    CSLProcessorService
+    CSLProcessorService,
+    GeminiService
   ],
   controllers: [CitationsController, CitationStylesController]
 })

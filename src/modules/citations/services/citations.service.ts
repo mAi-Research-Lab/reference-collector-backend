@@ -10,6 +10,8 @@ import { CreateCitationDto } from '../dto/create-citation.dto';
 import { CustomHttpException } from 'src/common/exceptions/custom-http-exception';
 import { CITATIONS_MESSAGES } from '../constants/citation.messages';
 import { UpdateCitationDto } from '../dto/update-citation.dto';
+import { QuoteParaphraseDto, QuoteParaphraseResponse, QuoteParaphraseType } from '../dto/quote-paraphrase.dto';
+import { GeminiService } from '../external/gemini.service';
 
 @Injectable()
 export class CitationsService {
@@ -19,7 +21,8 @@ export class CitationsService {
         private readonly documentCollaboratorService: DocumentCollaboratorService,
         private readonly referenceService: ReferencesService,
         private readonly documentService: DocumentsService,
-        private readonly citationStylesService: CitationStylesService
+        private readonly citationStylesService: CitationStylesService,
+        private readonly geminiService: GeminiService
     ) { }
 
     async create(userId: string, data: CreateCitationDto): Promise<CitationResponse> {
@@ -516,5 +519,84 @@ export class CitationsService {
 
         html += '</div>';
         return html;
+    }
+
+    async processQuoteParaphrase(data: QuoteParaphraseDto): Promise<QuoteParaphraseResponse> {
+        let reference: any;
+        let referenceId: string;
+
+        // Get reference from DB or create temporary from referenceData
+        if (data.referenceId) {
+            // Scenario 2: Existing reference from DB
+            reference = await this.referenceService.getReference(data.referenceId);
+            referenceId = data.referenceId;
+        } else if (data.referenceData) {
+            // Scenario 1: Temporary reference from Semantic Scholar
+            reference = this.createTemporaryReference(data.referenceData);
+            referenceId = 'temp-' + Date.now(); // Temporary ID for response
+        } else {
+            throw new CustomHttpException('Either referenceId or referenceData must be provided', 400, 'Missing reference information');
+        }
+
+        let content: string;
+        
+        if (data.type === QuoteParaphraseType.PARAPHRASE) {
+            // Use Gemini to paraphrase
+            content = await this.geminiService.paraphraseText(data.selectedText);
+        } else {
+            // Use selected text directly for quote
+            content = data.selectedText;
+        }
+
+        // Get style ID (default to 'apa' if not provided)
+        let styleId = data.styleId;
+        if (!styleId) {
+            styleId = await this.getDefaultStyleId();
+        }
+
+        // Format citation using temporary reference object
+        const pageNumbers = data.pageNumber ? data.pageNumber.toString() : undefined;
+        const citation = await this.formatCitationFromReference(styleId, reference, {
+            pageNumbers: pageNumbers
+        });
+
+        return {
+            content,
+            citation,
+            referenceId: referenceId
+        };
+    }
+
+    private createTemporaryReference(referenceData: any): any {
+        // Convert referenceData to reference object format
+        let authors: any[] = [];
+        
+        if (referenceData.authors) {
+            if (Array.isArray(referenceData.authors)) {
+                authors = referenceData.authors.map((author: string) => ({ name: author }));
+            } else if (typeof referenceData.authors === 'string') {
+                authors = [{ name: referenceData.authors }];
+            }
+        }
+
+        return {
+            id: 'temp-' + Date.now(),
+            title: referenceData.title || '',
+            authors: authors,
+            year: referenceData.year || null,
+            publication: referenceData.publication || '',
+            doi: referenceData.doi || '',
+            pages: referenceData.pages || '',
+            volume: referenceData.volume || '',
+            type: 'article', // Default type
+        };
+    }
+
+    private async formatCitationFromReference(
+        styleId: string,
+        reference: any,
+        options: { pageNumbers?: string; suppressAuthor?: boolean; suppressDate?: boolean; prefix?: string; suffix?: string }
+    ): Promise<string> {
+        return await this.citationStylesService.formatCitationWithReference(styleId, reference, options);
     }
 }
