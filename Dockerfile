@@ -40,7 +40,7 @@ EXPOSE 3000
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=4001
 
 # Run migrations and start the application
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
