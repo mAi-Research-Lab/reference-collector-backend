@@ -8,16 +8,16 @@ export class BootstrapService implements OnModuleInit {
     constructor(private readonly prisma: PrismaService) { }
 
     async onModuleInit() {
-        if (process.env.NODE_ENV === 'production') {
-            return;
-        }
-
-
         try {
             await this.checkDatabaseConnection();
+            // Production'da da eksik citation style'ları seed et
             await this.seedMissingCitationStyles();
         } catch (error) {
             console.error('❌ Bootstrap failed:', error);
+            // Production'da hata olsa bile uygulama çalışmaya devam etsin
+            if (process.env.NODE_ENV !== 'production') {
+                throw error;
+            }
         }
     }
 
