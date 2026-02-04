@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
 import { DOMParser } from 'xmldom';
+import * as CSL from 'citeproc';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * Türkçe dil terimleri
@@ -72,6 +75,9 @@ export class CSLProcessorService {
         return this.locale === 'tr-TR' ? TURKISH_TERMS[term] : ENGLISH_TERMS[term];
     }
 
+    /**
+     * Citation oluştur - Citeproc-js kullanarak
+     */
     formatCitation(
         cslContent: string,
         reference: any,
@@ -84,93 +90,128 @@ export class CSLProcessorService {
         } = {}
     ): string {
         try {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(cslContent, 'text/xml');
-
-            if (!doc || !doc.documentElement) {
-                console.warn('Failed to parse CSL XML');
+            // Locale dosyalarının path'ini bul
+            const projectRoot = process.cwd();
+            let localesPath = path.join(projectRoot, 'src/resources/locales');
+            
+            if (!fs.existsSync(localesPath)) {
+                localesPath = path.join(projectRoot, 'dist/resources/locales');
+            }
+            
+            const trLocalePath = path.join(localesPath, 'locales-tr-TR.xml');
+            const enLocalePath = path.join(localesPath, 'locales-en-US.xml');
+            
+            // Varsayılan locale'i yükle
+            let defaultLocaleXml = '';
+            if (fs.existsSync(trLocalePath)) {
+                defaultLocaleXml = fs.readFileSync(trLocalePath, 'utf8');
+            } else if (fs.existsSync(enLocalePath)) {
+                defaultLocaleXml = fs.readFileSync(enLocalePath, 'utf8');
+            } else {
+                console.warn('⚠️ No locale files found, using fallback citation format');
                 return this.fallbackCitationFormat(reference, options);
             }
 
-            // Style class'ını kontrol et (numbered vs author-date)
-            const styleElement = doc.documentElement;
-            const styleClass = styleElement.getAttribute('class') || 'in-text';
-
-
-            const citationElements = doc.getElementsByTagName('citation');
-            if (citationElements.length === 0) {
-                console.warn('No citation element found in CSL');
-                return this.fallbackCitationFormat(reference, options);
-            }
-
-            const citationElement = citationElements[0];
-            const layoutElements = citationElement.getElementsByTagName('layout');
-            if (layoutElements.length === 0) {
-                console.warn('No layout element found in citation');
-                return this.fallbackCitationFormat(reference, options);
-            }
-
-            const layoutElement = layoutElements[0];
-
-            // IEEE gibi numbered styles için özel işlem
-            if (styleClass === 'in-text' && this.isNumberedStyle(layoutElement)) {
-                return this.formatNumberedCitation(reference, options);
-            }
-
-            // pageNumbers'ı reference'a locator olarak ekle
-            if (options.pageNumbers && options.pageNumbers.trim()) {
-                reference.locator = options.pageNumbers;
-            }
-
-            const formattedText = this.processLayout(layoutElement, reference, options);
-
-            // Eğer CSL sonucunda locator (sayfa numarası) yoksa, manuel olarak ekle
-            let result = formattedText;
-            if (options.pageNumbers && options.pageNumbers.trim()) {
-                // Sonuçta sayfa numarası var mı kontrol et
-                const hasPageNumber = formattedText.includes(options.pageNumbers);
-                if (!hasPageNumber) {
-                    // Parantez içine ekle (örn: "(Author, 2023)" -> "(Author, 2023, s. 42)")
-                    const pagePrefix = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') 
-                        ? this.getTerm('pages') 
-                        : this.getTerm('page');
-                    
-                    // Eğer sonuç parantez ile bitiyorsa, parantezin içine ekle
-                    if (result.endsWith(')')) {
-                        result = result.slice(0, -1) + `, ${pagePrefix} ${options.pageNumbers})`;
-                    } else {
-                        result += `, ${pagePrefix} ${options.pageNumbers}`;
+            // Citeproc-js sistem objesi
+            const sys = {
+                retrieveLocale: (lang: string) => {
+                    if ((lang === 'tr-TR' || lang === 'tr') && fs.existsSync(trLocalePath)) {
+                        return fs.readFileSync(trLocalePath, 'utf8');
                     }
-                }
+                    if ((lang === 'en-US' || lang === 'en') && fs.existsSync(enLocalePath)) {
+                        return fs.readFileSync(enLocalePath, 'utf8');
+                    }
+                    return defaultLocaleXml;
+                },
+                retrieveItem: (id: string) => {
+                    if (id === reference.id) {
+                        return reference;
+                    }
+                    return null;
+                },
+            };
+
+            // Citeproc engine oluştur
+            const engine = new CSL.Engine(sys, cslContent);
+            
+            // Reference'ı engine'e ekle
+            engine.updateItems([reference.id]);
+
+            // Citation item oluştur
+            const citationItem: any = {
+                id: reference.id,
+            };
+
+            // Sayfa numarası varsa locator olarak ekle
+            if (options.pageNumbers && options.pageNumbers.trim()) {
+                citationItem.locator = options.pageNumbers;
+                citationItem.label = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') 
+                    ? 'page' 
+                    : 'page';
             }
 
-            const prefix = options.prefix || '';
-            const suffix = options.suffix || '';
+            // Suppress author/date seçenekleri
+            if (options.suppressAuthor) {
+                citationItem['suppress-author'] = true;
+            }
+            if (options.suppressDate) {
+                citationItem['suppress-date'] = true;
+            }
 
-            return `${prefix}${result}${suffix}`;
+            // Prefix/suffix
+            if (options.prefix) {
+                citationItem.prefix = options.prefix;
+            }
+            if (options.suffix) {
+                citationItem.suffix = options.suffix;
+            }
+
+            // Citation cluster oluştur
+            const citationCluster = {
+                citationItems: [citationItem],
+                properties: {
+                    noteIndex: 0
+                }
+            };
+
+            // Citation işle
+            const [, citationResults] = engine.processCitationCluster(citationCluster, [], []);
+            
+            if (citationResults && citationResults.length > 0) {
+                let result = citationResults[0][1]; // [[index, citationText], ...]
+                
+                // HTML tag'lerini temizle (citation'da genellikle italic yok ama yine de)
+                result = result.replace(/<[^>]+>/g, '');
+                
+                // HTML entity'leri decode et
+                result = result.replace(/&#38;/g, '&');
+                result = result.replace(/&amp;/g, '&');
+                result = result.replace(/&lt;/g, '<');
+                result = result.replace(/&gt;/g, '>');
+                result = result.replace(/&quot;/g, '"');
+                result = result.replace(/&#39;/g, "'");
+                result = result.replace(/&nbsp;/g, ' ');
+                
+                return result.trim();
+            }
+
+            console.warn('⚠️ Citeproc-js returned empty citation, using fallback');
+            return this.fallbackCitationFormat(reference, options);
 
         } catch (error) {
-            console.error('CSL processing error:', error);
+            console.error('❌ Citeproc-js citation processing failed:', error.message);
             return this.fallbackCitationFormat(reference, options);
         }
     }
 
-    private formatNumberedCitation(reference: any, options: any): string {
-        const citationNumber = this.getCitationNumber(reference.id);
-
-        let result = `[${citationNumber}]`;
-
-        if (options.pageNumbers && options.pageNumbers.trim()) {
-            const pagePrefix = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') 
-                ? this.getTerm('pages') 
-                : this.getTerm('page');
-            result += `, ${pagePrefix} ${options.pageNumbers}`;
+    /**
+     * Numbered style için citation numarası al
+     */
+    getCitationNumber(referenceId: string): number {
+        if (!this.citationNumbers.has(referenceId)) {
+            this.citationNumbers.set(referenceId, this.nextNumber++);
         }
-
-        const prefix = options.prefix || '';
-        const suffix = options.suffix || '';
-
-        return `${prefix}${result}${suffix}`;
+        return this.citationNumbers.get(referenceId)!;
     }
 
     resetCitationNumbers(): void {
@@ -178,48 +219,95 @@ export class CSLProcessorService {
         this.nextNumber = 1;
     }
 
-    private isNumberedStyle(layoutElement: any): boolean {
-        // Layout içinde citation-number variable'ı varmı?
-        const textElements = layoutElement.getElementsByTagName('text');
-        for (let i = 0; i < textElements.length; i++) {
-            const element = textElements[i];
-            const variable = element.getAttribute('variable');
-            if (variable === 'citation-number') {
-                return true;
-            }
-        }
-        return false;
-    }
-
     formatBibliography(cslContent: string, reference: any): string {
         try {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(cslContent, 'text/xml');
-
-            const bibliographyElements = doc.getElementsByTagName('bibliography');
-            if (bibliographyElements.length === 0) {
+            // Locale dosyalarının path'ini bul (hem src hem dist için çalışır)
+            const projectRoot = process.cwd();
+            let localesPath = path.join(projectRoot, 'src/resources/locales');
+            
+            // Eğer src'de yoksa dist'te ara
+            if (!fs.existsSync(localesPath)) {
+                localesPath = path.join(projectRoot, 'dist/resources/locales');
+            }
+            
+            const trLocalePath = path.join(localesPath, 'locales-tr-TR.xml');
+            const enLocalePath = path.join(localesPath, 'locales-en-US.xml');
+            
+            // Varsayılan locale'i yükle (Türkçe varsa Türkçe, yoksa İngilizce)
+            let defaultLocaleXml = '';
+            if (fs.existsSync(trLocalePath)) {
+                defaultLocaleXml = fs.readFileSync(trLocalePath, 'utf8');
+            } else if (fs.existsSync(enLocalePath)) {
+                defaultLocaleXml = fs.readFileSync(enLocalePath, 'utf8');
+            } else {
+                console.warn(`⚠️ No locale files found at ${localesPath}, using fallback`);
                 return this.fallbackBibliographyFormat(reference);
             }
 
-            const layoutElement = bibliographyElements[0].getElementsByTagName('layout')[0];
-            if (!layoutElement) {
-                return this.fallbackBibliographyFormat(reference);
+            // Citeproc-js kullan
+            const sys = {
+                retrieveLocale: (lang: string) => {
+                    // İstenen dile göre locale döndür
+                    if ((lang === 'tr-TR' || lang === 'tr') && fs.existsSync(trLocalePath)) {
+                        return fs.readFileSync(trLocalePath, 'utf8');
+                    }
+                    if ((lang === 'en-US' || lang === 'en') && fs.existsSync(enLocalePath)) {
+                        return fs.readFileSync(enLocalePath, 'utf8');
+                    }
+                    return defaultLocaleXml;
+                },
+                retrieveItem: (id: string) => {
+                    if (id === reference.id) {
+                        return reference;
+                    }
+                    return null;
+                },
+            };
+
+            const engine = new CSL.Engine(sys, cslContent);
+            
+            // Reference'ı engine'e ekle
+            engine.updateItems([reference.id]);
+            
+            // Bibliography oluştur
+            const [, bibliography] = engine.makeBibliography();
+            
+            if (bibliography && bibliography.length > 0) {
+                let result = bibliography[0];
+                
+                // HTML italic/bold tag'lerini Word-uyumlu markup'a çevir
+                // <i>text</i> → {i}text{/i}
+                // <b>text</b> → {b}text{/b}
+                result = result.replace(/<i>/gi, '{i}');
+                result = result.replace(/<\/i>/gi, '{/i}');
+                result = result.replace(/<b>/gi, '{b}');
+                result = result.replace(/<\/b>/gi, '{/b}');
+                result = result.replace(/<em>/gi, '{i}');
+                result = result.replace(/<\/em>/gi, '{/i}');
+                result = result.replace(/<strong>/gi, '{b}');
+                result = result.replace(/<\/strong>/gi, '{/b}');
+                
+                // Diğer HTML tag'lerini temizle (div, span, p vb.)
+                result = result.replace(/<[^>]+>/g, '');
+                
+                // HTML entity'leri decode et
+                result = result.replace(/&#38;/g, '&');  // &#38; -> &
+                result = result.replace(/&amp;/g, '&');
+                result = result.replace(/&lt;/g, '<');
+                result = result.replace(/&gt;/g, '>');
+                result = result.replace(/&quot;/g, '"');
+                result = result.replace(/&#39;/g, "'");
+                result = result.replace(/&nbsp;/g, ' ');
+                result = result.replace(/&#160;/g, ' '); // Non-breaking space
+                
+                return result.trim();
             }
 
-            const result = this.processLayout(layoutElement, reference, {});
-
-            // Italic formatını koru - sadece gereksiz işaretleri temizle
-            const cleanedResult = result
-                .replace(/\.\./g, '.')          // Çift nokta -> tek nokta
-                .replace(/\s+/g, ' ')           // Çoklu boşluk -> tek boşluk
-                // .replace(/<em>/g, '*')       // <em> -> * (KALDIRDIK - HTML'i koru)
-                // .replace(/<\/em>/g, '*')     // </em> -> * (KALDIRDIK - HTML'i koru)  
-                .trim();
-
-            return cleanedResult;
+            console.warn('⚠️ Citeproc-js returned empty bibliography, using fallback');
+            return this.fallbackBibliographyFormat(reference);
 
         } catch (error) {
-            console.error('CSL bibliography processing failed:', error.message);
+            console.error('❌ Citeproc-js bibliography processing failed:', error.message);
             return this.fallbackBibliographyFormat(reference);
         }
     }
@@ -236,20 +324,28 @@ export class CSLProcessorService {
         const children = layoutElement.childNodes;
         const processedParts: string[] = [];
 
+        console.log(`📋 processLayout: ${children.length} children found`);
+
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
 
             if (child.nodeType === 1) { // ELEMENT_NODE
+                console.log(`  Processing child ${i}: ${child.tagName}`);
                 const processedPart = this.processElement(child, reference, options);
+                console.log(`  Result from ${child.tagName}: "${processedPart}"`);
 
                 if (processedPart && processedPart.trim()) {
                     processedParts.push(processedPart);
                 }
+            } else {
+                console.log(`  Skipping child ${i}: nodeType=${child.nodeType} (not ELEMENT_NODE)`);
             }
         }
 
         const result = processedParts.join(delimiter);
         const finalResult = `${prefix}${result}${suffix}`;
+
+        console.log(`📋 processLayout result: "${finalResult}" (${processedParts.length} parts)`);
 
         return finalResult;
     }
@@ -529,35 +625,52 @@ export class CSLProcessorService {
     }
 
     private processChoose(element: any, reference: any, options: any): string {
-
         const children = element.childNodes;
+        let elseElement: any = null;
+
+        console.log(`🔀 processChoose: ${children.length} children`);
 
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
             if (child.nodeType === 1) { // ELEMENT_NODE
                 const tagName = child.tagName.toLowerCase();
+                console.log(`  Checking ${tagName} element`);
 
                 if (tagName === 'if') {
                     const conditionMet = this.evaluateCondition(child, reference, options);
+                    console.log(`    if condition: ${conditionMet}`);
 
                     if (conditionMet) {
                         const result = this.processElementChildren(child, reference, options);
+                        console.log(`    if result: "${result}"`);
                         return result;
                     }
                 } else if (tagName === 'else-if') {
                     const conditionMet = this.evaluateCondition(child, reference, options);
+                    console.log(`    else-if condition: ${conditionMet}`);
 
                     if (conditionMet) {
                         const result = this.processElementChildren(child, reference, options);
+                        console.log(`    else-if result: "${result}"`);
                         return result;
                     }
                 } else if (tagName === 'else') {
-                    const result = this.processElementChildren(child, reference, options);
-                    return result;
+                    // Store else element to process if no conditions are met
+                    elseElement = child;
+                    console.log(`    else element found, storing for later`);
                 }
             }
         }
 
+        // If no conditions were met, process else element if it exists
+        if (elseElement) {
+            console.log(`  Processing else element`);
+            const result = this.processElementChildren(elseElement, reference, options);
+            console.log(`  else result: "${result}"`);
+            return result;
+        }
+
+        console.warn(`⚠️ processChoose: No conditions met and no else element, returning empty`);
         return '';
     }
 
@@ -584,12 +697,14 @@ export class CSLProcessorService {
         const type = element.getAttribute('type');
         const isNumeric = element.getAttribute('is-numeric');
 
+        console.log(`    evaluateCondition: variable="${variable}", type="${type}", isNumeric="${isNumeric}"`);
 
         // Variable condition
         if (variable) {
             const variables = variable.split(' ');
             for (const varName of variables) {
                 const value = this.getVariableValue(varName.trim(), reference, options);
+                console.log(`      Variable "${varName}": "${value}"`);
                 if (value && value.trim()) {
                     return true;
                 }
@@ -1119,18 +1234,29 @@ export class CSLProcessorService {
     }
 
     private fallbackCitationFormat(reference: any, options: any): string {
-        // IEEE için numbered format
-        if (this.isIEEEStyle(reference)) {
-            return this.formatNumberedCitation(reference, options);
-        }
-
-        // Diğer stiller için author-date
+        // Fallback: author-date format kullan
         return this.formatAuthorDateCitation(reference, options);
     }
 
-    private isIEEEStyle(reference: any): boolean {
-        // Bu method'u style detection için geliştirebilirsiniz
-        return false; // Şimdilik false
+    /**
+     * Numbered citation formatı (IEEE vb. için fallback)
+     */
+    private formatNumberedCitation(reference: any, options: any): string {
+        const citationNumber = this.getCitationNumber(reference.id);
+
+        let result = `[${citationNumber}]`;
+
+        if (options.pageNumbers && options.pageNumbers.trim()) {
+            const pagePrefix = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') 
+                ? this.getTerm('pages') 
+                : this.getTerm('page');
+            result += `, ${pagePrefix} ${options.pageNumbers}`;
+        }
+
+        const prefix = options.prefix || '';
+        const suffix = options.suffix || '';
+
+        return `${prefix}${result}${suffix}`;
     }
 
     private formatAuthorDateCitation(reference: any, options: any): string {
@@ -1302,13 +1428,5 @@ export class CSLProcessorService {
         // Next number'ı güncel tut
         this.nextNumber = Math.max(...Array.from(referenceNumberMap.values())) + 1;
 
-    }
-
-    // getCitationNumber methodunu da güncelle - debug log ekle
-    private getCitationNumber(referenceId: string): number {
-        if (!this.citationNumbers.has(referenceId)) {
-            this.citationNumbers.set(referenceId, this.nextNumber++);
-        } 
-        return this.citationNumbers.get(referenceId)!;
     }
 }

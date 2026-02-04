@@ -221,6 +221,9 @@ export class CitationStylesController {
         // VBA için bibliographyText formatında döndür
         const bibliographyText = bibliographyEntries.join('\n\n');
 
+        console.log('📚 Bibliography entries:', bibliographyEntries);
+        console.log('📚 Bibliography text:', bibliographyText);
+
         return {
             statusCode: 200,
             message: CITATIONS_MESSAGES.BIBLIOGRAPHY_GENERATED_SUCCESSFULLY,

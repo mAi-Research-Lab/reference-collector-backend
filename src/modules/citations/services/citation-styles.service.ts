@@ -174,6 +174,12 @@ export class CitationStylesService {
                 if (style.cslContent) {
                     const normalizedRef = this.normalizeReferenceForCSL(reference);
                     entry = this.cslProcessor.formatBibliography(style.cslContent, normalizedRef);
+                    console.log('entry', entry);
+                    // Eğer entry çok kısa veya sadece author içeriyorsa fallback kullan
+                    if (entry && entry.trim().length < 20) {
+                        console.warn(`⚠️ Bibliography entry too short for ref ${reference.id}: "${entry}", using fallback`);
+                        entry = this.formatBibliographyEntryWithFormatting(reference, style);
+                    }
                 }
 
                 // CSL başarısız olursa fallback
@@ -183,6 +189,10 @@ export class CitationStylesService {
 
                 if (entry && entry.trim()) {
                     bibliographyEntries.push(entry.trim());
+                } else {
+                    console.warn(`⚠️ Empty bibliography entry for reference ${reference.id}, using fallback`);
+                    const fallbackEntry = this.formatBibliographyEntryWithFormatting(reference, style);
+                    bibliographyEntries.push(fallbackEntry);
                 }
             } catch (error) {
                 console.error(`🔧 Error processing reference ${reference.id}:`, error);
