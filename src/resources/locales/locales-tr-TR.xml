@@ -1,0 +1,736 @@
+<?xml version="1.0" encoding="utf-8"?>
+<locale xmlns="http://purl.org/net/xbiblio/csl" version="1.0" xml:lang="tr-TR">
+  <info>
+    <translator>
+      <name>Citext</name>
+    </translator>
+    <rights license="http://creativecommons.org/licenses/by-sa/3.0/">This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 License</rights>
+    <updated>2025-01-01T00:00:00+00:00</updated>
+  </info>
+  <style-options punctuation-in-quote="false"/>
+  <date form="text">
+    <date-part name="day" suffix=" "/>
+    <date-part name="month" suffix=" "/>
+    <date-part name="year"/>
+  </date>
+  <date form="numeric">
+    <date-part name="day" form="numeric-leading-zeros" suffix="."/>
+    <date-part name="month" form="numeric-leading-zeros" suffix="."/>
+    <date-part name="year"/>
+  </date>
+  <terms>
+    <!-- GENEL TERİMLER -->
+    <term name="accessed">erişim tarihi</term>
+    <term name="advance-online-publication">çevrimiçi ön yayın</term>
+    <term name="album">albüm</term>
+    <term name="and">ve</term>
+    <term name="and others">ve diğerleri</term>
+    <term name="anonymous">anonim</term>
+    <term name="at">:</term>
+    <term name="audio-recording">ses kaydı</term>
+    <term name="available at">adresinden erişilebilir</term>
+    <term name="by">tarafından</term>
+    <term name="circa">yaklaşık</term>
+    <term name="cited">alıntı yapılmıştır</term>
+    <term name="et-al">vd.</term>
+    <term name="film">film</term>
+    <term name="forthcoming">yayımlanacak</term>
+    <term name="from">kaynak</term>
+    <term name="henceforth">bundan sonra</term>
+    <term name="ibid">a.g.e.</term>
+    <term name="in">içinde</term>
+    <term name="in press">baskıda</term>
+    <term name="internet">internet</term>
+    <term name="letter">mektup</term>
+    <term name="loc-cit">a.g.y.</term>
+    <term name="no date">tarihsiz</term>
+    <term name="no-place">yer yok</term>
+    <term name="no-publisher">yayınevi yok</term>
+    <term name="on">tarihinde</term>
+    <term name="online">çevrimiçi</term>
+    <term name="op-cit">a.g.e.</term>
+    <term name="original-work-published">eserin orijinali yayımlandı</term>
+    <term name="personal-communication">kişisel iletişim</term>
+    <term name="podcast">podcast</term>
+    <term name="podcast-episode">podcast bölümü</term>
+    <term name="preprint">ön baskı</term>
+    <term name="presented at">sunuldu</term>
+    <term name="radio-broadcast">radyo yayını</term>
+    <term name="radio-series">radyo dizisi</term>
+    <term name="radio-series-episode">radyo dizisi bölümü</term>
+    <term name="reference">
+      <single>referans</single>
+      <multiple>referanslar</multiple>
+    </term>
+    <term name="retrieved">erişildi</term>
+    <term name="review-of">değerlendirme</term>
+    <term name="scale">ölçek</term>
+    <term name="special-issue">özel sayı</term>
+    <term name="special-section">özel bölüm</term>
+    <term name="television-broadcast">televizyon yayını</term>
+    <term name="television-series">televizyon dizisi</term>
+    <term name="television-series-episode">televizyon dizisi bölümü</term>
+    <term name="video">video</term>
+    <term name="working-paper">çalışma kağıdı</term>
+
+    <!-- KISA GENEL TERİMLER -->
+    <term name="advance-online-publication" form="short">çevr. ön yay.</term>
+    <term name="anonymous" form="short">anon.</term>
+    <term name="audio-recording" form="short">ses kay.</term>
+    <term name="available at" form="short">erişilebilir</term>
+    <term name="circa" form="short">yak.</term>
+    <term name="cited" form="short">alınt.</term>
+    <term name="et-al" form="short">vd.</term>
+    <term name="film" form="short">flm.</term>
+    <term name="from" form="short">kayn.</term>
+    <term name="letter" form="short">mek.</term>
+    <term name="no date" form="short">t.y.</term>
+    <term name="no-place" form="short">y.y.</term>
+    <term name="no-publisher" form="short">y.y.</term>
+    <term name="original-work-published" form="short">orij. yay.</term>
+    <term name="personal-communication" form="short">kişi. ilet.</term>
+    <term name="podcast-episode" form="short">podcast böl.</term>
+    <term name="radio-broadcast" form="short">radyo yay.</term>
+    <term name="radio-series" form="short">radyo diz.</term>
+    <term name="radio-series-episode" form="short">radyo diz. böl.</term>
+    <term name="reference" form="short">
+      <single>ref.</single>
+      <multiple>ref.</multiple>
+    </term>
+    <term name="retrieved" form="short">eriş.</term>
+    <term name="review-of" form="short">değ.</term>
+    <term name="scale" form="short">ölç.</term>
+    <term name="special-issue" form="short">özel sayı</term>
+    <term name="special-section" form="short">özel böl.</term>
+    <term name="television-broadcast" form="short">TV yay.</term>
+    <term name="television-series" form="short">TV diz.</term>
+    <term name="television-series-episode" form="short">TV diz. böl.</term>
+    <term name="video" form="short">vid.</term>
+    <term name="working-paper" form="short">çal. kağ.</term>
+
+    <!-- SEMBOLİK GENEL FORMLAR -->
+    <term name="and" form="symbol">&amp;</term>
+    <term name="at" form="symbol">@</term>
+
+    <!-- UZUN ÖĞRE TİPİ FORMLARI -->
+    <term name="article">makale</term>
+    <term name="article-journal">dergi makalesi</term>
+    <term name="article-magazine">dergi makalesi</term>
+    <term name="article-newspaper">gazete makalesi</term>
+    <term name="bill">yasa tasarısı</term>
+    <term name="broadcast">yayın</term>
+    <term name="classic">klasik eser</term>
+    <term name="collection">arşiv koleksiyonu</term>
+    <term name="dataset">veri seti</term>
+    <term name="document">belge</term>
+    <term name="entry">girdi</term>
+    <term name="entry-dictionary">sözlük girdisi</term>
+    <term name="entry-encyclopedia">ansiklopedi maddesi</term>
+    <term name="event">etkinlik</term>
+    <term name="graphic">grafik</term>
+    <term name="hearing">duruşma</term>
+    <term name="interview">röportaj</term>
+    <term name="legal_case">hukuki dava</term>
+    <term name="legislation">mevzuat</term>
+    <term name="manuscript">el yazması</term>
+    <term name="map">harita</term>
+    <term name="motion_picture">film</term>
+    <term name="musical_score">müzik notası</term>
+    <term name="pamphlet">broşür</term>
+    <term name="paper-conference">konferans bildirisi</term>
+    <term name="patent">patent</term>
+    <term name="performance">performans</term>
+    <term name="periodical">süreli yayın</term>
+    <term name="personal_communication">kişisel iletişim</term>
+    <term name="post">gönderi</term>
+    <term name="post-weblog">blog yazısı</term>
+    <term name="regulation">yönetmelik</term>
+    <term name="report">rapor</term>
+    <term name="review">inceleme</term>
+    <term name="review-book">kitap incelemesi</term>
+    <term name="software">yazılım</term>
+    <term name="song">ses kaydı</term>
+    <term name="speech">sunum</term>
+    <term name="standard">standart</term>
+    <term name="thesis">tez</term>
+    <term name="treaty">antlaşma</term>
+    <term name="webpage">web sayfası</term>
+
+    <!-- TARİHSEL DÖNEM TERİMLERİ -->
+    <term name="ad"> MS</term>
+    <term name="bc"> MÖ</term>
+    <term name="bce"> MÖ</term>
+    <term name="ce"> MS</term>
+
+    <!-- NOKTALAMA -->
+    <term name="open-quote">"</term>
+    <term name="close-quote">"</term>
+    <term name="open-inner-quote">'</term>
+    <term name="close-inner-quote">'</term>
+    <term name="page-range-delimiter">–</term>
+    <term name="colon">:</term>
+    <term name="comma">,</term>
+    <term name="semicolon">;</term>
+
+    <!-- SIRALI SAYILAR -->
+    <term name="ordinal">.</term>
+    <term name="ordinal-01">.</term>
+    <term name="ordinal-02">.</term>
+    <term name="ordinal-03">.</term>
+    <term name="ordinal-11">.</term>
+    <term name="ordinal-12">.</term>
+    <term name="ordinal-13">.</term>
+
+    <!-- UZUN SIRALI SAYILAR -->
+    <term name="long-ordinal-01">birinci</term>
+    <term name="long-ordinal-02">ikinci</term>
+    <term name="long-ordinal-03">üçüncü</term>
+    <term name="long-ordinal-04">dördüncü</term>
+    <term name="long-ordinal-05">beşinci</term>
+    <term name="long-ordinal-06">altıncı</term>
+    <term name="long-ordinal-07">yedinci</term>
+    <term name="long-ordinal-08">sekizinci</term>
+    <term name="long-ordinal-09">dokuzuncu</term>
+    <term name="long-ordinal-10">onuncu</term>
+
+    <!-- UZUN KONUM FORMLARI -->
+    <term name="act">
+      <single>perde</single>
+      <multiple>perdeler</multiple>
+    </term>
+    <term name="appendix">
+      <single>ek</single>
+      <multiple>ekler</multiple>
+    </term>
+    <term name="article-locator">
+      <single>madde</single>
+      <multiple>maddeler</multiple>
+    </term>
+    <term name="book">
+      <single>kitap</single>
+      <multiple>kitaplar</multiple>
+    </term>
+    <term name="canon">
+      <single>kanon</single>
+      <multiple>kanonlar</multiple>
+    </term>
+    <term name="chapter">
+      <single>bölüm</single>
+      <multiple>bölümler</multiple>
+    </term>
+    <term name="column">
+      <single>sütun</single>
+      <multiple>sütunlar</multiple>
+    </term>
+    <term name="elocation">
+      <single>konum</single>
+      <multiple>konumlar</multiple>
+    </term>
+    <term name="equation">
+      <single>denklem</single>
+      <multiple>denklemler</multiple>
+    </term>
+    <term name="figure">
+      <single>şekil</single>
+      <multiple>şekiller</multiple>
+    </term>
+    <term name="folio">
+      <single>yaprak</single>
+      <multiple>yapraklar</multiple>
+    </term>
+    <term name="issue">
+      <single>sayı</single>
+      <multiple>sayılar</multiple>
+    </term>
+    <term name="line">
+      <single>satır</single>
+      <multiple>satırlar</multiple>
+    </term>
+    <term name="note">
+      <single>not</single>
+      <multiple>notlar</multiple>
+    </term>
+    <term name="opus">
+      <single>opus</single>
+      <multiple>opuslar</multiple>
+    </term>
+    <term name="page">
+      <single>sayfa</single>
+      <multiple>sayfalar</multiple>
+    </term>
+    <term name="paragraph">
+      <single>paragraf</single>
+      <multiple>paragraflar</multiple>
+    </term>
+    <term name="part">
+      <single>kısım</single>
+      <multiple>kısımlar</multiple>
+    </term>
+    <term name="rule">
+      <single>kural</single>
+      <multiple>kurallar</multiple>
+    </term>
+    <term name="scene">
+      <single>sahne</single>
+      <multiple>sahneler</multiple>
+    </term>
+    <term name="section">
+      <single>bölüm</single>
+      <multiple>bölümler</multiple>
+    </term>
+    <term name="sub-verbo">
+      <single>madde başlığı</single>
+      <multiple>madde başlıkları</multiple>
+    </term>
+    <term name="supplement">
+      <single>ek</single>
+      <multiple>ekler</multiple>
+    </term>
+    <term name="table">
+      <single>tablo</single>
+      <multiple>tablolar</multiple>
+    </term>
+    <term name="timestamp"/>
+    <term name="title-locator">
+      <single>başlık</single>
+      <multiple>başlıklar</multiple>
+    </term>
+    <term name="verse">
+      <single>dize</single>
+      <multiple>dizeler</multiple>
+    </term>
+    <term name="volume">
+      <single>cilt</single>
+      <multiple>ciltler</multiple>
+    </term>
+
+    <!-- KISA KONUM FORMLARI -->
+    <term name="appendix" form="short">
+      <single>ek</single>
+      <multiple>ekler</multiple>
+    </term>
+    <term name="article-locator" form="short">
+      <single>md.</single>
+      <multiple>md.</multiple>
+    </term>
+    <term name="book" form="short">
+      <single>kt.</single>
+      <multiple>kt.</multiple>
+    </term>
+    <term name="canon" form="short">
+      <single>kan.</single>
+      <multiple>kan.</multiple>
+    </term>
+    <term name="chapter" form="short">
+      <single>böl.</single>
+      <multiple>böl.</multiple>
+    </term>
+    <term name="column" form="short">
+      <single>süt.</single>
+      <multiple>süt.</multiple>
+    </term>
+    <term name="elocation" form="short">
+      <single>kon.</single>
+      <multiple>kon.</multiple>
+    </term>
+    <term name="equation" form="short">
+      <single>denk.</single>
+      <multiple>denk.</multiple>
+    </term>
+    <term name="figure" form="short">
+      <single>şkl.</single>
+      <multiple>şkl.</multiple>
+    </term>
+    <term name="folio" form="short">
+      <single>y.</single>
+      <multiple>y.</multiple>
+    </term>
+    <term name="issue" form="short">
+      <single>S.</single>
+      <multiple>S.</multiple>
+    </term>
+    <term name="line" form="short">
+      <single>st.</single>
+      <multiple>st.</multiple>
+    </term>
+    <term name="note" form="short">
+      <single>n.</single>
+      <multiple>n.</multiple>
+    </term>
+    <term name="opus" form="short">
+      <single>op.</single>
+      <multiple>op.</multiple>
+    </term>
+    <term name="page" form="short">
+      <single>s.</single>
+      <multiple>ss.</multiple>
+    </term>
+    <term name="paragraph" form="short">
+      <single>par.</single>
+      <multiple>par.</multiple>
+    </term>
+    <term name="part" form="short">
+      <single>kıs.</single>
+      <multiple>kıs.</multiple>
+    </term>
+    <term name="rule" form="short">
+      <single>k.</single>
+      <multiple>k.</multiple>
+    </term>
+    <term name="scene" form="short">
+      <single>shn.</single>
+      <multiple>shn.</multiple>
+    </term>
+    <term name="section" form="short">
+      <single>böl.</single>
+      <multiple>böl.</multiple>
+    </term>
+    <term name="sub-verbo" form="short">
+      <single>m.b.</single>
+      <multiple>m.b.</multiple>
+    </term>
+    <term name="supplement" form="short">
+      <single>ek</single>
+      <multiple>ekler</multiple>
+    </term>
+    <term name="table" form="short">
+      <single>tbl.</single>
+      <multiple>tbl.</multiple>
+    </term>
+    <term name="title-locator" form="short">
+      <single>bşl.</single>
+      <multiple>bşl.</multiple>
+    </term>
+    <term name="verse" form="short">
+      <single>d.</single>
+      <multiple>d.</multiple>
+    </term>
+    <term name="volume" form="short">
+      <single>C.</single>
+      <multiple>C.</multiple>
+    </term>
+
+    <!-- SEMBOLİK KONUM FORMLARI -->
+    <term name="chapter" form="symbol">
+      <single>böl.</single>
+      <multiple>böl.</multiple>
+    </term>
+    <term name="paragraph" form="symbol">
+      <single>¶</single>
+      <multiple>¶¶</multiple>
+    </term>
+    <term name="section" form="symbol">
+      <single>§</single>
+      <multiple>§§</multiple>
+    </term>
+
+    <!-- UZUN SAYI DEĞİŞKEN FORMLARI -->
+    <term name="chapter-number">
+      <single>bölüm</single>
+      <multiple>bölümler</multiple>
+    </term>
+    <term name="citation-number">
+      <single>atıf</single>
+      <multiple>atıflar</multiple>
+    </term>
+    <term name="collection-number">
+      <single>numara</single>
+      <multiple>numaralar</multiple>
+    </term>
+    <term name="edition">
+      <single>baskı</single>
+      <multiple>baskılar</multiple>
+    </term>
+    <term name="first-reference-note-number">
+      <single>referans</single>
+      <multiple>referanslar</multiple>
+    </term>
+    <term name="number">
+      <single>numara</single>
+      <multiple>numaralar</multiple>
+    </term>
+    <term name="number-of-pages">
+      <single>sayfa</single>
+      <multiple>sayfalar</multiple>
+    </term>
+    <term name="number-of-volumes">
+      <single>cilt</single>
+      <multiple>ciltler</multiple>
+    </term>
+    <term name="page-first">
+      <single>sayfa</single>
+      <multiple>sayfalar</multiple>
+    </term>
+    <term name="printing">
+      <single>basım</single>
+      <multiple>basımlar</multiple>
+    </term>
+    <term name="version">
+      <single>sürüm</single>
+      <multiple>sürümler</multiple>
+    </term>
+
+    <!-- KISA SAYI DEĞİŞKEN FORMLARI -->
+    <term name="chapter-number" form="short">
+      <single>böl.</single>
+      <multiple>böl.</multiple>
+    </term>
+    <term name="citation-number" form="short">
+      <single>atf.</single>
+      <multiple>atf.</multiple>
+    </term>
+    <term name="collection-number" form="short">
+      <single>no.</single>
+      <multiple>no.</multiple>
+    </term>
+    <term name="edition" form="short">
+      <single>bs.</single>
+      <multiple>bs.</multiple>
+    </term>
+    <term name="first-reference-note-number" form="short">
+      <single>ref.</single>
+      <multiple>ref.</multiple>
+    </term>
+    <term name="number" form="short">
+      <single>no.</single>
+      <multiple>no.</multiple>
+    </term>
+    <term name="number-of-pages" form="short">
+      <single>s.</single>
+      <multiple>ss.</multiple>
+    </term>
+    <term name="number-of-volumes" form="short">
+      <single>C.</single>
+      <multiple>C.</multiple>
+    </term>
+    <term name="page-first" form="short">
+      <single>s.</single>
+      <multiple>ss.</multiple>
+    </term>
+    <term name="printing" form="short">
+      <single>bsm.</single>
+      <multiple>bsm.</multiple>
+    </term>
+    <term name="version" form="short">v.</term>
+
+    <!-- UZUN ROL FORMLARI -->
+    <term name="chair">
+      <single>başkan</single>
+      <multiple>başkanlar</multiple>
+    </term>
+    <term name="collection-editor">
+      <single>editör</single>
+      <multiple>editörler</multiple>
+    </term>
+    <term name="compiler">
+      <single>derleyen</single>
+      <multiple>derleyenler</multiple>
+    </term>
+    <term name="contributor">
+      <single>katkıda bulunan</single>
+      <multiple>katkıda bulunanlar</multiple>
+    </term>
+    <term name="curator">
+      <single>küratör</single>
+      <multiple>küratörler</multiple>
+    </term>
+    <term name="director">
+      <single>yönetmen</single>
+      <multiple>yönetmenler</multiple>
+    </term>
+    <term name="editor">
+      <single>editör</single>
+      <multiple>editörler</multiple>
+    </term>
+    <term name="editor-translator">
+      <single>editör ve çevirmen</single>
+      <multiple>editörler ve çevirmenler</multiple>
+    </term>
+    <term name="editortranslator">
+      <single>editör ve çevirmen</single>
+      <multiple>editörler ve çevirmenler</multiple>
+    </term>
+    <term name="editorial-director">
+      <single>editör</single>
+      <multiple>editörler</multiple>
+    </term>
+    <term name="executive-producer">
+      <single>baş yapımcı</single>
+      <multiple>baş yapımcılar</multiple>
+    </term>
+    <term name="guest">
+      <single>konuk</single>
+      <multiple>konuklar</multiple>
+    </term>
+    <term name="host">
+      <single>sunucu</single>
+      <multiple>sunucular</multiple>
+    </term>
+    <term name="illustrator">
+      <single>illüstratör</single>
+      <multiple>illüstratörler</multiple>
+    </term>
+    <term name="narrator">
+      <single>anlatıcı</single>
+      <multiple>anlatıcılar</multiple>
+    </term>
+    <term name="organizer">
+      <single>organizatör</single>
+      <multiple>organizatörler</multiple>
+    </term>
+    <term name="performer">
+      <single>sanatçı</single>
+      <multiple>sanatçılar</multiple>
+    </term>
+    <term name="producer">
+      <single>yapımcı</single>
+      <multiple>yapımcılar</multiple>
+    </term>
+    <term name="script-writer">
+      <single>senaryo yazarı</single>
+      <multiple>senaryo yazarları</multiple>
+    </term>
+    <term name="series-creator">
+      <single>dizi yaratıcısı</single>
+      <multiple>dizi yaratıcıları</multiple>
+    </term>
+    <term name="translator">
+      <single>çevirmen</single>
+      <multiple>çevirmenler</multiple>
+    </term>
+
+    <!-- KISA ROL FORMLARI -->
+    <term name="collection-editor" form="short">
+      <single>ed.</single>
+      <multiple>ed.</multiple>
+    </term>
+    <term name="compiler" form="short">
+      <single>derl.</single>
+      <multiple>derl.</multiple>
+    </term>
+    <term name="contributor" form="short">
+      <single>katkı.</single>
+      <multiple>katkı.</multiple>
+    </term>
+    <term name="curator" form="short">
+      <single>kür.</single>
+      <multiple>kür.</multiple>
+    </term>
+    <term name="director" form="short">
+      <single>yön.</single>
+      <multiple>yön.</multiple>
+    </term>
+    <term name="editor" form="short">
+      <single>ed.</single>
+      <multiple>ed.</multiple>
+    </term>
+    <term name="editor-translator" form="short">
+      <single>ed. ve çev.</single>
+      <multiple>ed. ve çev.</multiple>
+    </term>
+    <term name="editortranslator" form="short">
+      <single>ed. ve çev.</single>
+      <multiple>ed. ve çev.</multiple>
+    </term>
+    <term name="editorial-director" form="short">
+      <single>ed.</single>
+      <multiple>ed.</multiple>
+    </term>
+    <term name="executive-producer" form="short">
+      <single>baş yap.</single>
+      <multiple>baş yap.</multiple>
+    </term>
+    <term name="illustrator" form="short">
+      <single>illüs.</single>
+      <multiple>illüs.</multiple>
+    </term>
+    <term name="narrator" form="short">
+      <single>anlat.</single>
+      <multiple>anlat.</multiple>
+    </term>
+    <term name="organizer" form="short">
+      <single>org.</single>
+      <multiple>org.</multiple>
+    </term>
+    <term name="performer" form="short">
+      <single>san.</single>
+      <multiple>san.</multiple>
+    </term>
+    <term name="producer" form="short">
+      <single>yap.</single>
+      <multiple>yap.</multiple>
+    </term>
+    <term name="script-writer" form="short">
+      <single>sen. yaz.</single>
+      <multiple>sen. yaz.</multiple>
+    </term>
+    <term name="series-creator" form="short">
+      <single>dizi yar.</single>
+      <multiple>dizi yar.</multiple>
+    </term>
+    <term name="translator" form="short">çev.</term>
+
+    <!-- FİİL ROL FORMLARI -->
+    <term name="chair" form="verb">başkanlığında</term>
+    <term name="collection-editor" form="verb">tarafından derlendi</term>
+    <term name="compiler" form="verb">tarafından derlendi</term>
+    <term name="composer" form="verb">tarafından bestelendi</term>
+    <term name="container-author" form="verb">tarafından</term>
+    <term name="contributor" form="verb">ile birlikte</term>
+    <term name="curator" form="verb">tarafından küratörlüğü yapıldı</term>
+    <term name="director" form="verb">yönetmen</term>
+    <term name="editor" form="verb">tarafından düzenlendi</term>
+    <term name="editor-translator" form="verb">tarafından düzenlendi ve çevrildi</term>
+    <term name="editortranslator" form="verb">tarafından düzenlendi ve çevrildi</term>
+    <term name="editorial-director" form="verb">tarafından düzenlendi</term>
+    <term name="executive-producer" form="verb">baş yapımcılığında</term>
+    <term name="host" form="verb">sunuculuğunda</term>
+    <term name="illustrator" form="verb">tarafından resmedildi</term>
+    <term name="interviewer" form="verb">ile röportaj</term>
+    <term name="narrator" form="verb">tarafından anlatıldı</term>
+    <term name="organizer" form="verb">tarafından organize edildi</term>
+    <term name="original-author" form="verb">tarafından</term>
+    <term name="performer" form="verb">tarafından icra edildi</term>
+    <term name="producer" form="verb">yapımcılığında</term>
+    <term name="recipient" form="verb">alıcı</term>
+    <term name="reviewed-author" form="verb">tarafından</term>
+    <term name="script-writer" form="verb">tarafından yazıldı</term>
+    <term name="series-creator" form="verb">tarafından yaratıldı</term>
+    <term name="translator" form="verb">tarafından çevrildi</term>
+
+    <!-- UZUN AY FORMLARI -->
+    <term name="month-01">Ocak</term>
+    <term name="month-02">Şubat</term>
+    <term name="month-03">Mart</term>
+    <term name="month-04">Nisan</term>
+    <term name="month-05">Mayıs</term>
+    <term name="month-06">Haziran</term>
+    <term name="month-07">Temmuz</term>
+    <term name="month-08">Ağustos</term>
+    <term name="month-09">Eylül</term>
+    <term name="month-10">Ekim</term>
+    <term name="month-11">Kasım</term>
+    <term name="month-12">Aralık</term>
+
+    <!-- KISA AY FORMLARI -->
+    <term name="month-01" form="short">Oca</term>
+    <term name="month-02" form="short">Şub</term>
+    <term name="month-03" form="short">Mar</term>
+    <term name="month-04" form="short">Nis</term>
+    <term name="month-05" form="short">May</term>
+    <term name="month-06" form="short">Haz</term>
+    <term name="month-07" form="short">Tem</term>
+    <term name="month-08" form="short">Ağu</term>
+    <term name="month-09" form="short">Eyl</term>
+    <term name="month-10" form="short">Eki</term>
+    <term name="month-11" form="short">Kas</term>
+    <term name="month-12" form="short">Ara</term>
+
+    <!-- MEVSİMLER -->
+    <term name="season-01">İlkbahar</term>
+    <term name="season-02">Yaz</term>
+    <term name="season-03">Sonbahar</term>
+    <term name="season-04">Kış</term>
+  </terms>
+</locale>
+
