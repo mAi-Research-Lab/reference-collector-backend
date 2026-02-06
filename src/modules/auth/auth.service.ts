@@ -31,13 +31,20 @@ export class AuthService {
 
         // notification to user
         await this.emailVerificationService.emailVerification(user.id);
-        await this.libraryService.createDefaultLibraries(user.id);
+        
+        // Create default libraries - don't fail if this fails
+        try {
+            await this.libraryService.createDefaultLibraries(user.id);
+        } catch (error) {
+            console.error('Error creating default libraries during signup:', error);
+            // Continue even if library creation fails
+        }
 
-        const token = await this.generateAccessToken(user);
-
+        // Don't return token on signup - user needs to verify email first
+        // Return user info but no token
         return {
             user: user,
-            access_token: token
+            access_token: null as any
         }
     }
 
@@ -52,6 +59,11 @@ export class AuthService {
 
         if (!isPasswordValid) {
             throw new CustomHttpException(COMMON_MESSAGES.INVALID_CREDENTIALS, 401, COMMON_MESSAGES.INVALID_CREDENTIALS);
+        }
+
+        // Check if email is verified
+        if (!user.emailVerified) {
+            throw new CustomHttpException('Email doğrulanmamış. Lütfen e-posta adresinizi doğrulayın.', 403, 'EMAIL_NOT_VERIFIED');
         }
 
         const formatUser = formatUserResponse(user);
