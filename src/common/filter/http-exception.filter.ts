@@ -31,6 +31,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       errorResponseObj.details
     );
 
+    console.log(errorDto);
+
     response.status(statusCode).json(errorDto);
   }
 
