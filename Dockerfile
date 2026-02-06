@@ -1,27 +1,23 @@
-
-# ---- production stage ----
-FROM node:20-alpine AS production
+# builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install production dependencies only
 COPY package*.json ./
 COPY prisma ./prisma/
-RUN npm ci --only=production && \
-    npx prisma generate
+RUN npm ci
 
-# Copy built application from builder
+COPY . .
+RUN npm run build
+
+# production
+FROM node:20-alpine
+WORKDIR /app
+
+COPY package*.json ./
+COPY prisma ./prisma/
+RUN npm ci --only=production && npx prisma generate
+
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/generated ./generated
 
-# Create uploads directory
-RUN mkdir -p uploads/avatars
-
-# Expose port
 EXPOSE 4001
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=4001
-
-# Run migrations and start the application
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["node", "dist/main.js"]
