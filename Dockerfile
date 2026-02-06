@@ -1,22 +1,3 @@
-# ---- build stage ----
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-COPY prisma ./prisma/
-
-# Install dependencies
-RUN npm ci
-
-# Generate Prisma client
-RUN npx prisma generate
-
-# Copy source code
-COPY . .
-
-# Build the application
-RUN npm run build
 
 # ---- production stage ----
 FROM node:20-alpine AS production
@@ -36,7 +17,7 @@ COPY --from=builder /app/generated ./generated
 RUN mkdir -p uploads/avatars
 
 # Expose port
-EXPOSE 3000
+EXPOSE 4001
 
 # Set environment variables
 ENV NODE_ENV=production
