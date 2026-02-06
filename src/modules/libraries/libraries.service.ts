@@ -80,12 +80,87 @@ export class LibrariesService {
     }
 
     async createDefaultLibraries(userId: string): Promise<void> {
-        await this.prisma.libraries.createMany({
-            data: [
-                { name: 'Unfiled Items', ownerId: userId, type: LibraryTypes.template, visibility: LibraryVisibility.private },
-                { name: 'Trash', ownerId: userId, type: LibraryTypes.template, visibility: LibraryVisibility.private },
-            ]
-        });
+        try {
+            // Check if default libraries already exist for this user
+            const existingLibraries = await this.prisma.libraries.findMany({
+                where: {
+                    ownerId: userId,
+                    name: { in: ['Unfiled Items', 'Trash'] },
+                    isDeleted: false
+                }
+            });
+
+            const existingNames = existingLibraries.map(lib => lib.name);
+            const librariesToCreate: Array<{
+                name: string;
+                ownerId: string;
+                type: LibraryTypes;
+                visibility: LibraryVisibility;
+            }> = [];
+
+            if (!existingNames.includes('Unfiled Items')) {
+                librariesToCreate.push({
+                    name: 'Unfiled Items',
+                    ownerId: userId,
+                    type: LibraryTypes.template,
+                    visibility: LibraryVisibility.private
+                });
+            }
+
+            if (!existingNames.includes('Trash')) {
+                librariesToCreate.push({
+                    name: 'Trash',
+                    ownerId: userId,
+                    type: LibraryTypes.template,
+                    visibility: LibraryVisibility.private
+                });
+            }
+
+            if (librariesToCreate.length > 0) {
+                await this.prisma.libraries.createMany({
+                    data: librariesToCreate
+                });
+            }
+        } catch (error) {
+            // Log error but don't throw - we don't want to fail user registration if library creation fails
+            console.error('Error creating default libraries for user:', userId, error);
+            // Try to create libraries individually in case of unique constraint issues
+            try {
+                const existingUnfiled = await this.prisma.libraries.findFirst({
+                    where: { ownerId: userId, name: 'Unfiled Items', isDeleted: false }
+                });
+                if (!existingUnfiled) {
+                    await this.prisma.libraries.create({
+                        data: {
+                            name: 'Unfiled Items',
+                            ownerId: userId,
+                            type: LibraryTypes.template,
+                            visibility: LibraryVisibility.private
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('Error creating Unfiled Items library:', err);
+            }
+
+            try {
+                const existingTrash = await this.prisma.libraries.findFirst({
+                    where: { ownerId: userId, name: 'Trash', isDeleted: false }
+                });
+                if (!existingTrash) {
+                    await this.prisma.libraries.create({
+                        data: {
+                            name: 'Trash',
+                            ownerId: userId,
+                            type: LibraryTypes.template,
+                            visibility: LibraryVisibility.private
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('Error creating Trash library:', err);
+            }
+        }
     }
 
     async createPersonalLibrary(userId: string, data: { name: string, description?: string, institutionId?: string }): Promise<LibraryResponse> {
