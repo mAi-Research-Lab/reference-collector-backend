@@ -106,4 +106,38 @@ export class EmailVerificationService {
             throw new CustomHttpException(AUTH_MESSAGES.SOMETHING_WENT_WRONG, 500, AUTH_MESSAGES.SOMETHING_WENT_WRONG);
         }
     }
+
+    async resendVerificationEmailByEmail(email: string): Promise<{ message: string }> {
+        const user = await this.prisma.user.findUnique({ where: { email } });
+        if (!user) {
+            throw new CustomHttpException(AUTH_MESSAGES.USER_NOT_FOUND, 404, AUTH_MESSAGES.USER_NOT_FOUND);
+        }
+
+        if (user.emailVerified) {
+            return { message: AUTH_MESSAGES.EMAIL_ALREADY_VERIFIED };
+        }
+        const transformedUser = formatUserResponse(user);
+
+        try {
+            // Delete any existing verification tokens
+            await this.prisma.emailVerification.deleteMany({ where: { userId: user.id } });
+
+            // Generate and save new verification token
+            const token = generateVerificationToken();
+            await this.prisma.emailVerification.create({
+                data: {
+                    userId: user.id,
+                    token,
+                }
+            });
+
+            // Send verification email
+            await this.mailService.sendVerificationEmail(transformedUser, token);
+
+            return { message: AUTH_MESSAGES.VERIFICATION_EMAIL_SENT };
+        } catch (error) {
+            console.error('Error in resendVerificationEmailByEmail:', error);
+            throw new CustomHttpException(AUTH_MESSAGES.SOMETHING_WENT_WRONG, 500, AUTH_MESSAGES.SOMETHING_WENT_WRONG);
+        }
+    }
 }

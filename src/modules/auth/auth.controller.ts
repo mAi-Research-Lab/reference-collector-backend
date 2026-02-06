@@ -92,6 +92,39 @@ export class AuthController {
         return await this.emailVerificationService.resendVerificationEmail(userId);
     }
 
+    @Post('resend-verification-email-by-email')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Resend verification email by email address',
+        description: 'Resends the verification email to the provided email address. Does not require authentication.'
+    })
+    @ApiResponse({
+        status: 200,
+        description: AUTH_MESSAGES.VERIFICATION_EMAIL_SENT,
+        schema: {
+            properties: {
+                message: { type: 'string', example: AUTH_MESSAGES.VERIFICATION_EMAIL_SENT }
+            }
+        }
+    })
+    @ApiErrorResponse(404, AUTH_MESSAGES.USER_NOT_FOUND)
+    @ApiBody({
+        schema: {
+            type: 'object',
+            required: ['email'],
+            properties: {
+                email: {
+                    type: 'string',
+                    format: 'email',
+                    example: 'user@example.com'
+                }
+            }
+        }
+    })
+    async resendVerificationEmailByEmail(@Body('email') email: string) {
+        return await this.emailVerificationService.resendVerificationEmailByEmail(email);
+    }
+
     @Post('signin')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
