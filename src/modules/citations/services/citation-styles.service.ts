@@ -33,7 +33,11 @@ export class CitationStylesService {
     }
 
     async getStyleById(id: string): Promise<CitationStyleResponse> {
-        // ✅ UUID mi yoksa shortName mi kontrol et
+        if (!id || id.trim() === '') {
+            console.warn('⚠️ getStyleById called with empty id, falling back to default style');
+            return this.getDefaultStyle();
+        }
+
         let style;
         
         // UUID formatında mı kontrol et (8-4-4-4-12 karakter)
@@ -43,7 +47,7 @@ export class CitationStylesService {
             // UUID ile arama
             style = await this.prisma.citationStyle.findUnique({ where: { id } });
         } else {
-            // shortName ile arama
+            // shortName ile arama (case-insensitive)
             style = await this.prisma.citationStyle.findFirst({ 
                 where: { 
                     shortName: {
@@ -52,13 +56,51 @@ export class CitationStylesService {
                     }
                 } 
             });
+
+            // shortName ile bulamazsa name ile de dene (case-insensitive)
+            if (!style) {
+                style = await this.prisma.citationStyle.findFirst({
+                    where: {
+                        name: {
+                            contains: id,
+                            mode: 'insensitive'
+                        }
+                    }
+                });
+            }
         }
 
         if (!style) {
-            throw new CustomHttpException(CITATIONS_MESSAGES.STYLE_NOT_FOUND, 404, CITATIONS_MESSAGES.STYLE_NOT_FOUND);
+            console.warn(`⚠️ Style not found for id: "${id}", falling back to default style`);
+            return this.getDefaultStyle();
         }
 
         return style;
+    }
+
+    /**
+     * Default stili getir (APA veya DB'deki ilk stil)
+     */
+    private async getDefaultStyle(): Promise<CitationStyleResponse> {
+        // Önce APA'yı dene
+        const apaStyle = await this.prisma.citationStyle.findFirst({
+            where: { shortName: 'apa' }
+        });
+        if (apaStyle) return apaStyle;
+
+        // APA yoksa isDefault olan herhangi bir stil
+        const defaultStyle = await this.prisma.citationStyle.findFirst({
+            where: { isDefault: true }
+        });
+        if (defaultStyle) return defaultStyle;
+
+        // Hiçbiri yoksa ilk stili döndür
+        const firstStyle = await this.prisma.citationStyle.findFirst({
+            orderBy: { downloadCount: 'desc' }
+        });
+        if (firstStyle) return firstStyle;
+
+        throw new CustomHttpException(CITATIONS_MESSAGES.STYLE_NOT_FOUND, 404, 'No citation styles available in database');
     }
 
     async formatCitationWithStyle(styleId: string, data: FormatCitationDto): Promise<string> {

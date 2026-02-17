@@ -77,6 +77,11 @@ export class QuoteParaphraseDto {
     @IsOptional()
     @IsString()
     styleId?: string;
+
+    @ApiPropertyOptional({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d', description: 'Document ID — if provided, citation will also be saved to the database' })
+    @IsOptional()
+    @IsString()
+    documentId?: string;
 }
 
 export class QuoteParaphraseResponse {
