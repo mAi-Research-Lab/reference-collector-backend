@@ -81,6 +81,8 @@ enum SubscriptionStatus {
 enum UserType {
   admin
   individual
+  student
+  academic
   institutional
   institutional_admin
 }
