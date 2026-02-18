@@ -524,12 +524,14 @@ export class CitationsService {
     async processQuoteParaphrase(data: QuoteParaphraseDto): Promise<QuoteParaphraseResponse> {
         let reference: any;
         let referenceId: string;
+        let isRealReference = false;
 
         // Get reference from DB or create temporary from referenceData
         if (data.referenceId) {
             // Scenario 2: Existing reference from DB
             reference = await this.referenceService.getReference(data.referenceId);
             referenceId = data.referenceId;
+            isRealReference = true;
         } else if (data.referenceData) {
             // Scenario 1: Temporary reference from Semantic Scholar
             reference = this.createTemporaryReference(data.referenceData);
@@ -559,6 +561,30 @@ export class CitationsService {
         const citation = await this.formatCitationFromReference(styleId, reference, {
             pageNumbers: pageNumbers
         });
+
+        // Save as Citation record if documentId and a real referenceId are available
+        if (data.documentId && isRealReference) {
+            try {
+                const sortOrder = await this.getNextSortOrder(data.documentId);
+                await this.prisma.citation.create({
+                    data: {
+                        referenceId: referenceId,
+                        documentId: data.documentId,
+                        citationText: citation,
+                        pageNumbers: pageNumbers || '',
+                        prefix: '',
+                        suffix: '',
+                        suppressAuthor: false,
+                        suppressDate: false,
+                        sortOrder,
+                        styleId: styleId,
+                    }
+                });
+            } catch (error) {
+                // Non-critical — log and continue even if save fails
+                console.error('Failed to save quote/paraphrase as citation record:', error);
+            }
+        }
 
         return {
             content,

@@ -66,6 +66,12 @@ export class AuthService {
             throw new CustomHttpException('Email doğrulanmamış. Lütfen e-posta adresinizi doğrulayın.', 403, 'EMAIL_NOT_VERIFIED');
         }
 
+        try {
+            await this.libraryService.createDefaultLibraries(user.id);
+        } catch (error) {
+            console.error('Error ensuring default libraries during login:', error);
+        }
+
         const formatUser = formatUserResponse(user);
         const token = await this.generateAccessToken(formatUser);
 
