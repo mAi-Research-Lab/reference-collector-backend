@@ -29,7 +29,6 @@ export interface DownloadResult {
 export class FileService {
     private readonly logger = new Logger(FileService.name)
     private readonly uploadsDir = 'uploads';
-    private readonly defaultProvider: StorageProvider;
 
     constructor(
         private readonly prisma: PrismaService,
@@ -38,15 +37,14 @@ export class FileService {
         private readonly configService: ConfigService,
     ) {
         this.ensureUploadsDirectory();
+    }
 
+    private get defaultProvider(): StorageProvider {
         const envProvider = this.configService.get<string>('STORAGE_PROVIDER', 'local');
         if (envProvider === 's3' && this.s3Storage.ready) {
-            this.defaultProvider = StorageProvider.s3;
-            this.logger.log('Default storage provider: S3');
-        } else {
-            this.defaultProvider = StorageProvider.local;
-            this.logger.log('Default storage provider: local');
+            return StorageProvider.s3;
         }
+        return StorageProvider.local;
     }
 
     private ensureUploadsDirectory(): void {
