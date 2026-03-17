@@ -131,8 +131,8 @@ export class CSLProcessorService {
                 },
             };
 
-            // Citeproc engine oluştur
-            const engine = new CSL.Engine(sys, cslContent);
+            // Citeproc engine oluştur — locale'i açıkça geç
+            const engine = new CSL.Engine(sys, cslContent, this.locale, true);
             
             // Reference'ı engine'e ekle
             engine.updateItems([reference.id]);
@@ -145,9 +145,7 @@ export class CSLProcessorService {
             // Sayfa numarası varsa locator olarak ekle
             if (options.pageNumbers && options.pageNumbers.trim()) {
                 citationItem.locator = options.pageNumbers;
-                citationItem.label = options.pageNumbers.includes('-') || options.pageNumbers.includes('–') 
-                    ? 'page' 
-                    : 'page';
+                citationItem.label = 'page';
             }
 
             // Suppress author/date seçenekleri
@@ -264,7 +262,7 @@ export class CSLProcessorService {
                 },
             };
 
-            const engine = new CSL.Engine(sys, cslContent);
+            const engine = new CSL.Engine(sys, cslContent, this.locale, true);
             
             // Reference'ı engine'e ekle
             engine.updateItems([reference.id]);
@@ -1178,58 +1176,60 @@ export class CSLProcessorService {
     }
 
     private processTerm(termName: string): string {
-        // Türkçe çeviriler
+        if (this.locale === 'tr-TR') {
+            switch (termName) {
+                case 'ibid': return '';
+                case 'and': return 've';
+                case 'et-al': return 'vd.';
+                case 'page': return 's.';
+                case 'pages': return 'ss.';
+                case 'at': return '';
+                case 'editor': case 'editors': return 'ed.';
+                case 'translator': case 'translators': return 'çev.';
+                case 'volume': case 'volumes': return 'c.';
+                case 'number': return 'no.';
+                case 'issue': return 'sayı';
+                case 'edition': return 'baskı';
+                default: return '';
+            }
+        }
+        // en-US
         switch (termName) {
-            case 'ibid':
-                return '';
-            case 'and':
-                return 've';
-            case 'et-al':
-                return 'vd.';
-            case 'page':
-                return 's.';
-            case 'pages':
-                return 'ss.';
-            case 'at':
-                return '';
-            case 'editor':
-                return 'ed.';
-            case 'editors':
-                return 'ed.';
-            case 'translator':
-                return 'çev.';
-            case 'translators':
-                return 'çev.';
-            case 'volume':
-                return 'c.';
-            case 'volumes':
-                return 'c.';
-            case 'number':
-                return 'no.';
-            case 'issue':
-                return 'sayı';
-            case 'edition':
-                return 'baskı';
-            default:
-                return '';
+            case 'ibid': return '';
+            case 'and': return 'and';
+            case 'et-al': return 'et al.';
+            case 'page': return 'p.';
+            case 'pages': return 'pp.';
+            case 'at': return '';
+            case 'editor': return 'Ed.';
+            case 'editors': return 'Eds.';
+            case 'translator': case 'translators': return 'Trans.';
+            case 'volume': case 'volumes': return 'Vol.';
+            case 'number': return 'No.';
+            case 'issue': return 'No.';
+            case 'edition': return 'ed.';
+            default: return '';
         }
     }
 
-    private processLabel(element: any, reference: any, options: any): string {
+    private processLabel(element: any, _reference: any, _options: any): string {
         const variable = element.getAttribute('variable');
         const form = element.getAttribute('form') || 'long';
-        const plural = element.getAttribute('plural') || 'contextual';
 
-        // Türkçe çeviriler
+        if (this.locale === 'tr-TR') {
+            switch (variable) {
+                case 'page': return form === 'short' ? 's.' : 'sayfa';
+                case 'volume': return form === 'short' ? 'c.' : 'cilt';
+                case 'issue': return form === 'short' ? 'no.' : 'sayı';
+                default: return '';
+            }
+        }
+        // en-US
         switch (variable) {
-            case 'page':
-                return form === 'short' ? 's.' : 'sayfa';
-            case 'volume':
-                return form === 'short' ? 'c.' : 'cilt';
-            case 'issue':
-                return form === 'short' ? 'no.' : 'sayı';
-            default:
-                return '';
+            case 'page': return form === 'short' ? 'p.' : 'page';
+            case 'volume': return form === 'short' ? 'Vol.' : 'volume';
+            case 'issue': return form === 'short' ? 'No.' : 'issue';
+            default: return '';
         }
     }
 

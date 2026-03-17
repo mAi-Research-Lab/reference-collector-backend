@@ -27,7 +27,17 @@ export interface BibliographyResult {
 
 @Injectable()
 export class BibliographyCreationService {
+    private language: string = 'tr';
+
     constructor(private readonly prisma: PrismaService) {}
+
+    private getPagePrefix(pages: string): string {
+        const isRange = pages.includes('-') || pages.includes('–');
+        if (this.language === 'tr' || this.language === 'tr-TR') {
+            return isRange ? 'ss.' : 's.';
+        }
+        return isRange ? 'pp.' : 'p.';
+    }
 
     async createBibliographyFromLibrary(
         libraryId: string, 
@@ -127,6 +137,8 @@ export class BibliographyCreationService {
         if (references.length === 0) {
             throw new CustomHttpException('No references found', 404, 'NO_REFERENCES_FOUND');
         }
+
+        this.language = options.language || 'tr';
 
         const entries = this.formatReferencesForBibliography(references, options);
         const content = this.formatBibliographyContent(entries, options, title);
@@ -305,7 +317,7 @@ export class BibliographyCreationService {
         entry += `, ${year}`;
 
         if (pages) {
-            entry += `, pp. ${pages}`;
+            entry += `, ${this.getPagePrefix(pages)} ${pages}`;
         }
 
         entry += '.';
@@ -334,7 +346,7 @@ export class BibliographyCreationService {
         }
 
         if (pages) {
-            entry += `, pp. ${pages}`;
+            entry += `, ${this.getPagePrefix(pages)} ${pages}`;
         }
 
         if (doi) {
@@ -367,7 +379,7 @@ export class BibliographyCreationService {
         }
 
         if (pages) {
-            entry += `, pp. ${pages}`;
+            entry += `, ${this.getPagePrefix(pages)} ${pages}`;
         }
 
         if (year) {
@@ -515,7 +527,7 @@ export class BibliographyCreationService {
     }
 
     private formatAsRTF(entries: string[]): string {
-        let rtf = '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}';
+        let rtf = '{\\rtf1\\ansi\\ansicpg1254\\deff0 {\\fonttbl {\\f0 Times New Roman;}}';
         rtf += '\\f0\\fs24\\b Bibliography\\b0\\par\\par';
         
         entries.forEach((entry, index) => {
@@ -588,10 +600,16 @@ export class BibliographyCreationService {
     }
 
     private escapeRtf(text: string): string {
-        return text
-            .replace(/\\/g, '\\\\')
-            .replace(/{/g, '\\{')
-            .replace(/}/g, '\\}');
+        let result = '';
+        for (const char of text) {
+            const code = char.codePointAt(0)!;
+            if (char === '\\') result += '\\\\';
+            else if (char === '{') result += '\\{';
+            else if (char === '}') result += '\\}';
+            else if (code > 127) result += `\\u${code}?`;
+            else result += char;
+        }
+        return result;
     }
 }
 

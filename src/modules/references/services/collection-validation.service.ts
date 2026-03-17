@@ -33,15 +33,12 @@ export class CollectionValidationService {
     }> {
         this.logger.log(`Starting validation for collection ${collectionId}`);
 
-        // Collection'dan tüm referansları al - References tablosundan collectionId ile
         const referencesData = await this.prisma.references.findMany({
             where: {
-                collectionId: collectionId,
+                collectionId,
                 isDeleted: false,
             },
-            orderBy: {
-                dateAdded: 'desc',
-            },
+            orderBy: { dateAdded: 'desc' },
         });
 
         if (referencesData.length === 0) {
@@ -56,7 +53,54 @@ export class CollectionValidationService {
 
         this.logger.log(`Found ${referencesData.length} references in collection`);
 
-        // Referansları Reference interface'ine dönüştür
+        return this.runValidationPipeline(referencesData);
+    }
+
+    async validateLibraryReferences(libraryId: string): Promise<{
+        totalReferences: number;
+        validReferences: number;
+        needsReview: number;
+        results: Array<{
+            referenceId: string;
+            title: string;
+            isValid: boolean;
+            confidence: number;
+            needsReview: boolean;
+            suggestions?: string[];
+            foundSources: any[];
+        }>;
+    }> {
+        this.logger.log(`Starting validation for library ${libraryId}`);
+
+        const referencesData = await this.prisma.references.findMany({
+            where: {
+                libraryId,
+                isDeleted: false,
+            },
+            orderBy: { dateAdded: 'desc' },
+        });
+
+        if (referencesData.length === 0) {
+            this.logger.warn(`No references found in library ${libraryId}`);
+        }
+
+        return this.runValidationPipeline(referencesData);
+    }
+
+    private async runValidationPipeline(referencesData: any[]): Promise<{
+        totalReferences: number;
+        validReferences: number;
+        needsReview: number;
+        results: Array<{
+            referenceId: string;
+            title: string;
+            isValid: boolean;
+            confidence: number;
+            needsReview: boolean;
+            suggestions?: string[];
+            foundSources: any[];
+        }>;
+    }> {
         const references = referencesData.map((ref) => {
             const authors = this.extractAuthors(ref.authors);
 
@@ -78,7 +122,15 @@ export class CollectionValidationService {
             };
         });
 
-        // Her referansı doğrula
+        if (references.length === 0) {
+            return {
+                totalReferences: 0,
+                validReferences: 0,
+                needsReview: 0,
+                results: [],
+            };
+        }
+
         const validationResults = await Promise.all(
             references.map(async ({ referenceId, reference }) => {
                 const result = await this.validateSingleReference(reference);
