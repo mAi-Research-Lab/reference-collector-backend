@@ -15,7 +15,7 @@ export class RtfExportService {
     }
 
     generateRtfHeader(): string {
-        return `{\\rtf1\\ansi\\deff0 
+        return `{\\rtf1\\ansi\\ansicpg1254\\deff0 
 {\\fonttbl 
 {\\f0 Times New Roman;}
 {\\f1 Arial;}
@@ -136,12 +136,18 @@ export class RtfExportService {
      */
     private escapeRtf(text: string): string {
         if (!text) return '';
-        return text
-            .replace(/\\/g, '\\\\')
-            .replace(/\{/g, '\\{')
-            .replace(/\}/g, '\\}')
-            .replace(/\n/g, '\\par ')
-            .replace(/\r/g, '');
+        let result = '';
+        for (const char of text) {
+            const code = char.codePointAt(0)!;
+            if (char === '\\') result += '\\\\';
+            else if (char === '{') result += '\\{';
+            else if (char === '}') result += '\\}';
+            else if (char === '\n') result += '\\par ';
+            else if (char === '\r') continue;
+            else if (code > 127) result += `\\u${code}?`;
+            else result += char;
+        }
+        return result;
     }
 
     applyRtfFormatting(text: string): string {

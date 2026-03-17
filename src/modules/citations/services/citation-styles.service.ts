@@ -633,7 +633,10 @@ export class CitationStylesService {
 
         if (options.pageNumbers) {
             if (result) result += ', ';
-            result += `p. ${options.pageNumbers}`;
+            const pageTerm = options.pageNumbers.includes('-') || options.pageNumbers.includes('–')
+                ? this.cslProcessor.getTerm('pages')
+                : this.cslProcessor.getTerm('page');
+            result += `${pageTerm} ${options.pageNumbers}`;
         }
 
         const prefix = options.prefix || '';
@@ -831,7 +834,9 @@ export class CitationStylesService {
             }
 
             if (reference.pages) {
-                const pagePrefix = reference.pages.includes('-') || reference.pages.includes('–') ? 'pp.' : 'p.';
+                const pagePrefix = reference.pages.includes('-') || reference.pages.includes('–')
+                    ? this.cslProcessor.getTerm('pages')
+                    : this.cslProcessor.getTerm('page');
                 entry += `, ${pagePrefix} ${reference.pages}`;
             }
 
@@ -886,7 +891,10 @@ export class CitationStylesService {
             }
 
             if (reference.pages) {
-                entry += `, pp. ${reference.pages}`;
+                const pagePrefix = reference.pages.includes('-') || reference.pages.includes('–')
+                    ? this.cslProcessor.getTerm('pages')
+                    : this.cslProcessor.getTerm('page');
+                entry += `, ${pagePrefix} ${reference.pages}`;
             }
 
             entry += '. ';

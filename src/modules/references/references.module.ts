@@ -22,9 +22,11 @@ import { BibliographyCreationService } from './services/bibliography-creation.se
 import { BibliographyCreationController } from './controller/bibliography-creation.controller';
 import { CollectionValidationService } from './services/collection-validation.service';
 import { CollectionValidationController } from './controller/collection-validation.controller';
+import { LibraryValidationController } from './controller/library-validation.controller';
 import { DOIService } from './services/external/doi.service';
 import { SemanticScholarService } from './services/external/semantic-scholar.service';
 import { OpenAlexService } from './services/external/openalex.service';
+import { S3StorageService } from './services/s3-storage.service';
 import { UserModule } from '../user/user.module';
 import { PdfRetrievalModule } from '../pdf-retrieval/pdf-retrieval.module';
 
@@ -49,6 +51,7 @@ import { PdfRetrievalModule } from '../pdf-retrieval/pdf-retrieval.module';
     DOIService,
     SemanticScholarService,
     OpenAlexService,
+    S3StorageService,
   ],
   controllers: [
     ReferencesController,
@@ -61,7 +64,8 @@ import { PdfRetrievalModule } from '../pdf-retrieval/pdf-retrieval.module';
     QuickImportController,
     ReportGenerationController,
     BibliographyCreationController,
-    CollectionValidationController
+    CollectionValidationController,
+    LibraryValidationController
   ],
   exports: [ReferencesService, DuplicateDetectionService, BulkOperationsService, ReferenceValidationService, MetadataEnhancementService]
 })

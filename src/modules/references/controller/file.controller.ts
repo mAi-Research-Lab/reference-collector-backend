@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UseIntercep
 import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiProduces, ApiResponse, ApiSecurity, ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Response } from "express";
+import { StorageProvider } from "generated/prisma";
 import { RoleGuard } from "src/common/guard/role.guard";
 import { JwtAuthGuard } from "src/modules/auth/guards/jwt-auth.guard";
 import { FileService } from "../services/file.service";
@@ -111,6 +112,21 @@ export class FileController {
         }
     }
 
+    @Get('me')
+    @ApiOperation({ summary: 'Get all attachment metadata for current user (for local sync)' })
+    @ApiSuccessResponse(FileResponse, 200, "List of user attachments")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    async getMyAttachments(@User() user: any): Promise<ResponseDto> {
+        const files = await this.fileService.getFilesByUser(user.id);
+        return {
+            message: "Attachments retrieved",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: files,
+        };
+    }
+
     @Get('all/:referenceId')
     @ApiOperation({ summary: 'Get all files for a reference' })
     @ApiParam({ name: 'referenceId', description: 'Reference ID' })
@@ -183,17 +199,25 @@ export class FileController {
         @Param('fileId') fileId: string,
         @Res() response: Response
     ): Promise<void> {
-        const { buffer, originalName, contentType } = await this.fileService.downloadFile(fileId);
+        const result = await this.fileService.downloadFile(fileId);
 
-        const encodedFilename = encodeURIComponent(originalName);
+        if (result.storageProvider === StorageProvider.s3 && result.signedUrl) {
+            response.redirect(result.signedUrl);
+            return;
+        }
 
-        response.setHeader('Content-Type', contentType || 'application/octet-stream');
+        if (!result.buffer) {
+            throw new CustomHttpException('File buffer is empty', 500, 'INTERNAL_SERVER_ERROR');
+        }
+
+        const encodedFilename = encodeURIComponent(result.originalName);
+
+        response.setHeader('Content-Type', result.contentType || 'application/octet-stream');
         response.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
-        response.setHeader('Content-Length', buffer.length.toString());
-
+        response.setHeader('Content-Length', result.buffer.length.toString());
         response.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
 
-        response.send(buffer);
+        response.send(result.buffer);
     }
 
     @Put(':fileId')
