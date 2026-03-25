@@ -39,6 +39,9 @@ export class UserResponse {
 
     @ApiProperty()
     isActive: boolean
+
+    @ApiProperty({ enum: ["not_started", "completed", "skipped"] })
+    introGuideStatus: "not_started" | "completed" | "skipped"
     
     @ApiPropertyOptional()
     lastLogin: Date | null 
