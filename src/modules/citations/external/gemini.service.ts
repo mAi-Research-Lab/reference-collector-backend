@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class GeminiService {
@@ -16,12 +17,20 @@ export class GeminiService {
     }
 
     async paraphraseText(text: string): Promise<string> {
+        const textLen = (text || '').length;
+        const textHash = crypto.createHash('sha256').update(text || '').digest('hex').slice(0, 12);
+
         if (!this.apiKey) {
-            this.logger.warn('Gemini API key not configured, returning original text');
+            this.logger.warn('Gemini API key not configured, returning original text', {
+                textLen,
+                textHash,
+                fallback: 'no_api_key'
+            });
             return text;
         }
 
         try {
+            const startedAt = Date.now();
             const prompt = `You are an academic writing assistant. Paraphrase the following text while maintaining its academic tone and meaning. The paraphrase should be suitable for use in an academic paper.
 
 Original text:
@@ -45,7 +54,12 @@ Provide only the paraphrased text, without any additional explanation or quotati
                 }
             );
 
-            console.log("🔵 Response:", response.data);
+            this.logger.debug('Gemini paraphrase response received', {
+                elapsedMs: Date.now() - startedAt,
+                textLen,
+                textHash,
+                candidatesCount: Array.isArray(response.data?.candidates) ? response.data.candidates.length : 0,
+            });
 
             const candidates = response.data?.candidates;
             if (!candidates || candidates.length === 0) {
@@ -59,10 +73,38 @@ Provide only the paraphrased text, without any additional explanation or quotati
 
             const paraphrasedText = content.trim();
             // Remove quotation marks if present
-            return paraphrasedText.replace(/^["']|["']$/g, '');
+            const cleaned = paraphrasedText.replace(/^["']|["']$/g, '');
+            const cleanedLen = cleaned.length;
+            const sameAsInput = cleaned.trim() === (text || '').trim();
+
+            if (sameAsInput) {
+                this.logger.warn('Gemini paraphrase returned identical text', {
+                    textLen,
+                    textHash,
+                    cleanedLen
+                });
+            } else {
+                this.logger.debug('Gemini paraphrase produced output', {
+                    textLen,
+                    textHash,
+                    cleanedLen
+                });
+            }
+
+            return cleaned;
         } catch (error: any) {
-            console.log("🔵 Error:", error);
-            this.logger.error('Gemini paraphrasing error:', error.message);
+            const status = error?.response?.status;
+            const dataPreview = (() => {
+                try { return JSON.stringify(error?.response?.data)?.slice(0, 300); } catch { return undefined; }
+            })();
+
+            this.logger.error('Gemini paraphrasing error (returning original text)', {
+                textLen,
+                textHash,
+                status,
+                message: error?.message,
+                dataPreview
+            });
             // Return original text on error
             return text;
         }

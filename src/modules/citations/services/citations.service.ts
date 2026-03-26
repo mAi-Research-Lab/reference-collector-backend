@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma/prisma.service';
 import { DocumentCollaboratorService } from 'src/modules/documents/services/document-collaborator.service';
 import { DocumentsService } from 'src/modules/documents/services/documents.service';
@@ -15,6 +15,8 @@ import { GeminiService } from '../external/gemini.service';
 
 @Injectable()
 export class CitationsService {
+    private readonly logger = new Logger(CitationsService.name);
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly userService: UserService,
@@ -545,6 +547,20 @@ export class CitationsService {
         if (data.type === QuoteParaphraseType.PARAPHRASE) {
             // Use Gemini to paraphrase
             content = await this.geminiService.paraphraseText(data.selectedText);
+            const same = (content || '').trim() === (data.selectedText || '').trim();
+            if (same) {
+                this.logger.warn('Paraphrase output equals input (likely fallback or model echo)', {
+                    selectedTextLen: (data.selectedText || '').length,
+                    outputLen: (content || '').length,
+                    hasReferenceId: !!data.referenceId,
+                    hasReferenceData: !!data.referenceData,
+                });
+            } else {
+                this.logger.debug('Paraphrase output differs from input', {
+                    selectedTextLen: (data.selectedText || '').length,
+                    outputLen: (content || '').length,
+                });
+            }
         } else {
             // Use selected text directly for quote
             content = data.selectedText;
