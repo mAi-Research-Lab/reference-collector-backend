@@ -85,6 +85,7 @@ export class FileService {
         });
 
         await this.userService.incrementStorageUsage(uploadedBy, file.fileSize);
+        this.userService.invalidateStorageCache(uploadedBy);
 
         return file;
     }
@@ -304,6 +305,7 @@ export class FileService {
         }
 
         await this.userService.decrementStorageUsage(file.uploadedBy, file.fileSize);
+        this.userService.invalidateStorageCache(file.uploadedBy);
 
         await this.prisma.files.delete({
             where: { id }
@@ -333,22 +335,14 @@ export class FileService {
     }
 
     async checkStorage(document: Express.Multer.File, userId: string): Promise<boolean> {
-        const user = await this.userService.findById(userId);
-
-        const currentStorageUsed = BigInt(user.storageUsed);
-        const maxStorageLimit = BigInt(user.maxStorage);
+        const summary = await this.userService.getRemainingStorage(userId);
         const documentSize = BigInt(document.size);
 
-        const newTotalSize = currentStorageUsed + documentSize;
-
-        if (newTotalSize > maxStorageLimit) {
-            const remainingBytes = maxStorageLimit - currentStorageUsed;
-            const remainingMB = Number(remainingBytes) / (1024 * 1024);
-
+        if (documentSize > summary.remainingBytes) {
             throw new CustomHttpException(
-                `Storage limit exceeded. You have ${remainingMB.toFixed(2)}MB remaining.`,
+                `Storage limit exceeded. You have ${summary.remainingMB.toFixed(2)}MB remaining.`,
                 413,
-                'STORAGE_LIMIT_EXCEEDED'
+                'STORAGE_LIMIT_EXCEEDED',
             );
         }
 

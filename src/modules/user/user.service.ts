@@ -13,6 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as sharp from 'sharp';
+import { S3StorageService } from '../references/services/s3-storage.service';
 
 @Injectable()
 export class UserService {
@@ -25,10 +26,14 @@ export class UserService {
         private readonly userRepository: UserRepository,
         private readonly prisma: PrismaService,
         private readonly configService: ConfigService,
+        private readonly s3Storage: S3StorageService,
     ) {
         this.uploadPath = this.configService.get<string>('AVATAR_UPLOAD_PATH') || './uploads/avatars';
         this.ensureUploadDirectory();
     }
+
+    private storageCache = new Map<string, { usedBytes: bigint; atMs: number }>();
+    private readonly storageCacheTtlMs = 5 * 60 * 1000; // 5 minutes
 
     async create(data: CreateUserDto): Promise<UserResponse> {
         const user = await this.userRepository.findByEmail(data.email);
@@ -219,7 +224,14 @@ export class UserService {
         }
     }
 
-    async getRemainingStorage(userId: string): Promise<number> {
+    async getRemainingStorage(userId: string): Promise<{
+        totalBytes: number;
+        usedBytes: number;
+        remainingBytes: number;
+        totalMB: number;
+        usedMB: number;
+        remainingMB: number;
+    }> {
         const user = await this.prisma.user.findUnique({
             where: {
                 id: userId
@@ -230,13 +242,39 @@ export class UserService {
             throw new CustomHttpException(COMMON_MESSAGES.USER_NOT_FOUND, 404, COMMON_MESSAGES.USER_NOT_FOUND);
         }
 
-        const currentStorageUsed = BigInt(user.storageUsed);
-        const maxStorageLimit = BigInt(user.maxStorage);
+        const totalBytesBig = BigInt(user.maxStorage);
+        const usedBytesBig = await this.getCachedS3UsageBytes(userId);
+        const remainingBytesBig = usedBytesBig >= totalBytesBig ? BigInt(0) : (totalBytesBig - usedBytesBig);
 
-        const remainingBytes = maxStorageLimit - currentStorageUsed;
-        const remainingMB = Number(remainingBytes) / (1024 * 1024);
+        // Return JSON-safe numbers (quota is 2GB by default, well within safe integer range)
+        const totalBytes = Number(totalBytesBig);
+        const usedBytes = Number(usedBytesBig);
+        const remainingBytes = Number(remainingBytesBig);
 
-        return remainingMB
+        const totalMB = totalBytes / (1024 * 1024);
+        const usedMB = usedBytes / (1024 * 1024);
+        const remainingMB = remainingBytes / (1024 * 1024);
+
+        return { totalBytes, usedBytes, remainingBytes, totalMB, usedMB, remainingMB };
+    }
+
+    private async getCachedS3UsageBytes(userId: string): Promise<bigint> {
+        // If S3 isn't configured, fall back to DB counter (legacy behavior)
+        if (!this.s3Storage.ready) {
+            const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { storageUsed: true } });
+            return BigInt(u?.storageUsed ?? 0);
+        }
+
+        const now = Date.now();
+        const cached = this.storageCache.get(userId);
+        if (cached && now - cached.atMs < this.storageCacheTtlMs) {
+            return cached.usedBytes;
+        }
+
+        const prefix = `users/${userId}/`;
+        const usedBytes = await this.s3Storage.getPrefixSizeBytes(prefix);
+        this.storageCache.set(userId, { usedBytes, atMs: now });
+        return usedBytes;
     }
 
     async incrementStorageUsage(userId: string, storageUsage: bigint): Promise<void> {
@@ -263,5 +301,9 @@ export class UserService {
                 }
             }
         })
+    }
+
+    invalidateStorageCache(userId: string): void {
+        this.storageCache.delete(userId);
     }
 }

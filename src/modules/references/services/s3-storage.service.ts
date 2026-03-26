@@ -6,6 +6,7 @@ import {
     DeleteObjectCommand,
     GetObjectCommand,
     HeadObjectCommand,
+    ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -110,6 +111,37 @@ export class S3StorageService implements OnModuleInit {
         } catch {
             return false;
         }
+    }
+
+    /**
+     * Sum object sizes under a prefix (bytes). Uses ListObjectsV2 pagination.
+     * Note: This can be expensive for many objects — callers should cache results.
+     */
+    async getPrefixSizeBytes(prefix: string): Promise<bigint> {
+        this.ensureConfigured();
+
+        let continuationToken: string | undefined;
+        let total = BigInt(0);
+
+        do {
+            const resp = await this.s3.send(
+                new ListObjectsV2Command({
+                    Bucket: this.bucket,
+                    Prefix: prefix,
+                    ContinuationToken: continuationToken,
+                }),
+            );
+
+            const contents = resp.Contents || [];
+            for (const obj of contents) {
+                const size = obj.Size ?? 0;
+                total += BigInt(size);
+            }
+
+            continuationToken = resp.IsTruncated ? resp.NextContinuationToken : undefined;
+        } while (continuationToken);
+
+        return total;
     }
 
     private ensureConfigured(): void {

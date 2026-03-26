@@ -61,5 +61,20 @@ export class UserResponse {
 
 export class RemainingStorageResponse {
     @ApiProperty()
-    remainingStorage: bigint
+    totalBytes: number
+
+    @ApiProperty()
+    usedBytes: number
+
+    @ApiProperty()
+    remainingBytes: number
+
+    @ApiProperty({ description: "Total quota in MB" })
+    totalMB: number
+
+    @ApiProperty({ description: "Used storage in MB" })
+    usedMB: number
+
+    @ApiProperty({ description: "Remaining storage in MB" })
+    remainingMB: number
 }

@@ -41,7 +41,7 @@ model User {
   sentInvitations LibraryMemberships[] @relation("UserInvites")
 
   storageUsed BigInt @default(0) @map("storage_used")
-  maxStorage  BigInt @default(209715200) @map("max_storage")
+  maxStorage  BigInt @default(2147483648) @map("max_storage")
 
   LibraryInvitations LibraryInvitations[]
 
