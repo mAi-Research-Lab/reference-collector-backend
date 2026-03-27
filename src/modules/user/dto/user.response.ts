@@ -39,6 +39,9 @@ export class UserResponse {
 
     @ApiProperty()
     isActive: boolean
+
+    @ApiProperty({ enum: ["not_started", "completed", "skipped"] })
+    introGuideStatus: "not_started" | "completed" | "skipped"
     
     @ApiPropertyOptional()
     lastLogin: Date | null 
@@ -58,5 +61,20 @@ export class UserResponse {
 
 export class RemainingStorageResponse {
     @ApiProperty()
-    remainingStorage: bigint
+    totalBytes: number
+
+    @ApiProperty()
+    usedBytes: number
+
+    @ApiProperty()
+    remainingBytes: number
+
+    @ApiProperty({ description: "Total quota in MB" })
+    totalMB: number
+
+    @ApiProperty({ description: "Used storage in MB" })
+    usedMB: number
+
+    @ApiProperty({ description: "Remaining storage in MB" })
+    remainingMB: number
 }

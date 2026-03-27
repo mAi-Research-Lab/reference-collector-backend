@@ -15,6 +15,10 @@ export class CitationStylesService {
     private citationNumbers = new Map<string, number>();
     private nextNumber = 1;
 
+    private stylesCache: CitationStyleResponse[] | null = null;
+    private stylesCacheExpiry = 0;
+    private static readonly STYLES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly referenceService: ReferencesService,
@@ -22,6 +26,10 @@ export class CitationStylesService {
     ) { }
 
     async getAvailableStyles(): Promise<CitationStyleResponse[]> {
+        if (this.stylesCache && Date.now() < this.stylesCacheExpiry) {
+            return this.stylesCache;
+        }
+
         const citations = await this.prisma.citationStyle.findMany({
             orderBy: [
                 { downloadCount: 'desc' },
@@ -29,7 +37,14 @@ export class CitationStylesService {
             ]
         });
 
+        this.stylesCache = citations;
+        this.stylesCacheExpiry = Date.now() + CitationStylesService.STYLES_CACHE_TTL;
         return citations;
+    }
+
+    invalidateStylesCache(): void {
+        this.stylesCache = null;
+        this.stylesCacheExpiry = 0;
     }
 
     async getStyleById(id: string): Promise<CitationStyleResponse> {
@@ -337,6 +352,7 @@ export class CitationStylesService {
             }
         });
 
+        this.invalidateStylesCache();
         return createdStyle;
     }
 

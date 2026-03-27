@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBoolean, IsObject, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsBoolean, IsIn, IsObject, IsOptional, IsString, ValidateNested } from "class-validator";
 import { UserPreferencesDto } from "./create-user.dto";
 import { Type } from "class-transformer";
 
@@ -90,4 +90,13 @@ export class UpdateUserDto {
 
     @ApiPropertyOptional({example: 0})
     storageUsed?: bigint
+
+    @ApiPropertyOptional({
+        enum: ["not_started", "completed", "skipped"],
+        description: "Intro guide (onboarding) completion state",
+        example: "completed"
+    })
+    @IsOptional()
+    @IsIn(["not_started", "completed", "skipped"])
+    introGuideStatus?: "not_started" | "completed" | "skipped"
 }

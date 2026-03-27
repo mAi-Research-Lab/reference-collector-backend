@@ -65,7 +65,8 @@ export class SharedService {
             isActive: user.isActive,
             lastLogin: user.lastLogin,
             createdAt: user.createdAt,
-            updatedAt: user.updatedAt
+            updatedAt: user.updatedAt,
+            introGuideStatus: user.introGuideStatus
         }));
     }
 
