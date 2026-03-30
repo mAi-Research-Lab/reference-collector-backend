@@ -504,9 +504,18 @@ export class CitationStylesService {
 
                 // Your data structure: {"name":"John Doe","affiliation":"MIT"}
                 if (author.name) {
-                    const parts = author.name.trim().split(' ');
-                    family = parts[parts.length - 1] || '';
-                    given = parts.slice(0, -1).join(' ') || '';
+                    const rawName = String(author.name).trim();
+                    const commaIdx = rawName.indexOf(',');
+
+                    // Handle "Last, First" (common when importing authors as string)
+                    if (commaIdx !== -1) {
+                        family = rawName.slice(0, commaIdx).trim();
+                        given = rawName.slice(commaIdx + 1).trim();
+                    } else {
+                        const parts = rawName.split(/\s+/).filter(Boolean);
+                        family = parts[parts.length - 1] || '';
+                        given = parts.slice(0, -1).join(' ') || '';
+                    }
                 }
                 // Standard structure
                 else {
@@ -569,7 +578,12 @@ export class CitationStylesService {
         if (!author) return 'Unknown';
 
         if (typeof author === 'string') {
-            const parts = author.trim().split(' ');
+            const rawName = author.trim();
+            const commaIdx = rawName.indexOf(',');
+            if (commaIdx !== -1) {
+                return rawName.slice(0, commaIdx).trim();
+            }
+            const parts = rawName.split(/\s+/).filter(Boolean);
             return parts[parts.length - 1];
         }
 
@@ -581,7 +595,12 @@ export class CitationStylesService {
 
             // Your data structure: {"name":"John Doe","affiliation":"MIT"}
             if (author.name) {
-                const parts = author.name.trim().split(' ');
+                const rawName = String(author.name).trim();
+                const commaIdx = rawName.indexOf(',');
+                if (commaIdx !== -1) {
+                    return rawName.slice(0, commaIdx).trim();
+                }
+                const parts = rawName.split(/\s+/).filter(Boolean);
                 return parts[parts.length - 1];
             }
         }
@@ -1090,7 +1109,12 @@ export class CitationStylesService {
         if (!author) return '';
 
         if (typeof author === 'string') {
-            const parts = author.trim().split(' ');
+            const rawName = author.trim();
+            const commaIdx = rawName.indexOf(',');
+            if (commaIdx !== -1) {
+                return rawName.slice(commaIdx + 1).trim();
+            }
+            const parts = rawName.split(/\s+/).filter(Boolean);
             return parts.length > 1 ? parts.slice(0, -1).join(' ') : '';
         }
 
@@ -1099,7 +1123,12 @@ export class CitationStylesService {
                 return author.firstName || author.given;
             }
             if (author.name) {
-                const parts = author.name.trim().split(' ');
+                const rawName = String(author.name).trim();
+                const commaIdx = rawName.indexOf(',');
+                if (commaIdx !== -1) {
+                    return rawName.slice(commaIdx + 1).trim();
+                }
+                const parts = rawName.split(/\s+/).filter(Boolean);
                 return parts.length > 1 ? parts.slice(0, -1).join(' ') : '';
             }
         }
