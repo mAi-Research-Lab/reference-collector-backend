@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma/prisma.service';
 import { DOIService } from './external/doi.service';
 import { SemanticScholarService } from './external/semantic-scholar.service';
@@ -54,6 +54,51 @@ export class CollectionValidationService {
         this.logger.log(`Found ${referencesData.length} references in collection`);
 
         return this.runValidationPipeline(referencesData);
+    }
+
+    async validateReferenceById(referenceId: string): Promise<{
+        referenceId: string;
+        title: string;
+        isValid: boolean;
+        confidence: number;
+        needsReview: boolean;
+        suggestions?: string[];
+        foundSources: any[];
+    }> {
+        const ref = await this.prisma.references.findFirst({
+            where: { id: referenceId, isDeleted: false },
+        });
+
+        if (!ref) {
+            throw new NotFoundException(`Reference not found: ${referenceId}`);
+        }
+
+        const authors = this.extractAuthors(ref.authors);
+        const reference: Reference = {
+            authors,
+            title: ref.title || '',
+            journal: ref.publication || undefined,
+            year: ref.year || 0,
+            doi: ref.doi || undefined,
+            url: ref.url || undefined,
+            pages: ref.pages || undefined,
+            volume: ref.volume || undefined,
+            issue: ref.issue || undefined,
+            publisher: ref.publisher || undefined,
+            isbn: ref.isbn || undefined,
+        };
+
+        const result = await this.validateSingleReference(reference);
+
+        return {
+            referenceId: ref.id,
+            title: ref.title || '',
+            isValid: result.isValid,
+            confidence: result.confidence,
+            needsReview: !result.isValid || result.confidence < 70,
+            suggestions: result.suggestions,
+            foundSources: result.foundSources,
+        };
     }
 
     async validateLibraryReferences(libraryId: string): Promise<{
