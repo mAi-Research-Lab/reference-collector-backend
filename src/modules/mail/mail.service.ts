@@ -108,7 +108,16 @@ export class MailService {
     }
 
     async sendVerificationEmail(user: UserResponse, token: string): Promise<{ message: string }> {
-        const verificationUrl = `${this.configService.get('EMAIL_VERIFICATION_URL')}?token=${token}`;
+        const configured = this.configService.get<string>('EMAIL_VERIFICATION_URL');
+        const frontend = (
+            this.configService.get<string>('FRONTEND_URL') ||
+            this.configService.get<string>('CITEXT_SITE_URL') ||
+            'https://citext.net'
+        ).replace(/\/$/, '');
+        const defaultVerifyPath = `${frontend}/auth/verify-email`;
+        const base = (configured || defaultVerifyPath).replace(/\/$/, '');
+        const sep = base.includes('?') ? '&' : '?';
+        const verificationUrl = `${base}${sep}token=${encodeURIComponent(token)}`;
 
         const template = await this.loadTemplate('verification');
         const html = this.replaceTemplateVariables(template, {
