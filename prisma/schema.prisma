@@ -20,6 +20,7 @@ model User {
   email              String             @unique
   passwordHash       String             @map("password_hash")
   fullName           String             @map("full_name")
+  phoneNumber        String?            @map("phone_number")
   userType           UserType           @default(individual) @map("user_type")
   institutionId      String?            @map("institution_id") @db.Uuid // Foreign key
   institution        Institution?       @relation(fields: [institutionId], references: [id])

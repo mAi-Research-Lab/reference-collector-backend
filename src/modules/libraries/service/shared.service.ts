@@ -51,6 +51,7 @@ export class SharedService {
             id: user.id,
             email: user.email,
             fullName: user.fullName,
+            phoneNumber: user.phoneNumber,
             userType: user.userType,
             institution: user.institutionId,
             fieldOfStudy: user.fieldOfStudy,

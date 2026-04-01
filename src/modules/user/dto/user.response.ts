@@ -10,6 +10,9 @@ export class UserResponse {
     @ApiProperty()
     fullName: string
 
+    @ApiPropertyOptional({ description: 'Telefon numarası', nullable: true })
+    phoneNumber?: string | null
+
     @ApiProperty()
     userType: string
 
