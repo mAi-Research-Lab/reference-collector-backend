@@ -11,6 +11,7 @@ import { CustomHttpException } from 'src/common/exceptions/custom-http-exception
 import { CITATIONS_MESSAGES } from '../constants/citation.messages';
 import { UpdateCitationDto } from '../dto/update-citation.dto';
 import { QuoteParaphraseDto, QuoteParaphraseResponse, QuoteParaphraseType } from '../dto/quote-paraphrase.dto';
+import { isAllowedTargetLang } from '../constants/translation-target-languages';
 import { GeminiService } from '../external/gemini.service';
 
 @Injectable()
@@ -542,28 +543,40 @@ export class CitationsService {
             throw new CustomHttpException('Either referenceId or referenceData must be provided', 400, 'Missing reference information');
         }
 
+        const rawTarget = data.targetLang?.trim().toLowerCase();
+        if (rawTarget && !isAllowedTargetLang(rawTarget)) {
+            throw new CustomHttpException('Invalid targetLang', 400, 'INVALID_TARGET_LANG');
+        }
+
+        let workingText = data.selectedText;
+        if (rawTarget) {
+            workingText = await this.geminiService.translateToLanguage(data.selectedText, rawTarget);
+        }
+
         let content: string;
-        
+
         if (data.type === QuoteParaphraseType.PARAPHRASE) {
-            // Use Gemini to paraphrase
-            content = await this.geminiService.paraphraseText(data.selectedText);
-            const same = (content || '').trim() === (data.selectedText || '').trim();
+            content = rawTarget
+                ? await this.geminiService.paraphraseText(workingText, rawTarget)
+                : await this.geminiService.paraphraseText(workingText);
+            const same = (content || '').trim() === (workingText || '').trim();
             if (same) {
                 this.logger.warn('Paraphrase output equals input (likely fallback or model echo)', {
                     selectedTextLen: (data.selectedText || '').length,
                     outputLen: (content || '').length,
                     hasReferenceId: !!data.referenceId,
                     hasReferenceData: !!data.referenceData,
+                    targetLang: rawTarget || null,
                 });
             } else {
                 this.logger.debug('Paraphrase output differs from input', {
                     selectedTextLen: (data.selectedText || '').length,
                     outputLen: (content || '').length,
+                    targetLang: rawTarget || null,
                 });
             }
         } else {
-            // Use selected text directly for quote
-            content = data.selectedText;
+            content = workingText;
         }
 
         // Get style ID (default to 'apa' if not provided)

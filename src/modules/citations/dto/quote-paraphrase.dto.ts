@@ -82,6 +82,15 @@ export class QuoteParaphraseDto {
     @IsOptional()
     @IsString()
     documentId?: string;
+
+    @ApiPropertyOptional({
+        example: 'de',
+        description:
+            'If set, selected text is first translated to this language (ISO 639-1) before quote/paraphrase. Omit for legacy behavior without translation.',
+    })
+    @IsOptional()
+    @IsString()
+    targetLang?: string;
 }
 
 export class QuoteParaphraseResponse {
