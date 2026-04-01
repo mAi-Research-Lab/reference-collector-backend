@@ -97,9 +97,17 @@ export class ReferencesService {
             throw new CustomHttpException(REFERENCES_MESSAGES.REFERENCE_NOT_FOUND, 404, REFERENCES_MESSAGES.REFERENCE_NOT_FOUND);
         }
 
+        const updateData: Record<string, unknown> = { ...data };
+        if (updateData.tags !== undefined) {
+            const t = updateData.tags as unknown;
+            if (Array.isArray(t)) {
+                updateData.tags = { set: t };
+            }
+        }
+
         return await this.prismaService.references.update({
             where: { id },
-            data
+            data: updateData as Prisma.ReferencesUpdateInput,
         })
     }
 
