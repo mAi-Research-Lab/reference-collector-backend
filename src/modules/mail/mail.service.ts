@@ -11,6 +11,23 @@ import { UserResponse } from '../user/dto/user.response';
 export class MailService {
     private transporter;
 
+    private getCommonEmailVariables(): Record<string, string> {
+        const siteUrl = (
+            this.configService.get<string>('CITEXT_SITE_URL') ||
+            this.configService.get<string>('FRONTEND_URL') ||
+            'https://citext.net'
+        ).replace(/\/$/, '');
+        const supportEmail =
+            this.configService.get<string>('EMAIL_SUPPORT') ||
+            this.configService.get<string>('EMAIL_SUPPORT_MAIL') ||
+            'destek@citext.net';
+        return {
+            siteUrl,
+            supportEmail,
+            faqUrl: `${siteUrl}#faq`,
+        };
+    }
+
     constructor(
         private readonly configService: ConfigService
     ) {
@@ -34,8 +51,9 @@ export class MailService {
 
     replaceTemplateVariables(template: string, variables: Record<string, string>): string {
         try {
-            return Object.entries(variables).reduce((result, [key, value]) => {
-                return result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+            const merged = { ...this.getCommonEmailVariables(), ...variables };
+            return Object.entries(merged).reduce((result, [key, value]) => {
+                return result.replace(new RegExp(`{{${key}}}`, 'g'), value ?? '');
             }, template);
         } catch {
             throw new BadRequestException(MailMessages.TEMPLATE_RENDERING_ERROR);
@@ -76,7 +94,7 @@ export class MailService {
 
         try {
             await this.transporter.sendMail({
-                from: this.configService.get('EMAIL_APP_MAIL') || 'noreply@airisto.com',
+                from: this.configService.get('EMAIL_APP_MAIL') || 'noreply@citext.net',
                 to: message.to,
                 subject: message.subject,
                 html: message.html
@@ -111,10 +129,18 @@ export class MailService {
     }
 
     async sendPasswordResetEmail(email: string, name: string, token: string) {
+        const frontend = (
+            this.configService.get<string>('FRONTEND_URL') ||
+            this.configService.get<string>('CITEXT_SITE_URL') ||
+            'https://citext.net'
+        ).replace(/\/$/, '');
+        const resetUrl = `${frontend}/auth/reset-password?token=${encodeURIComponent(token)}`;
+
         const template = await this.loadTemplate('password-reset');
         const html = this.replaceTemplateVariables(template, {
             name,
             token,
+            resetUrl,
         });
 
         return this.sendMail(
@@ -148,24 +174,24 @@ export class MailService {
         if (customerType === 'corporate') {
             if (subject === 'corporate' || subject === 'partnership') {
                 return {
-                    icon: '🔥',
-                    text: 'Yüksek Öncelik - Kurumsal müşteri talebi',
-                    bg: '#2d1b2d',
-                    color: '#e74c3c'
+                    icon: '•',
+                    text: 'Yüksek öncelik — kurumsal talep',
+                    bg: '#f4f4f5',
+                    color: '#18181b'
                 };
             }
             return {
-                icon: '⚡',
-                text: 'Orta Öncelik - Kurumsal müşteri',
-                bg: '#2d2d1b',
-                color: '#f39c12'
+                icon: '•',
+                text: 'Kurumsal müşteri talebi',
+                bg: '#f4f4f5',
+                color: '#3f3f46'
             };
         }
         return {
-            icon: '📌',
-            text: 'Normal Öncelik - Bireysel müşteri',
-            bg: '#1b2d2d',
-            color: '#3498db'
+            icon: '•',
+            text: 'Bireysel müşteri talebi',
+            bg: '#fafafa',
+            color: '#52525b'
         };
     }
 
@@ -189,7 +215,7 @@ export class MailService {
             const subjectDisplay = this.getSubjectDisplay(contactData.subject);
 
             const companySection = contactData.company
-                ? `<strong style="color:#a0a0a0;">Şirket:</strong> ${contactData.company}<br>`
+                ? `<strong style="color:#71717a;">Şirket:</strong> ${contactData.company}<br>`
                 : '';
 
             const html = this.replaceTemplateVariables(template, {
@@ -222,16 +248,16 @@ export class MailService {
             const priorityInfo = this.getPriorityInfo(contactData.customerType, contactData.subject);
 
             const phoneSection = contactData.phone
-                ? `<strong style="color:#a0a0a0;">Telefon:</strong> <a href="tel:${contactData.phone}" style="color:#667eea;text-decoration:none;">${contactData.phone}</a><br>`
+                ? `<strong style="color:#71717a;">Telefon:</strong> <a href="tel:${contactData.phone}" style="color:#18181b;text-decoration:underline;">${contactData.phone}</a><br>`
                 : '';
 
             const companySection = contactData.company
-                ? `<strong style="color:#a0a0a0;">Şirket:</strong> ${contactData.company}<br>`
+                ? `<strong style="color:#71717a;">Şirket:</strong> ${contactData.company}<br>`
                 : '';
 
             const customerTypeStyle = contactData.customerType === CustomerType.CORPORATE
-                ? 'color:#f39c12;font-weight:600;'
-                : 'color:#3498db;';
+                ? 'color:#18181b;font-weight:600;'
+                : 'color:#3f3f46;';
 
             const html = this.replaceTemplateVariables(template, {
                 firstName: contactData.firstName,
