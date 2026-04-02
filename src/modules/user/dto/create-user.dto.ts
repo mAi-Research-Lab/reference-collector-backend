@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsEmail, IsEnum, IsNotEmpty, IsObject, IsOptional, IsString, ValidateNested } from "class-validator";
-import { UserType } from "generated/prisma";
+import { RegistrationAccountType } from "./registration-account-type.enum";
 
 export class UserPreferencesDto {
     @ApiPropertyOptional({ description: 'User language preference', example: 'en' })
@@ -79,11 +79,23 @@ export class CreateUserDto {
     @Type(() => UserPreferencesDto)
     preferences?: UserPreferencesDto;
 
-    @ApiPropertyOptional()
+    @ApiProperty({
+        description: 'Hesap türü: bireysel veya kurumsal (API). Kurumsal veritabanında institutional olarak saklanır.',
+        enum: RegistrationAccountType,
+        enumName: 'RegistrationAccountType',
+        example: RegistrationAccountType.individual,
+    })
+    @IsNotEmpty()
+    @IsEnum(RegistrationAccountType)
+    userType: RegistrationAccountType
+
+    @ApiPropertyOptional({
+        description: 'Telefon numarası (isteğe bağlı)',
+        example: '+90 555 000 00 00',
+    })
     @IsOptional()
     @IsString()
-    @IsEnum(UserType)
-    userType: UserType
+    phoneNumber?: string
 
     @ApiPropertyOptional()
     @IsOptional()

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UserRepository } from 'src/database/repositories/user/user.repository';
 import { CreateUserDto } from './dto/create-user.dto';
+import { RegistrationAccountType } from './dto/registration-account-type.enum';
 import { UserResponse } from './dto/user.response';
 import { CustomHttpException } from 'src/common/exceptions/custom-http-exception';
 import { COMMON_MESSAGES } from 'src/common/constants/common.messages';
@@ -35,6 +36,20 @@ export class UserService {
     private storageCache = new Map<string, { usedBytes: bigint; atMs: number }>();
     private readonly storageCacheTtlMs = 5 * 60 * 1000; // 5 minutes
 
+    /** DTO’da individual | corporate; DB’de Prisma UserType (kurumsal → institutional). */
+    private resolveRegistrationUserType(
+        dtoType: RegistrationAccountType,
+        institutionMatchedByEmailDomain: boolean,
+    ): UserType {
+        if (institutionMatchedByEmailDomain) {
+            return UserType.institutional;
+        }
+        if (dtoType === RegistrationAccountType.corporate) {
+            return UserType.institutional;
+        }
+        return UserType.individual;
+    }
+
     async create(data: CreateUserDto): Promise<UserResponse> {
         const user = await this.userRepository.findByEmail(data.email);
 
@@ -48,13 +63,16 @@ export class UserService {
 
         const hashedPassword = await bcrypt.hash(data.password, 10);
 
+        const resolvedUserType = this.resolveRegistrationUserType(data.userType, !!institution);
+
         const createUserData = {
             email: data.email,
             fullName: data.fullName,
+            phoneNumber: data.phoneNumber?.trim() || null,
             institutionId: institution ? institution.id : null,
             fieldOfStudy: data.fieldOfStudy,
             orcidId: data.orcidId,
-            userType: institution ? UserType.institutional : data.userType as UserType || UserType.individual,
+            userType: resolvedUserType,
             subscriptionPlan: null,
             subscriptionStatus: 'inactive',
             avatarUrl: data.avatarUrl || '',

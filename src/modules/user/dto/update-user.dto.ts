@@ -15,6 +15,16 @@ export class UpdateUserDto {
 
     @ApiPropertyOptional({
         type: String,
+        description: 'Phone number',
+        example: '+90 555 000 00 00',
+        nullable: true,
+    })
+    @IsOptional()
+    @IsString()
+    phoneNumber?: string | null
+
+    @ApiPropertyOptional({
+        type: String,
         description: 'Institution name',
         example: 'Sabancı University',
         nullable: true

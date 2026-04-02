@@ -4,6 +4,7 @@ import { RoleGuard } from "src/common/guard/role.guard";
 import { JwtAuthGuard } from "src/modules/auth/guards/jwt-auth.guard";
 import { ReferencesService } from "./references.service";
 import { SemanticScholarService } from "./services/external/semantic-scholar.service";
+import { CollectionValidationService } from "./services/collection-validation.service";
 import { CreateReferenceDto } from "./dto/reference/create-reference.dto";
 import { ReferencesResponse } from "./dto/reference/references.response";
 import { UpdateReferenceDto } from "./dto/reference/update-reference.dto";
@@ -22,7 +23,8 @@ import { User } from "src/modules/user/decorators/user.decorator";
 export class ReferencesController {
     constructor(
         private readonly referencesService: ReferencesService,
-        private readonly semanticScholarService: SemanticScholarService
+        private readonly semanticScholarService: SemanticScholarService,
+        private readonly collectionValidationService: CollectionValidationService,
     ) { }
 
     @Post('add-from-semantic-scholar')
@@ -332,6 +334,24 @@ export class ReferencesController {
                 'SEARCH_FAILED',
             );
         }
+    }
+
+    @Get(':id/validate-metadata')
+    @ApiOperation({ summary: 'Validate a single reference (DOI / external metadata)' })
+    @ApiParam({ name: 'id', description: 'Reference ID' })
+    @ApiSuccessResponse(ReferencesResponse, 200, "Validation result")
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, "Reference not found")
+    async validateReferenceMetadata(@Param('id') referenceId: string): Promise<ResponseDto> {
+        const data = await this.collectionValidationService.validateReferenceById(referenceId);
+
+        return {
+            message: "Reference validated successfully",
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data,
+        };
     }
 
     @Get(':id')
