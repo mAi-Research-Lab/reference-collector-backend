@@ -60,7 +60,7 @@ ${text}
 Provide only the translated text.`;
 
             const response = await this.ai.models.generateContent({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash-lite',
                 contents: prompt,
             });
 
@@ -88,7 +88,7 @@ Provide only the translated text.`;
         }
     }
 
-    async paraphraseText(text: string, outputLang?: string): Promise<string> {
+    async paraphraseText(text: string, outputLang: string='tr'): Promise<string> {
         const textLen = (text || '').length;
         const textHash = crypto.createHash('sha256').update(text || '').digest('hex').slice(0, 12);
 
@@ -119,7 +119,7 @@ Original text:
 Provide only the paraphrased text, without any additional explanation or quotation marks.`;
 
             const response = await this.ai.models.generateContent({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash-lite',
                 contents: prompt,
             });
 
