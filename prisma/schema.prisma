@@ -72,6 +72,8 @@ model User {
   receivedShares    AdvancedShares[]    @relation("ShareRecipient")
   shareAccessLogs   ShareAccessLogs[]
   collaborationLogs CollaborationLogs[]
+
+  Feedback Feedback[]
 }
 
 enum SubscriptionStatus {
@@ -762,4 +764,35 @@ enum AccessLevel {
   comment
   edit
   admin
+}
+
+// ========= FEEDBACK ==============
+model Feedback {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  type        FeedbackType
+  subject     String
+  message     String
+  appVersion  String?      @map("app_version")
+  osInfo      String?      @map("os_info")
+  imageKeys   String[]     @default([]) @map("image_keys")
+  status      FeedbackStatus @default(open)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("feedbacks")
+}
+
+enum FeedbackType {
+  bug
+  suggestion
+}
+
+enum FeedbackStatus {
+  open
+  in_progress
+  resolved
+  closed
 }
