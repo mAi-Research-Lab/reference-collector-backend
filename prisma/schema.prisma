@@ -326,6 +326,8 @@ model References {
   title         String
   authors       Json?                    @db.JsonB
   editors       Json?                    @db.JsonB
+  translators   Json?                    @db.JsonB
+  contributors  Json?                    @db.JsonB
   publication   String?
   publisher     String?
   year          Int?

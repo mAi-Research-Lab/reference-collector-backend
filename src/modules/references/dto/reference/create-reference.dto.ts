@@ -36,6 +36,24 @@ export class CreateReferenceDto {
     @IsOptional()
     editors?: any;
 
+    @ApiPropertyOptional({
+        example: [
+            { "name": "Ayşe", "surname": "Yılmaz", "affiliation": "Boğaziçi Üniversitesi" }
+        ],
+        description: 'Array of translator objects'
+    })
+    @IsOptional()
+    translators?: any;
+
+    @ApiPropertyOptional({
+        example: [
+            { "name": "Mehmet", "surname": "Kaya", "affiliation": "ODTÜ" }
+        ],
+        description: 'Array of contributor objects'
+    })
+    @IsOptional()
+    contributors?: any;
+
     @ApiPropertyOptional({ example: 'Nature Medicine' })
     @IsString()
     @IsOptional()
