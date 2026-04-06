@@ -32,6 +32,20 @@ export class ReferencesResponse {
    })
    editors: any | null;
 
+   @ApiProperty({
+       example: [
+           { "name": "Ayşe", "surname": "Yılmaz", "affiliation": "Boğaziçi Üniversitesi" }
+       ]
+   })
+   translators?: any | null;
+
+   @ApiProperty({
+       example: [
+           { "name": "Mehmet", "surname": "Kaya", "affiliation": "ODTÜ" }
+       ]
+   })
+   contributors?: any | null;
+
    @ApiProperty({ example: 'Nature Medicine' })
    publication: string | null;
 
