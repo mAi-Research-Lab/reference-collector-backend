@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
 import { UserRepository } from 'src/database/repositories/user/user.repository';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -31,6 +32,22 @@ export class UserService {
     ) {
         this.uploadPath = this.configService.get<string>('AVATAR_UPLOAD_PATH') || './uploads/avatars';
         this.ensureUploadDirectory();
+    }
+
+    private async formatUserResponseWithAvatar(user: User): Promise<UserResponse> {
+        const formatted = formatUserResponse(user);
+        const avatarKey = formatted.avatarUrl;
+
+        if (avatarKey && this.s3Storage.ready && !avatarKey.startsWith('http') && !avatarKey.startsWith('/uploads/')) {
+            try {
+                const url = await this.s3Storage.getSignedUrl(avatarKey, 60 * 60); // 1 hour
+                return { ...formatted, avatarUrl: url };
+            } catch {
+                return formatted;
+            }
+        }
+
+        return formatted;
     }
 
     private storageCache = new Map<string, { usedBytes: bigint; atMs: number }>();
@@ -95,7 +112,7 @@ export class UserService {
             throw new CustomHttpException(COMMON_MESSAGES.USER_NOT_FOUND, 404, COMMON_MESSAGES.USER_NOT_FOUND);
         }
 
-        return formatUserResponse(user);
+        return await this.formatUserResponseWithAvatar(user);
     }
 
     async update(id: string, data: UpdateUserDto): Promise<UserResponse> {
@@ -107,7 +124,7 @@ export class UserService {
 
         const updatedUser = await this.userRepository.update(id, data);
 
-        return formatUserResponse(updatedUser);
+        return await this.formatUserResponseWithAvatar(updatedUser);
 
     }
 
@@ -135,22 +152,39 @@ export class UserService {
 
         this.validateFile(file);
 
-        if (user.avatarUrl) {
-            this.deleteOldAvatar(user.avatarUrl);
-        }
-
-        const fileExtension = path.extname(file.originalname);
-        const fileName = `${userId}-${fileExtension}`;
-        const filePath = path.join(this.uploadPath, fileName);
-
         try {
-            await this.processAndSaveImage(file.buffer, filePath);
+            if (!this.s3Storage.ready) {
+                throw new CustomHttpException(
+                    "S3 storage is not configured",
+                    500,
+                    'S3_NOT_CONFIGURED',
+                );
+            }
 
-            const avatarUrl = `/uploads/avatars/${fileName}`;
+            const processedBuffer = await sharp(file.buffer)
+                .resize(this.avatarSize, this.avatarSize, { fit: 'cover', position: 'center' })
+                .jpeg({ quality: 90 })
+                .toBuffer();
 
-            await this.updateAvatarUrl(userId, avatarUrl);
+            const key = `avatars/${userId}.jpg`;
 
-            return formatUserResponse(user);
+            if (user.avatarUrl && user.avatarUrl !== key && this.s3Storage.ready) {
+                try {
+                    await this.s3Storage.deleteFile(user.avatarUrl);
+                } catch {
+                    // ignore
+                }
+            }
+
+            await this.s3Storage.uploadFile(processedBuffer, key, 'image/jpeg');
+            await this.updateAvatarUrl(userId, key);
+
+            const updatedUser = await this.userRepository.findById(userId);
+            if (!updatedUser) {
+                throw new CustomHttpException(COMMON_MESSAGES.USER_NOT_FOUND, 404, COMMON_MESSAGES.USER_NOT_FOUND);
+            }
+
+            return await this.formatUserResponseWithAvatar(updatedUser);
         } catch (error) {
 
             throw new CustomHttpException("Avatar upload error", 500, 'AVATAR_UPLOAD_ERROR');
@@ -168,7 +202,9 @@ export class UserService {
         }
 
         try {
-            this.deleteOldAvatar(user.avatarUrl);
+            if (this.s3Storage.ready && !user.avatarUrl.startsWith('/uploads/')) {
+                await this.s3Storage.deleteFile(user.avatarUrl);
+            }
 
             await this.updateAvatarUrl(userId, null);
 

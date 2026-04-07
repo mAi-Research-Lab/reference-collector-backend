@@ -21,6 +21,43 @@ export class QuickImportService {
         private readonly referencesService: ReferencesService
     ) { }
 
+    private toPlainText(input: unknown): string | undefined {
+        if (input == null) return undefined;
+        if (Array.isArray(input)) {
+            const joined = input.filter(Boolean).join("\n");
+            return this.toPlainText(joined);
+        }
+        if (typeof input !== "string") return undefined;
+
+        let text = input;
+
+        // JATS/HTML → plain text
+        text = text
+            .replace(/<\s*br\s*\/?>/gi, "\n")
+            .replace(/<\/\s*p\s*>/gi, "\n\n")
+            .replace(/<\/\s*jats:p\s*>/gi, "\n\n")
+            .replace(/<[^>]+>/g, " ");
+
+        // Common entities
+        text = text
+            .replace(/&nbsp;/g, " ")
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, "\"")
+            .replace(/&#39;/g, "'")
+            .replace(/&apos;/g, "'");
+
+        // Collapse whitespace
+        text = text
+            .replace(/\s+\n/g, "\n")
+            .replace(/\n{3,}/g, "\n\n")
+            .replace(/[ \t]{2,}/g, " ")
+            .trim();
+
+        return text || undefined;
+    }
+
     /**
      * Quick import a single reference by identifier
      */
@@ -642,23 +679,110 @@ export class QuickImportService {
     }
 
     /**
-     * Fetch from Open Library by ISBN
+     * Convert ISBN-10 to ISBN-13 and vice versa
      */
-    private async fetchFromOpenLibraryByISBN(isbn: string): Promise<any> {
+    private convertISBN(isbn: string): string | null {
+        const digits = isbn.replace(/[^\dX]/gi, '');
+
+        if (digits.length === 10) {
+            const isbn13Base = '978' + digits.substring(0, 9);
+            let sum = 0;
+            for (let i = 0; i < 12; i++) {
+                sum += parseInt(isbn13Base[i]) * (i % 2 === 0 ? 1 : 3);
+            }
+            const check = (10 - (sum % 10)) % 10;
+            return isbn13Base + check.toString();
+        }
+
+        if (digits.length === 13 && digits.startsWith('978')) {
+            const isbn10Base = digits.substring(3, 12);
+            let sum = 0;
+            for (let i = 0; i < 9; i++) {
+                sum += parseInt(isbn10Base[i]) * (10 - i);
+            }
+            const check = (11 - (sum % 11)) % 11;
+            return isbn10Base + (check === 10 ? 'X' : check.toString());
+        }
+
+        return null;
+    }
+
+    /**
+     * Try to fetch a single ISBN from OpenLibrary
+     */
+    private async tryOpenLibraryISBN(isbn: string): Promise<any | null> {
+        const response = await firstValueFrom(
+            this.httpService.get(`https://openlibrary.org/api/books`, {
+                params: {
+                    bibkeys: `ISBN:${isbn}`,
+                    jscmd: 'data',
+                    format: 'json'
+                },
+                timeout: 10000
+            })
+        );
+        const bookKey = `ISBN:${isbn}`;
+        return response.data[bookKey] || null;
+    }
+
+    /**
+     * Try to fetch ISBN from Google Books API
+     */
+    private async tryGoogleBooksISBN(isbn: string): Promise<any | null> {
         try {
             const response = await firstValueFrom(
-                this.httpService.get(`https://openlibrary.org/api/books`, {
-                    params: {
-                        bibkeys: `ISBN:${isbn}`,
-                        jscmd: 'data',
-                        format: 'json'
-                    },
+                this.httpService.get(`https://www.googleapis.com/books/v1/volumes`, {
+                    params: { q: `isbn:${isbn}`, maxResults: 1 },
                     timeout: 10000
                 })
             );
+            const item = response.data?.items?.[0]?.volumeInfo;
+            if (!item) return null;
+            return {
+                title: item.title,
+                authors: item.authors?.map((name: string) => ({ name })),
+                publishers: item.publisher ? [{ name: item.publisher }] : undefined,
+                publish_date: item.publishedDate,
+                number_of_pages: item.pageCount,
+                languages: item.language ? [{ name: item.language }] : undefined,
+                subjects: item.categories?.map((name: string) => ({ name })),
+                url: item.infoLink,
+                cover: item.imageLinks ? { medium: item.imageLinks.thumbnail } : undefined,
+                _source: 'google_books',
+            };
+        } catch {
+            return null;
+        }
+    }
 
-            const bookKey = `ISBN:${isbn}`;
-            if (!response.data[bookKey]) {
+    /**
+     * Fetch from Open Library by ISBN (with ISBN-10/13 fallback + Google Books)
+     */
+    private async fetchFromOpenLibraryByISBN(isbn: string): Promise<any> {
+        try {
+            let book = await this.tryOpenLibraryISBN(isbn);
+
+            if (!book) {
+                const altIsbn = this.convertISBN(isbn);
+                if (altIsbn) {
+                    book = await this.tryOpenLibraryISBN(altIsbn);
+                }
+            }
+
+            if (!book) {
+                const googleBook = await this.tryGoogleBooksISBN(isbn);
+                if (googleBook) {
+                    return {
+                        success: true,
+                        data: this.mapOpenLibraryToReference(googleBook, isbn),
+                        source: 'google_books',
+                        confidence: 0.85,
+                        warnings: []
+                    };
+                }
+            }
+
+            if (!book) {
                 return {
                     success: false,
                     source: 'openlibrary',
@@ -667,8 +791,6 @@ export class QuickImportService {
                     error: 'ISBN not found in Open Library'
                 };
             }
-
-            const book = response.data[bookKey];
 
             return {
                 success: true,
@@ -1019,7 +1141,7 @@ export class QuickImportService {
             doi: item.DOI,
             issn: item.ISSN?.[0],
             url: item.URL,
-            abstractText: item.abstract,
+            abstractText: this.toPlainText(item.abstract),
             language: item.language,
             tags: item.subject || [],
             metadata: {
@@ -1170,7 +1292,7 @@ export class QuickImportService {
                         metadata.title = content;
                         break;
                     case 'description':
-                        metadata.abstractText = content;
+                        metadata.abstractText = this.toPlainText(content) || content;
                         break;
                     case 'url':
                         metadata.url = content;
@@ -1207,7 +1329,7 @@ export class QuickImportService {
                 const [, name, content] = metaName;
                 switch (name.toLowerCase()) {
                     case 'description':
-                        if (!metadata.abstractText) metadata.abstractText = content;
+                        if (!metadata.abstractText) metadata.abstractText = this.toPlainText(content) || content;
                         break;
                     case 'author':
                         metadata.authors = [{ name: content }];
