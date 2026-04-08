@@ -211,60 +211,133 @@ export class CitationStylesService {
         }
     }
 
-    async generateBibliography(referenceIds: string[], styleId: string): Promise<string[]> {
+    /**
+     * Batch format all citations in a document with a single citeproc engine (correct numbering).
+     */
+    async formatCitationsBatchWithStyle(
+        styleId: string,
+        citations: Array<{
+            id: string;
+            referenceId: string;
+            suppressAuthor?: boolean;
+            suppressDate?: boolean;
+            pageNumbers?: string;
+            prefix?: string;
+            suffix?: string;
+        }>
+    ): Promise<Map<string, string>> {
+        const style = await this.getStyleById(styleId);
 
+        if (!style.cslContent) {
+            const results = new Map<string, string>();
+            for (const cit of citations) {
+                try {
+                    const text = await this.formatCitationWithStyle(styleId, {
+                        referenceId: cit.referenceId,
+                        suppressAuthor: cit.suppressAuthor,
+                        suppressDate: cit.suppressDate,
+                        pageNumbers: cit.pageNumbers || '',
+                        prefix: cit.prefix || '',
+                        suffix: cit.suffix || ''
+                    });
+                    results.set(cit.id, text);
+                } catch (e) {
+                    console.error(`❌ Fallback citation failed for ${cit.id}:`, e);
+                }
+            }
+            return results;
+        }
+
+        const uniqueRefIds = [...new Set(citations.map(c => c.referenceId))];
+        const normalizedRefs = new Map<string, any>();
+        for (const refId of uniqueRefIds) {
+            try {
+                const ref = await this.referenceService.getReference(refId);
+                normalizedRefs.set(refId, this.normalizeReferenceForCSL(ref));
+            } catch (e) {
+                console.error(`❌ Reference fetch failed for ${refId}:`, e);
+            }
+        }
+
+        const items = citations
+            .filter(cit => normalizedRefs.has(cit.referenceId))
+            .map(cit => ({
+                id: cit.id,
+                reference: normalizedRefs.get(cit.referenceId)!,
+                options: {
+                    suppressAuthor: cit.suppressAuthor,
+                    suppressDate: cit.suppressDate,
+                    pageNumbers: cit.pageNumbers,
+                    prefix: cit.prefix,
+                    suffix: cit.suffix
+                }
+            }));
+
+        const results = this.cslProcessor.formatCitationsBatch(style.cslContent, items);
+
+        for (const cit of citations) {
+            if (!results.has(cit.id)) {
+                try {
+                    const text = await this.formatCitationWithStyle(styleId, {
+                        referenceId: cit.referenceId,
+                        suppressAuthor: cit.suppressAuthor,
+                        suppressDate: cit.suppressDate,
+                        pageNumbers: cit.pageNumbers || '',
+                        prefix: cit.prefix || '',
+                        suffix: cit.suffix || ''
+                    });
+                    results.set(cit.id, text);
+                } catch { /* ignore */ }
+            }
+        }
+
+        return results;
+    }
+
+    async generateBibliography(referenceIds: string[], styleId: string): Promise<string[]> {
         const references = await this.referenceService.getReferencesByIds(referenceIds);
         const validReferences = references.filter(ref => ref !== undefined);
         const style = await this.getStyleById(styleId);
 
-
-        const bibliographyEntries: string[] = [];
-
-        for (let i = 0; i < validReferences.length; i++) {
-            const reference = validReferences[i];
-
-
+        // Batch CSL processing for correct numbering (Cell, Nature, IEEE etc.)
+        if (style.cslContent) {
             try {
-                let entry = '';
+                const normalizedRefs = validReferences.map(ref => this.normalizeReferenceForCSL(ref));
+                const entries = this.cslProcessor.formatBibliographyBatch(style.cslContent, normalizedRefs);
 
-                // CSL kullanmaya çalış
-                if (style.cslContent) {
-                    const normalizedRef = this.normalizeReferenceForCSL(reference);
-                    entry = this.cslProcessor.formatBibliography(style.cslContent, normalizedRef);
-                    console.log('entry', entry);
-                    // Eğer entry çok kısa veya sadece author içeriyorsa fallback kullan
-                    if (entry && entry.trim().length < 20) {
-                        console.warn(`⚠️ Bibliography entry too short for ref ${reference.id}: "${entry}", using fallback`);
-                        entry = this.formatBibliographyEntryWithFormatting(reference, style);
-                    }
-                }
-
-                // CSL başarısız olursa fallback
-                if (!entry || entry.trim() === '') {
-                    entry = this.formatBibliographyEntryWithFormatting(reference, style);
-                }
-
-                if (entry && entry.trim()) {
-                    bibliographyEntries.push(entry.trim());
-                } else {
-                    console.warn(`⚠️ Empty bibliography entry for reference ${reference.id}, using fallback`);
-                    const fallbackEntry = this.formatBibliographyEntryWithFormatting(reference, style);
-                    bibliographyEntries.push(fallbackEntry);
+                if (entries.length > 0) {
+                    const validEntries = entries.map((entry, i) => {
+                        if (entry && entry.trim().length >= 20) return entry;
+                        return this.formatBibliographyEntryWithFormatting(validReferences[i], style);
+                    });
+                    return this.sortAndFormatBibliographyEntries(validEntries, validReferences, style);
                 }
             } catch (error) {
-                console.error(`🔧 Error processing reference ${reference.id}:`, error);
-                const fallbackEntry = this.formatBibliographyEntryWithFormatting(reference, style);
-                bibliographyEntries.push(fallbackEntry);
+                console.error('❌ Batch bibliography failed, using individual fallback:', error.message);
             }
         }
 
-
-        const sortedEntries = this.sortAndFormatBibliographyEntries(bibliographyEntries, validReferences, style);
-
-        sortedEntries.forEach((entry, index) => {
-        });
-
-        return sortedEntries;
+        // Fallback: individual formatting
+        const bibliographyEntries: string[] = [];
+        for (const reference of validReferences) {
+            try {
+                let entry = '';
+                if (style.cslContent) {
+                    const normalizedRef = this.normalizeReferenceForCSL(reference);
+                    entry = this.cslProcessor.formatBibliography(style.cslContent, normalizedRef);
+                    if (entry && entry.trim().length < 20) {
+                        entry = this.formatBibliographyEntryWithFormatting(reference, style);
+                    }
+                }
+                if (!entry || entry.trim() === '') {
+                    entry = this.formatBibliographyEntryWithFormatting(reference, style);
+                }
+                bibliographyEntries.push(entry.trim() || this.formatBibliographyEntryWithFormatting(reference, style));
+            } catch {
+                bibliographyEntries.push(this.formatBibliographyEntryWithFormatting(reference, style));
+            }
+        }
+        return this.sortAndFormatBibliographyEntries(bibliographyEntries, validReferences, style);
     }
 
     private isValidCSLContent(cslContent: string): boolean {

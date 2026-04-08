@@ -32,14 +32,12 @@ export class CitationsService {
         await this.referenceService.getReference(data.referenceId);
 
         const sortOrder = data.documentId ? await this.getNextSortOrder(data.documentId) : 0;
-        
+
         let styleId = data.styleId;
-        
         if (!styleId) {
             const officeDoc = await this.prisma.officeDocuments.findUnique({
                 where: { id: data.documentId }
             });
-            
             if (officeDoc && officeDoc.styleId) {
                 styleId = officeDoc.styleId;
             } else {
@@ -47,23 +45,61 @@ export class CitationsService {
             }
         }
 
-
         try {
-            const citation_text = await this.citationStylesService.formatCitationWithStyle(styleId, {
-                referenceId: data.referenceId,
-                suppressAuthor: data.suppressAuthor,
-                suppressDate: data.suppressDate,
-                pageNumbers: data.pageNumbers,
-                prefix: data.prefix,
-                suffix: data.suffix
-            });
+            let citationText: string;
 
+            // For numbered styles (Cell/Nature/IEEE), include all existing document
+            // citations so citeproc assigns the correct sequential number.
+            if (data.documentId) {
+                const existingCitations = await this.prisma.citation.findMany({
+                    where: { documentId: data.documentId },
+                    orderBy: { sortOrder: 'asc' }
+                });
+
+                const allCitationData = [
+                    ...existingCitations.map(c => ({
+                        id: c.id,
+                        referenceId: c.referenceId,
+                        suppressAuthor: c.suppressAuthor,
+                        suppressDate: c.suppressDate,
+                        pageNumbers: c.pageNumbers || '',
+                        prefix: c.prefix || '',
+                        suffix: c.suffix || ''
+                    })),
+                    {
+                        id: '__new__',
+                        referenceId: data.referenceId,
+                        suppressAuthor: data.suppressAuthor,
+                        suppressDate: data.suppressDate,
+                        pageNumbers: data.pageNumbers || '',
+                        prefix: data.prefix || '',
+                        suffix: data.suffix || ''
+                    }
+                ];
+
+                const formattedTexts = await this.citationStylesService.formatCitationsBatchWithStyle(styleId, allCitationData);
+                citationText = formattedTexts.get('__new__') || '';
+
+                if (!citationText) {
+                    citationText = await this.citationStylesService.formatCitationWithStyle(styleId, {
+                        referenceId: data.referenceId, suppressAuthor: data.suppressAuthor,
+                        suppressDate: data.suppressDate, pageNumbers: data.pageNumbers,
+                        prefix: data.prefix, suffix: data.suffix
+                    });
+                }
+            } else {
+                citationText = await this.citationStylesService.formatCitationWithStyle(styleId, {
+                    referenceId: data.referenceId, suppressAuthor: data.suppressAuthor,
+                    suppressDate: data.suppressDate, pageNumbers: data.pageNumbers,
+                    prefix: data.prefix, suffix: data.suffix
+                });
+            }
 
             const citation = await this.prisma.citation.create({
                 data: {
                     referenceId: data.referenceId,
                     documentId: data.documentId,
-                    citationText: citation_text,
+                    citationText: citationText,
                     pageNumbers: data.pageNumbers || '',
                     prefix: data.prefix || '',
                     suffix: data.suffix || '',
@@ -114,8 +150,8 @@ export class CitationsService {
                 return [];
             }
             
-            // Office document varsa access kontrolü yap
-            if (!await this.checkDocumentAccess(documentId, userId)) {
+            // Office document varsa owner kontrolü yap
+            if (officeDoc.userId !== userId) {
                 throw new CustomHttpException(CITATIONS_MESSAGES.USER_NOT_COLLABORATOR, 403, CITATIONS_MESSAGES.USER_NOT_COLLABORATOR);
             }
         }
@@ -206,6 +242,13 @@ export class CitationsService {
         });
 
         return { message: CITATIONS_MESSAGES.CITATION_DELETED_SUCCESSFULLY };
+    }
+
+    async deleteByDocumentAndReference(documentId: string, referenceId: string): Promise<{ count: number }> {
+        const result = await this.prisma.citation.deleteMany({
+            where: { documentId, referenceId }
+        });
+        return { count: result.count };
     }
 
     async updateFieldId(citationId: string, fieldId: string): Promise<CitationResponse> {
@@ -407,51 +450,51 @@ export class CitationsService {
     }
 
 
-    async refreshCitationsByStyle(documentId: string, newStyleId: string, userId: string): Promise<number> {
-        const whereClause: any = { documentId };
-
-        // Document access kontrolü
-        if (documentId.startsWith('doc_')) {
-            whereClause.userId = userId;
-        } else {
-            if (!await this.checkDocumentAccess(documentId, userId)) {
-                throw new CustomHttpException(CITATIONS_MESSAGES.USER_NOT_COLLABORATOR, 403, CITATIONS_MESSAGES.USER_NOT_COLLABORATOR);
-            }
-        }
-
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    async refreshCitationsByStyle(documentId: string, newStyleId: string, _userId: string): Promise<number> {
         const citations = await this.prisma.citation.findMany({
-            where: whereClause
+            where: { documentId },
+            orderBy: { sortOrder: 'asc' }
         });
 
+        if (citations.length === 0) return 0;
 
-        this.citationStylesService.resetCitationNumbers();
+        // Batch formatting: single citeproc engine for correct numbering (Cell/Nature/IEEE)
+        const citationData = citations.map(c => ({
+            id: c.id,
+            referenceId: c.referenceId,
+            suppressAuthor: c.suppressAuthor,
+            suppressDate: c.suppressDate,
+            pageNumbers: c.pageNumbers || '',
+            prefix: c.prefix || '',
+            suffix: c.suffix || ''
+        }));
+
+        const formattedTexts = await this.citationStylesService.formatCitationsBatchWithStyle(newStyleId, citationData);
 
         let updatedCount = 0;
-
         for (const citation of citations) {
             try {
-                const newCitationText = await this.citationStylesService.formatCitationWithStyle(newStyleId, {
-                    referenceId: citation.referenceId,
-                    suppressAuthor: citation.suppressAuthor,
-                    suppressDate: citation.suppressDate,
-                    pageNumbers: citation.pageNumbers!,
-                    prefix: citation.prefix!,
-                    suffix: citation.suffix!
-                });
-
-                await this.prisma.citation.update({
-                    where: { id: citation.id },
-                    data: {
-                        citationText: newCitationText,
-                        styleId: newStyleId
-                    }
-                });
-
-                updatedCount++;
+                const newText = formattedTexts.get(citation.id);
+                if (newText) {
+                    await this.prisma.citation.update({
+                        where: { id: citation.id },
+                        data: { citationText: newText, styleId: newStyleId }
+                    });
+                    updatedCount++;
+                }
             } catch (error) {
                 console.error(`❌ Failed to update citation ${citation.id}:`, error);
             }
         }
+
+        // Keep officeDocuments.styleId in sync (updateMany won't throw if no record found)
+        try {
+            await this.prisma.officeDocuments.updateMany({
+                where: { id: documentId },
+                data: { styleId: newStyleId }
+            });
+        } catch { /* ignore */ }
 
         return updatedCount;
     }

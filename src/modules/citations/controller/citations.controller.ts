@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { CreateCitationDto } from '../dto/create-citation.dto';
 import { User } from '../../user/decorators/user.decorator';
@@ -168,6 +168,40 @@ export class CitationsController {
             success: true,
             timestamp: new Date().toISOString(),
             data: { updatedCount, newStyleId: styleId }
+        };
+    }
+
+    @Delete(':id')
+    @ApiOperation({ summary: 'Delete a citation' })
+    @ApiSuccessResponse({}, 200, 'Citation deleted successfully')
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, CITATIONS_MESSAGES.CITATION_NOT_FOUND)
+    async deleteCitation(@Param('id') id: string): Promise<ResponseDto> {
+        const result = await this.citationsService.delete(id);
+        return {
+            message: result.message,
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: null
+        };
+    }
+
+    @Delete('document/:documentId/reference/:referenceId')
+    @ApiOperation({ summary: 'Delete citations by document and reference' })
+    @ApiSuccessResponse({}, 200, 'Citations deleted successfully')
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    async deleteCitationByDocumentAndReference(
+        @Param('documentId') documentId: string,
+        @Param('referenceId') referenceId: string,
+    ): Promise<ResponseDto> {
+        const deleted = await this.citationsService.deleteByDocumentAndReference(documentId, referenceId);
+        return {
+            message: `${deleted.count} citation(s) deleted`,
+            statusCode: 200,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: { deletedCount: deleted.count }
         };
     }
 

@@ -310,6 +310,149 @@ export class CSLProcessorService {
         }
     }
 
+    private loadLocales(): { trPath: string; enPath: string; defaultXml: string } | null {
+        const projectRoot = process.cwd();
+        let localesPath = path.join(projectRoot, 'src/resources/locales');
+        if (!fs.existsSync(localesPath)) localesPath = path.join(projectRoot, 'dist/resources/locales');
+        const trPath = path.join(localesPath, 'locales-tr-TR.xml');
+        const enPath = path.join(localesPath, 'locales-en-US.xml');
+        let defaultXml = '';
+        if (fs.existsSync(trPath)) defaultXml = fs.readFileSync(trPath, 'utf8');
+        else if (fs.existsSync(enPath)) defaultXml = fs.readFileSync(enPath, 'utf8');
+        else return null;
+        return { trPath, enPath, defaultXml };
+    }
+
+    private buildSys(locales: { trPath: string; enPath: string; defaultXml: string }, refMap: Map<string, any>) {
+        return {
+            retrieveLocale: (lang: string) => {
+                if ((lang === 'tr-TR' || lang === 'tr') && fs.existsSync(locales.trPath))
+                    return fs.readFileSync(locales.trPath, 'utf8');
+                if ((lang === 'en-US' || lang === 'en') && fs.existsSync(locales.enPath))
+                    return fs.readFileSync(locales.enPath, 'utf8');
+                return locales.defaultXml;
+            },
+            retrieveItem: (id: string) => refMap.get(id) || null,
+        };
+    }
+
+    private cleanCitationHtml(text: string): string {
+        return text.replace(/<[^>]+>/g, '')
+            .replace(/&#38;/g, '&').replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ').trim();
+    }
+
+    private cleanBibliographyHtml(text: string): string {
+        let r = text;
+        r = r.replace(/<i>/gi, '{i}').replace(/<\/i>/gi, '{/i}');
+        r = r.replace(/<b>/gi, '{b}').replace(/<\/b>/gi, '{/b}');
+        r = r.replace(/<em>/gi, '{i}').replace(/<\/em>/gi, '{/i}');
+        r = r.replace(/<strong>/gi, '{b}').replace(/<\/strong>/gi, '{/b}');
+        r = r.replace(/<[^>]+>/g, '');
+        r = r.replace(/&#38;/g, '&').replace(/&amp;/g, '&');
+        r = r.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        r = r.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+        r = r.replace(/&nbsp;/g, ' ').replace(/&#160;/g, ' ');
+        return r.trim();
+    }
+
+    /**
+     * Batch format all citations using a SINGLE citeproc engine (correct numbering for Cell/Nature/IEEE).
+     * Returns Map<itemId, formattedText>.
+     */
+    formatCitationsBatch(
+        cslContent: string,
+        items: Array<{
+            id: string;
+            reference: any;
+            options: { suppressAuthor?: boolean; suppressDate?: boolean; pageNumbers?: string; prefix?: string; suffix?: string; };
+        }>
+    ): Map<string, string> {
+        try {
+            const locales = this.loadLocales();
+            if (!locales || items.length === 0) return new Map();
+
+            const refMap = new Map<string, any>();
+            for (const item of items) refMap.set(item.reference.id, item.reference);
+
+            const engine = new CSL.Engine(this.buildSys(locales, refMap), cslContent, this.locale, true);
+            engine.updateItems(Array.from(refMap.keys()));
+
+            const results = new Map<string, string>();
+            const prevClusters: Array<[string, number]> = [];
+            const indexToItemId: string[] = [];
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const citationID = `cite_${i}`;
+                indexToItemId.push(item.id);
+
+                const citationItem: any = { id: item.reference.id };
+                if (item.options.pageNumbers?.trim()) { citationItem.locator = item.options.pageNumbers; citationItem.label = 'page'; }
+                if (item.options.suppressAuthor) citationItem['suppress-author'] = true;
+                if (item.options.suppressDate) citationItem['suppress-date'] = true;
+                if (item.options.prefix) citationItem.prefix = item.options.prefix;
+                if (item.options.suffix) citationItem.suffix = item.options.suffix;
+
+                const [, citationResults] = engine.processCitationCluster(
+                    { citationID, citationItems: [citationItem], properties: { noteIndex: i } },
+                    [...prevClusters],
+                    []
+                );
+                prevClusters.push([citationID, i]);
+
+                if (citationResults) {
+                    for (const [pos, text] of citationResults) {
+                        if (pos < indexToItemId.length) {
+                            results.set(indexToItemId[pos], this.cleanCitationHtml(text));
+                        }
+                    }
+                }
+            }
+            return results;
+        } catch (error) {
+            console.error('❌ Batch citation formatting failed:', error.message);
+            return new Map();
+        }
+    }
+
+    /**
+     * Batch format bibliography using a SINGLE citeproc engine (correct numbering).
+     * References should be in document order.
+     */
+    formatBibliographyBatch(cslContent: string, references: any[]): string[] {
+        try {
+            const locales = this.loadLocales();
+            if (!locales || references.length === 0) return [];
+
+            const refMap = new Map<string, any>();
+            for (const ref of references) refMap.set(ref.id, ref);
+
+            const engine = new CSL.Engine(this.buildSys(locales, refMap), cslContent, this.locale, true);
+            engine.updateItems(references.map(r => r.id));
+
+            const prevClusters: Array<[string, number]> = [];
+            for (let i = 0; i < references.length; i++) {
+                const citationID = `bib_${i}`;
+                engine.processCitationCluster(
+                    { citationID, citationItems: [{ id: references[i].id }], properties: { noteIndex: i } },
+                    [...prevClusters],
+                    []
+                );
+                prevClusters.push([citationID, i]);
+            }
+
+            const bibResult = engine.makeBibliography();
+            if (!bibResult || !bibResult[1]) return [];
+
+            return (bibResult[1] as string[]).map((entry: string) => this.cleanBibliographyHtml(entry));
+        } catch (error) {
+            console.error('❌ Batch bibliography formatting failed:', error.message);
+            return [];
+        }
+    }
+
     private processLayout(
         layoutElement: any,
         reference: any,
