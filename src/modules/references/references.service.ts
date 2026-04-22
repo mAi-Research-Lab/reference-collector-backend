@@ -486,7 +486,7 @@ export class ReferencesService {
 
         // Determine reference type from paper data
         const type = this.determineReferenceTypeFromSemanticScholar(dto.paperData);
-
+        this.logger.log(`Reference type: ${type}`);
         // Build authors array
         const authors = dto.paperData.authors?.map((author: any) => ({
             name: author.name || `${author.givenName || ''} ${author.familyName || ''}`.trim(),
@@ -548,11 +548,12 @@ export class ReferencesService {
         }
 
         // Create reference (skip validation since it's from Semantic Scholar)
+        // Use full Citext type keys (e.g. journal_article) so UI icons / i18n match.
         return await this.prismaService.references.create({
             data: {
                 libraryId: dto.libraryId,
                 collectionId: dto.collectionId || null,
-                type: type || 'journal',
+                type: type || 'journal_article',
                 title: dto.paperData.title || '',
                 authors: authors.length > 0 ? (authors as any) : null,
                 publication: dto.paperData.venue || dto.paperData.journal?.name || null,
@@ -580,13 +581,13 @@ export class ReferencesService {
             const types = paperData.publicationTypes.map((t: string) => t.toLowerCase());
 
             if (types.includes('journalarticle') || types.includes('article')) {
-                return 'journal';
+                return 'journal_article';
             }
             if (types.includes('book') || types.includes('bookchapter')) {
                 return 'book';
             }
             if (types.includes('conference') || types.includes('workshop')) {
-                return 'conference';
+                return 'conference_paper';
             }
             if (types.includes('thesis') || types.includes('dissertation')) {
                 return 'thesis';
@@ -596,13 +597,13 @@ export class ReferencesService {
         // Fallback: check venue
         const venue = (paperData.venue || '').toLowerCase();
         if (venue.includes('conference') || venue.includes('workshop') || venue.includes('proceedings')) {
-            return 'conference';
+            return 'conference_paper';
         }
         if (venue.includes('journal') || paperData.journal) {
-            return 'journal';
+            return 'journal_article';
         }
 
-        // Default to journal
-        return 'journal';
+        // Default to journal article
+        return 'journal_article';
     }
 }

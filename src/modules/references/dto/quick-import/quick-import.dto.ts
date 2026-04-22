@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray, IsBoolean, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsBoolean, IsEnum, MaxLength, IsInt, Min, Max } from 'class-validator';
 
 export enum IdentifierType {
     DOI = 'doi',
@@ -285,4 +285,43 @@ export class SearchImportDto {
     })
     @IsOptional()
     confidenceThreshold?: number;
+}
+
+export enum BibliographyImportFormat {
+    BIBTEX = 'bibtex',
+    RIS = 'ris',
+}
+
+export class BibliographyFileImportDto {
+    @ApiProperty({ enum: BibliographyImportFormat, example: BibliographyImportFormat.BIBTEX })
+    @IsEnum(BibliographyImportFormat)
+    format: BibliographyImportFormat;
+
+    @ApiProperty({
+        description: 'Raw .bib or .ris file contents',
+        example: '@article{key, title = {Example}, author = {Doe, Jane}, year = {2020}}',
+    })
+    @IsString()
+    @MaxLength(2_000_000)
+    content: string;
+
+    @ApiPropertyOptional({ description: 'Optional collection to attach new references to' })
+    @IsOptional()
+    @IsString()
+    collectionId?: string;
+
+    @ApiPropertyOptional({ example: true, description: 'Skip rows that look like duplicates in this library' })
+    @IsOptional()
+    @IsBoolean()
+    checkDuplicates?: boolean;
+
+    @ApiPropertyOptional({
+        example: 2000,
+        description: 'Safety cap on number of entries processed from one file',
+    })
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Max(5000)
+    maxEntries?: number;
 }
