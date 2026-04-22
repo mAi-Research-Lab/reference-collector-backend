@@ -8,6 +8,7 @@ import { UpdateReferenceDto } from './dto/reference/update-reference.dto';
 import { Prisma } from 'generated/prisma';
 import { DuplicateDetectionService } from './services/duplicate-detection.service';
 import { ReferenceValidationService } from './services/reference-validation.service';
+import { FileService } from './services/file.service';
 import { AddFromSemanticScholarDto } from './dto/semantic-scholar/add-from-semantic-scholar.dto';
 import { DoiResolverService } from '../pdf-retrieval/services/doi-resolver.service';
 import { OpenAccessFinderService } from '../pdf-retrieval/services/open-access-finder.service';
@@ -22,7 +23,8 @@ export class ReferencesService {
         private readonly duplicateDetectionService: DuplicateDetectionService,
         private readonly validationService: ReferenceValidationService,
         private readonly doiResolverService: DoiResolverService,
-        private readonly openAccessFinderService: OpenAccessFinderService
+        private readonly openAccessFinderService: OpenAccessFinderService,
+        private readonly fileService: FileService
     ) { }
 
     async create(libraryId: string, data: CreateReferenceDto): Promise<ReferencesResponse> {
@@ -119,6 +121,33 @@ export class ReferencesService {
         if (!reference) {
             throw new CustomHttpException(REFERENCES_MESSAGES.REFERENCE_NOT_FOUND, 404, REFERENCES_MESSAGES.REFERENCE_NOT_FOUND);
         }
+
+        const files = await this.prismaService.files.findMany({
+            where: { referenceId: id }
+        });
+
+        await this.prismaService.annotations.deleteMany({
+            where: { file: { referenceId: id } }
+        });
+
+        for (const file of files) {
+            try {
+                await this.fileService.delete(file.id);
+            } catch (err: any) {
+                this.logger.warn(
+                    `Attachment delete failed for file ${file.id} (reference ${id}): ${err?.message ?? err}`
+                );
+                await this.prismaService.files.deleteMany({ where: { id: file.id } }).catch(() => undefined);
+            }
+        }
+
+        await this.prismaService.citation.deleteMany({
+            where: { referenceId: id }
+        });
+
+        await this.prismaService.collectionItems.deleteMany({
+            where: { referenceId: id }
+        });
 
         await this.prismaService.references.delete({
             where: { id }

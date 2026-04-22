@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma/prisma.service';
+import { ReferencesService } from '../references.service';
 import {
     BulkDeleteDto,
     BulkMoveDto,
@@ -11,7 +12,10 @@ import { InputJsonValue } from 'generated/prisma/runtime/library';
 
 @Injectable()
 export class BulkOperationsService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly referencesService: ReferencesService
+    ) { }
 
     /**
      * Bulk delete references
@@ -42,37 +46,7 @@ export class BulkOperationsService {
                 }
 
                 if (permanent) {
-                    // Permanent delete - also delete related files and annotations
-                    await this.prisma.$transaction(async (tx) => {
-                        // Delete annotations first
-                        await tx.annotations.deleteMany({
-                            where: {
-                                file: {
-                                    referenceId: referenceId
-                                }
-                            }
-                        });
-
-                        // Delete files
-                        await tx.files.deleteMany({
-                            where: { referenceId: referenceId }
-                        });
-
-                        // Delete collection items
-                        await tx.collectionItems.deleteMany({
-                            where: { referenceId: referenceId }
-                        });
-
-                        // Delete citations
-                        await tx.citation.deleteMany({
-                            where: { referenceId: referenceId }
-                        });
-
-                        // Finally delete the reference
-                        await tx.references.delete({
-                            where: { id: referenceId }
-                        });
-                    });
+                    await this.referencesService.deleteReference(referenceId);
                 } else {
                     // Soft delete
                     await this.prisma.references.update({
