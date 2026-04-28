@@ -9,12 +9,14 @@ import {
     BatchQuickImportResultDto,
     IdentifierValidationDto,
     SearchImportDto,
-    IdentifierType
+    IdentifierType,
+    BibliographyFileImportDto,
 } from "../dto/quick-import/quick-import.dto";
 import { ApiSuccessResponse, ApiErrorResponse } from "src/common/decorators/api-response-wrapper.decorator";
 import { ResponseDto } from "src/common/dto/api-response.dto";
 import { COMMON_MESSAGES } from "src/common/constants/common.messages";
 import { QuickImportService } from "../services/external/quick-import.service";
+import { BibliographyFileImportService } from "../services/bibliography-file-import.service";
 import { User } from "src/modules/user/decorators/user.decorator";
 
 @Controller('quick-import')
@@ -23,7 +25,8 @@ import { User } from "src/modules/user/decorators/user.decorator";
 @ApiSecurity('bearer')
 export class QuickImportController {
     constructor(
-        private readonly quickImportService: QuickImportService
+        private readonly quickImportService: QuickImportService,
+        private readonly bibliographyFileImportService: BibliographyFileImportService
     ) { }
 
     @Post(':libraryId/import')
@@ -76,6 +79,34 @@ export class QuickImportController {
             success: true,
             timestamp: new Date().toISOString(),
             data: result
+        };
+    }
+
+    @Post(':libraryId/bibliography-import')
+    @ApiOperation({
+        summary: 'Import references from BibTeX or RIS file content',
+        description: 'Parses a .bib or .ris file body and creates references in the library',
+    })
+    @ApiParam({ name: 'libraryId', description: 'Library ID to import into' })
+    @ApiSuccessResponse(ResponseDto, 201, 'Bibliography file import completed')
+    @ApiErrorResponse(400, 'Bad request')
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    async bibliographyImport(
+        @Param('libraryId') libraryId: string,
+        @Body() body: BibliographyFileImportDto,
+        @User('id') userId: string
+    ): Promise<ResponseDto> {
+        const result = await this.bibliographyFileImportService.importBibliographyFile(
+            libraryId,
+            userId,
+            body
+        );
+        return {
+            message: 'Bibliography import completed',
+            statusCode: 201,
+            success: true,
+            timestamp: new Date().toISOString(),
+            data: result,
         };
     }
 

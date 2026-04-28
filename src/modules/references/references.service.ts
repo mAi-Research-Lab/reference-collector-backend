@@ -8,6 +8,7 @@ import { UpdateReferenceDto } from './dto/reference/update-reference.dto';
 import { Prisma } from 'generated/prisma';
 import { DuplicateDetectionService } from './services/duplicate-detection.service';
 import { ReferenceValidationService } from './services/reference-validation.service';
+import { FileService } from './services/file.service';
 import { AddFromSemanticScholarDto } from './dto/semantic-scholar/add-from-semantic-scholar.dto';
 import { DoiResolverService } from '../pdf-retrieval/services/doi-resolver.service';
 import { OpenAccessFinderService } from '../pdf-retrieval/services/open-access-finder.service';
@@ -22,7 +23,8 @@ export class ReferencesService {
         private readonly duplicateDetectionService: DuplicateDetectionService,
         private readonly validationService: ReferenceValidationService,
         private readonly doiResolverService: DoiResolverService,
-        private readonly openAccessFinderService: OpenAccessFinderService
+        private readonly openAccessFinderService: OpenAccessFinderService,
+        private readonly fileService: FileService
     ) { }
 
     async create(libraryId: string, data: CreateReferenceDto): Promise<ReferencesResponse> {
@@ -119,6 +121,33 @@ export class ReferencesService {
         if (!reference) {
             throw new CustomHttpException(REFERENCES_MESSAGES.REFERENCE_NOT_FOUND, 404, REFERENCES_MESSAGES.REFERENCE_NOT_FOUND);
         }
+
+        const files = await this.prismaService.files.findMany({
+            where: { referenceId: id }
+        });
+
+        await this.prismaService.annotations.deleteMany({
+            where: { file: { referenceId: id } }
+        });
+
+        for (const file of files) {
+            try {
+                await this.fileService.delete(file.id);
+            } catch (err: any) {
+                this.logger.warn(
+                    `Attachment delete failed for file ${file.id} (reference ${id}): ${err?.message ?? err}`
+                );
+                await this.prismaService.files.deleteMany({ where: { id: file.id } }).catch(() => undefined);
+            }
+        }
+
+        await this.prismaService.citation.deleteMany({
+            where: { referenceId: id }
+        });
+
+        await this.prismaService.collectionItems.deleteMany({
+            where: { referenceId: id }
+        });
 
         await this.prismaService.references.delete({
             where: { id }
@@ -486,7 +515,7 @@ export class ReferencesService {
 
         // Determine reference type from paper data
         const type = this.determineReferenceTypeFromSemanticScholar(dto.paperData);
-
+        this.logger.log(`Reference type: ${type}`);
         // Build authors array
         const authors = dto.paperData.authors?.map((author: any) => ({
             name: author.name || `${author.givenName || ''} ${author.familyName || ''}`.trim(),
@@ -548,11 +577,12 @@ export class ReferencesService {
         }
 
         // Create reference (skip validation since it's from Semantic Scholar)
+        // Use full Citext type keys (e.g. journal_article) so UI icons / i18n match.
         return await this.prismaService.references.create({
             data: {
                 libraryId: dto.libraryId,
                 collectionId: dto.collectionId || null,
-                type: type || 'journal',
+                type: type || 'journal_article',
                 title: dto.paperData.title || '',
                 authors: authors.length > 0 ? (authors as any) : null,
                 publication: dto.paperData.venue || dto.paperData.journal?.name || null,
@@ -580,13 +610,13 @@ export class ReferencesService {
             const types = paperData.publicationTypes.map((t: string) => t.toLowerCase());
 
             if (types.includes('journalarticle') || types.includes('article')) {
-                return 'journal';
+                return 'journal_article';
             }
             if (types.includes('book') || types.includes('bookchapter')) {
                 return 'book';
             }
             if (types.includes('conference') || types.includes('workshop')) {
-                return 'conference';
+                return 'conference_paper';
             }
             if (types.includes('thesis') || types.includes('dissertation')) {
                 return 'thesis';
@@ -596,13 +626,13 @@ export class ReferencesService {
         // Fallback: check venue
         const venue = (paperData.venue || '').toLowerCase();
         if (venue.includes('conference') || venue.includes('workshop') || venue.includes('proceedings')) {
-            return 'conference';
+            return 'conference_paper';
         }
         if (venue.includes('journal') || paperData.journal) {
-            return 'journal';
+            return 'journal_article';
         }
 
-        // Default to journal
-        return 'journal';
+        // Default to journal article
+        return 'journal_article';
     }
 }

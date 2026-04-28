@@ -16,6 +16,7 @@ import { MetadataEnhancementService } from './services/metadata-enhancement.serv
 import { MetadataEnhancementController } from './controller/metadata-enhancement.controller';
 import { QuickImportService } from './services/external/quick-import.service';
 import { QuickImportController } from './controller/quick-import.controller';
+import { BibliographyFileImportService } from './services/bibliography-file-import.service';
 import { ReportGenerationService } from './services/report-generation.service';
 import { ReportGenerationController } from './controller/report-generation.controller';
 import { BibliographyCreationService } from './services/bibliography-creation.service';
@@ -45,6 +46,7 @@ import { PdfRetrievalModule } from '../pdf-retrieval/pdf-retrieval.module';
     ReferenceValidationService,
     MetadataEnhancementService,
     QuickImportService,
+    BibliographyFileImportService,
     ReportGenerationService,
     BibliographyCreationService,
     CollectionValidationService,
