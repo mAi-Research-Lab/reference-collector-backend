@@ -57,6 +57,27 @@ export class DocumentsController {
         }
     }
 
+    @Get('library/:libraryId')
+    @ApiOperation({ summary: 'Get documents by library id' })
+    @ApiSuccessArrayResponse(DocumentResponse, 200, DOCUMENT_MESSAGES.DOCUMENT_FETCHED_SUCCESSFULLY)
+    @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
+    async getDocumentsByLibraryId(
+        @User() user: any,
+        @Param('libraryId') libraryId: string
+    ): Promise<ResponseDto> {
+        const documents = await this.documentsService.getLibraryDocuments(user.id, libraryId);
+
+        return {
+            success: true,
+            statusCode: 200,
+            message: DOCUMENT_MESSAGES.DOCUMENT_FETCHED_SUCCESSFULLY,
+            data: documents,
+            timestamp: new Date().toISOString()
+        }
+    }
+
     @Get(':id')
     @ApiOperation({ summary: 'Get document by id' })
     @ApiSuccessResponse(DocumentResponse, 200, DOCUMENT_MESSAGES.DOCUMENT_FETCHED_SUCCESSFULLY)

@@ -66,6 +66,20 @@ export class DocumentsService {
         return documents as DocumentResponse[];
     }
 
+    async getLibraryDocuments(userId: string, libraryId: string): Promise<DocumentResponse[]> {
+        const documents = await this.prisma.documents.findMany({
+            where: {
+                libraryId,
+                createdBy: userId,
+            },
+            orderBy: {
+                updatedAt: 'desc'
+            }
+        });
+
+        return documents as DocumentResponse[];
+    }
+
     async updateDocument(documentId: string, data: UpdateDocumentDto): Promise<DocumentResponse> {
 
         const document = await this.prisma.documents.findUnique({
