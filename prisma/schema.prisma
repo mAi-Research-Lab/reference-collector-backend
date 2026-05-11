@@ -420,6 +420,11 @@ enum AnnotationsType {
   link
 }
 
+enum DocumentTypes {
+  notebook
+  document
+}
+
 // ========= DOCUMENTS ===================
 model Documents {
   id             String             @id @default(uuid()) @db.Uuid
@@ -432,6 +437,7 @@ model Documents {
   createdBy      String             @map("user_id") @db.Uuid
   created        User               @relation(fields: [createdBy], references: [id])
   citationStyle  String             @map("citation_style")
+  documentType   DocumentTypes      @default(notebook) @map("document_type")
   templateId     String?            @map("template_id") @db.Uuid
   template       DocumentTemplates? @relation(fields: [templateId], references: [id])
   wordCount      Int                @default(0) @map("word_count")

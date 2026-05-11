@@ -16,11 +16,13 @@ export class DocumentsService {
     ) { }
 
     async create(createdBy: string, data: CreateDocumentDto): Promise<DocumentResponse> {
+        const { contentDelta, templateId, ...rest } = data;
         const document = await this.prisma.documents.create({
             data: {
-                ...data,
+                ...rest,
                 createdBy,
-                contentDelta: data.contentDelta as any
+                contentDelta: contentDelta as any,
+                ...(this.isUuid(templateId) ? { templateId } : {})
             }
         });
 
@@ -94,22 +96,25 @@ export class DocumentsService {
             throw new CustomHttpException(DOCUMENT_MESSAGES.USER_NOT_OWNER, 404, DOCUMENT_MESSAGES.USER_NOT_OWNER);
         }
 
+        const { contentDelta, templateId, ...rest } = data;
+        const content = data.content ?? document.content;
         const updatedDocument = await this.prisma.documents.update({
             where: {
                 id: documentId
             },
             data: {
-                ...data,
-                contentDelta: data.contentDelta as any,
+                ...rest,
+                ...(contentDelta !== undefined ? { contentDelta: contentDelta as any } : {}),
+                ...(this.isUuid(templateId) ? { templateId } : {}),
                 updatedAt: new Date(),
-                wordCount: data.content.split(' ').length,
-                charCount: data.content.length
+                wordCount: content.split(' ').filter(Boolean).length,
+                charCount: content.length
             }
         });
 
         return {
             ...updatedDocument,
-            contentDelta: document.contentDelta as any,
+            contentDelta: updatedDocument.contentDelta as any,
         } as DocumentResponse;
     }
 
@@ -191,5 +196,9 @@ export class DocumentsService {
 
     private checkDocumentOwnership(document: Documents, userId: string): boolean {
         return document.createdBy === userId;
+    }
+
+    private isUuid(value?: string): value is string {
+        return !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
     }
 }
