@@ -17,16 +17,58 @@ export class SharedService {
     ) { }
 
     async getUserSharedLibraries(userId: string): Promise<LibraryResponse[]> {
-        return await this.prisma.libraries.findMany({ where: { ownerId: userId, type: LibraryTypes.shared } });
+        return await this.prisma.libraries.findMany({
+            where: {
+                isDeleted: false,
+                type: LibraryTypes.shared,
+                OR: [
+                    { ownerId: userId },
+                    {
+                        memberships: {
+                            some: { userId }
+                        }
+                    }
+                ]
+            },
+            orderBy: {
+                updatedAt: 'desc'
+            }
+        });
     }
 
     async createSharedLibrary(userId: string, data: { name: string, description?: string, institutionId?: string, visibility: LibraryVisibility }): Promise<LibraryResponse> {
-        return await this.prisma.libraries.create({
-            data: {
-                ...data,
-                ownerId: userId,
-                type: LibraryTypes.shared,
-            }
+        return await this.prisma.$transaction(async (tx) => {
+            const library = await tx.libraries.create({
+                data: {
+                    ...data,
+                    ownerId: userId,
+                    type: LibraryTypes.shared,
+                }
+            });
+
+            await tx.libraryMemberships.upsert({
+                where: {
+                    libraryId_userId: {
+                        libraryId: library.id,
+                        userId
+                    }
+                },
+                create: {
+                    libraryId: library.id,
+                    userId,
+                    role: MembershipRole.owner,
+                    invitedBy: userId,
+                    acceptedAt: new Date(),
+                    permissions: {}
+                },
+                update: {
+                    role: MembershipRole.owner,
+                    invitedBy: userId,
+                    acceptedAt: new Date()
+                }
+            });
+
+            return library;
         });
     }
 

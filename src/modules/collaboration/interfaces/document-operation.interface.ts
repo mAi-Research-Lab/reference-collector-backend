@@ -25,6 +25,12 @@ export interface TextOperation extends BaseOperation {
         italic?: boolean;
         underline?: boolean;
     };
+    attributes?: {
+        delta?: any;
+        contentDelta?: any;
+        html?: string;
+        isSnapshot?: boolean;
+    };
 }
 
 export interface CitationOperation extends BaseOperation {

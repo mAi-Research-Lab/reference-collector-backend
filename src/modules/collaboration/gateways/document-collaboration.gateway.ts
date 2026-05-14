@@ -1,6 +1,6 @@
 import { Logger } from "@nestjs/common";
 import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
-import { Server, Socket } from "socket.io";
+import { Namespace, Socket } from "socket.io";
 import { CollaborationService } from "../services/collaboration.service";
 import { PrismaService } from "src/database/prisma/prisma.service";
 import { OperationalTransformService } from "../services/operational-transform.service";
@@ -8,6 +8,8 @@ import { DocumentOperation } from "../interfaces/document-operation.interface";
 import { OperationTransformUtils } from "../utils/operation-transform.utils";
 import { CustomHttpException } from "src/common/exceptions/custom-http-exception";
 import { OPERATION_MESSAGES } from "../constants/operation.message";
+import { JwtService } from "@nestjs/jwt";
+import { UserService } from "src/modules/user/user.service";
 
 @WebSocketGateway({
     namespace: '/collaboration',
@@ -20,7 +22,7 @@ export class DocumentCollaborationGateway
     implements OnGatewayConnection, OnGatewayDisconnect {
 
     @WebSocketServer()
-    server: Server;
+    server: Namespace;
 
     private readonly logger = new Logger(DocumentCollaborationGateway.name);
 
@@ -31,24 +33,139 @@ export class DocumentCollaborationGateway
         private readonly collaborationService: CollaborationService,
         private readonly prisma: PrismaService,
         private readonly operationalTransformService: OperationalTransformService,
+        private readonly jwtService: JwtService,
+        private readonly userService: UserService,
     ) { }
+
+    private getSocketById(socketId: string): Socket | undefined {
+        return this.server.sockets.get(socketId);
+    }
 
     async handleDisconnect(client: any) {
         this.logger.log(`Client disconnected: ${client.id}`);
         await this.handleDesktopDisconnect(client.id);
     }
 
-    handleConnection(client: any) {
-        this.logger.log(`Client connected: ${client.id}`);
+    async handleConnection(client: Socket) {
+        try {
+            const user = await this.authenticateClient(client);
+            this.logger.log(`Client connected: ${client.id} (${user.id})`);
+        } catch (error) {
+            this.logger.warn(`Unauthorized collaboration socket ${client.id}: ${error.message}`);
+            client.emit('error', { message: 'Unauthorized collaboration connection' });
+            client.disconnect(true);
+        }
+    }
+
+    private async authenticateClient(client: Socket): Promise<any> {
+        if (client.data?.user) return client.data.user;
+
+        const authToken = client.handshake.auth?.token;
+        const header = client.handshake.headers?.authorization;
+        const headerToken = typeof header === 'string' && header.startsWith('Bearer ')
+            ? header.slice(7)
+            : undefined;
+        const token = authToken || headerToken;
+
+        if (!token) {
+            throw new Error('Missing token');
+        }
+
+        const payload = await this.jwtService.verifyAsync<{ sub: string }>(token);
+        const user = await this.userService.findById(payload.sub);
+        client.data.user = user;
+        return user;
+    }
+
+    private async ensureDocumentAccess(documentId: string, userId: string, mode: 'view' | 'edit' = 'view'): Promise<void> {
+        const document = await this.prisma.documents.findUnique({
+            where: { id: documentId },
+            select: {
+                id: true,
+                createdBy: true,
+                libraryId: true,
+                library: {
+                    select: {
+                        type: true
+                    }
+                }
+            }
+        });
+
+        if (!document) {
+            throw new Error('Document not found');
+        }
+
+        if (document.createdBy === userId) {
+            return;
+        }
+
+        const collaborator = await this.prisma.documentCollaborators.findUnique({
+            where: {
+                documentId_userId: {
+                    documentId,
+                    userId
+                }
+            }
+        });
+
+        if (collaborator) {
+            if (mode === 'view' || collaborator.role === 'owner' || collaborator.role === 'editor') {
+                return;
+            }
+        }
+
+        if (document.library.type !== 'shared' && document.library.type !== 'group') {
+            throw new Error('No document permission');
+        }
+
+        const membership = await this.prisma.libraryMemberships.findUnique({
+            where: {
+                libraryId_userId: {
+                    libraryId: document.libraryId,
+                    userId
+                }
+            }
+        });
+
+        if (membership) {
+            if (mode === 'view' || membership.role === 'owner' || membership.role === 'admin' || membership.role === 'editor' || membership.role === 'member') {
+                return;
+            }
+        }
+
+        throw new Error('No document permission');
+    }
+
+    private async enrichParticipants(participants: any[]): Promise<any[]> {
+        const userIds = [...new Set(participants.map((participant) => participant.userId).filter(Boolean))];
+        if (userIds.length === 0) return participants;
+
+        const users = await this.prisma.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, fullName: true, email: true, avatarUrl: true }
+        });
+
+        return participants.map((participant) => {
+            const user = users.find((item) => item.id === participant.userId);
+            return {
+                ...participant,
+                userName: user?.fullName || user?.email || participant.userName,
+                userEmail: user?.email || participant.userEmail,
+                avatarUrl: user?.avatarUrl ?? participant.avatarUrl
+            };
+        });
     }
 
     @SubscribeMessage('join-document')
     async handleJoinDocument(@MessageBody() data: { documentId: string, userId: string }, @ConnectedSocket() client: Socket) {
         try {
-            this.logger.log(`User ${data.userId} joining document ${data.documentId}`);
+            const user = await this.authenticateClient(client);
+            await this.ensureDocumentAccess(data.documentId, user.id, 'view');
+            this.logger.log(`User ${user.id} joining document ${data.documentId}`);
 
             const session = await this.collaborationService.getOrCreateSession(data.documentId, {
-                participants: [{ userId: data.userId, socketId: client.id, joinedAt: new Date(), lastSeen: new Date(), isTyping: false }],
+                participants: [{ userId: user.id, socketId: client.id, joinedAt: new Date(), lastSeen: new Date(), isTyping: false }],
                 operationLog: [],
                 currentState: {},
                 sessionData: {},
@@ -57,7 +174,7 @@ export class DocumentCollaborationGateway
 
             const updatedSession = await this.collaborationService.addParticipant(
                 session.id,
-                data.userId,
+                user.id,
                 client.id
             );
 
@@ -69,22 +186,23 @@ export class DocumentCollaborationGateway
                 this.sessionRooms.set(session.id, new Set());
             }
             this.sessionRooms.get(session.id)!.add(client.id);
+            const participants = await this.enrichParticipants(updatedSession.participants as any[]);
 
             this.server.to(roomName).emit('user-joined', {
-                userId: data.userId,
+                userId: user.id,
                 sessionId: session.id,
-                participants: updatedSession.participants
+                participants
             });
 
             client.emit('session-joined', {
                 sessionId: session.id,
                 currentState: updatedSession.currentState,
-                participants: updatedSession.participants
+                participants
             });
 
             await this.synchronizeDocumentState(data.documentId, client);
 
-            this.logger.log(`User ${data.userId} successfully joined document ${data.documentId}`);
+            this.logger.log(`User ${user.id} successfully joined document ${data.documentId}`);
         } catch (error) {
             this.logger.error(`Error joining document: ${error.message}`);
             client.emit('error', { message: 'Failed to join document' });
@@ -97,10 +215,11 @@ export class DocumentCollaborationGateway
         @ConnectedSocket() client: Socket,
     ) {
         try {
+            const user = await this.authenticateClient(client);
             const sessionId = data.sessionId || this.userSessions.get(client.id);
             if (!sessionId) return;
 
-            const userId = data.userId || 'temp-user-id'; // Use provided userId
+            const userId = user.id;
 
             const updatedSession = await this.collaborationService.removeParticipant(sessionId, userId);
 
@@ -109,11 +228,12 @@ export class DocumentCollaborationGateway
 
             this.userSessions.delete(client.id);
             this.sessionRooms.get(sessionId)?.delete(client.id);
+            const participants = await this.enrichParticipants(updatedSession.participants as any[]);
 
             this.server.to(roomName).emit('user-left', {
                 userId,
                 sessionId,
-                participants: updatedSession.participants
+                participants
             });
 
             this.logger.log(`User ${userId} left document session ${sessionId}`);
@@ -140,8 +260,17 @@ export class DocumentCollaborationGateway
         @ConnectedSocket() client: Socket
     ) {
         try {
-            const { sessionId, operation, userId, documentId, version } = data;
-            this.logger.log(`Text operation from user ${userId} in session ${sessionId}`);
+            const user = await this.authenticateClient(client);
+            const { sessionId, operation, documentId, version } = data;
+            await this.ensureDocumentAccess(documentId, user.id, 'edit');
+            const session = await this.prisma.collaborationSession.findUnique({
+                where: { id: sessionId },
+                select: { documentId: true }
+            });
+            if (!session || session.documentId !== documentId) {
+                throw new Error('Invalid collaboration session');
+            }
+            this.logger.log(`Text operation from user ${user.id} in session ${sessionId}`);
 
             // Create proper DocumentOperation object
             const documentOperation: DocumentOperation = {
@@ -154,7 +283,8 @@ export class DocumentCollaborationGateway
                 },
                 content: operation.content,
                 length: operation.length,
-                userId,
+                attributes: operation.attributes,
+                userId: user.id,
                 documentId,
                 version,
                 timestamp: new Date(),
@@ -180,23 +310,26 @@ export class DocumentCollaborationGateway
             position: number;
             selection?: { start: number; end: number };
         },
+        @ConnectedSocket() client: Socket,
     ) {
         try {
-            const { sessionId, userId, position, selection } = data;
+            const user = await this.authenticateClient(client);
+            const { sessionId, position, selection } = data;
+            const session = await this.prisma.collaborationSession.findUnique({
+                where: { id: sessionId },
+                select: { documentId: true }
+            });
+            if (!session) return;
+            await this.ensureDocumentAccess(session.documentId, user.id, 'view');
 
-            await this.collaborationService.updateCursorPosition(sessionId, userId, position);
+            await this.collaborationService.updateCursorPosition(sessionId, user.id, position);
 
             const sessionRoomSockets = this.sessionRooms.get(sessionId);
             if (sessionRoomSockets) {
-                const session = await this.prisma.collaborationSession.findUnique({
-                    where: { id: sessionId },
-                    select: { documentId: true }
-                });
-
                 if (session) {
                     const roomName = `document-${session.documentId}`;
                     this.server.to(roomName).emit('cursor-updated', {
-                        userId,
+                        userId: user.id,
                         position,
                         selection,
                         timestamp: new Date()
@@ -204,7 +337,7 @@ export class DocumentCollaborationGateway
                 }
             }
 
-            this.logger.log(`Cursor position updated for user ${userId} at position ${position}`);
+            this.logger.log(`Cursor position updated for user ${user.id} at position ${position}`);
         } catch (error) {
             this.logger.error(`Error updating cursor position: ${error.message}`);
         }
@@ -216,31 +349,34 @@ export class DocumentCollaborationGateway
             sessionId: string;
             userId: string;
             isTyping: boolean;
-        }
+        },
+        @ConnectedSocket() client: Socket,
     ) {
         try {
-            const { sessionId, userId, isTyping } = data;
+            const user = await this.authenticateClient(client);
+            const { sessionId, isTyping } = data;
+            const session = await this.prisma.collaborationSession.findUnique({
+                where: { id: sessionId },
+                select: { documentId: true }
+            });
+            if (!session) return;
+            await this.ensureDocumentAccess(session.documentId, user.id, 'view');
 
-            await this.collaborationService.updateTypingStatus(sessionId, userId, isTyping);
+            await this.collaborationService.updateTypingStatus(sessionId, user.id, isTyping);
 
             const sessionRoomSockets = this.sessionRooms.get(sessionId);
             if (sessionRoomSockets) {
-                const session = await this.prisma.collaborationSession.findUnique({
-                    where: { id: sessionId },
-                    select: { documentId: true }
-                });
-
                 if (session) {
                     const roomName = `document-${session.documentId}`;
                     this.server.to(roomName).emit('typing-status-changed', {
-                        userId,
+                        userId: user.id,
                         isTyping,
                         timestamp: new Date()
                     });
                 }
             }
 
-            this.logger.log(`Typing status updated for user ${userId}: ${isTyping ? 'started' : 'stopped'} typing`);
+            this.logger.log(`Typing status updated for user ${user.id}: ${isTyping ? 'started' : 'stopped'} typing`);
         } catch (error) {
             this.logger.error(`Error updating typing status: ${error.message}`);
         }
@@ -255,9 +391,12 @@ export class DocumentCollaborationGateway
         @ConnectedSocket() client: Socket
     ): Promise<void> {
         try {
+            const user = await this.authenticateClient(client);
             const { operation, documentId } = data;
+            await this.ensureDocumentAccess(documentId, user.id, 'edit');
+            const safeOperation = { ...operation, userId: user.id, documentId };
 
-            if (!OperationTransformUtils.validateOperation(operation)) {
+            if (!OperationTransformUtils.validateOperation(safeOperation)) {
                 throw new CustomHttpException(OPERATION_MESSAGES.INVALID_OPERATION_FORMAT, 400, 'INVALID_OPERATION');
             }
 
@@ -271,10 +410,10 @@ export class DocumentCollaborationGateway
             });
 
             // Process through OT service
-            await this.processAndBroadcastOperation(operation, session.id, client.id);
+            await this.processAndBroadcastOperation(safeOperation, session.id, client.id);
 
             client.emit('desktop-operation-success', {
-                operationId: operation.id,
+                operationId: safeOperation.id,
                 timestamp: new Date()
             });
 
@@ -295,7 +434,9 @@ export class DocumentCollaborationGateway
         @ConnectedSocket() client: Socket
     ): Promise<void> {
         try {
+            const user = await this.authenticateClient(client);
             const { documentId } = data;
+            await this.ensureDocumentAccess(documentId, user.id, 'view');
             const currentVersion = await this.operationalTransformService.getDocumentVersion(documentId);
 
             client.emit('document-version', {
@@ -321,7 +462,9 @@ export class DocumentCollaborationGateway
         @ConnectedSocket() client: Socket
     ): Promise<void> {
         try {
+            const user = await this.authenticateClient(client);
             const { documentId, fromVersion } = data;
+            await this.ensureDocumentAccess(documentId, user.id, 'view');
             const operations = await this.operationalTransformService.getOperationsAfterVersion(documentId, fromVersion);
 
             client.emit('document-synced', {
@@ -347,7 +490,9 @@ export class DocumentCollaborationGateway
         @ConnectedSocket() client: Socket
     ): Promise<void> {
         try {
+            const user = await this.authenticateClient(client);
             const { documentId } = data;
+            await this.ensureDocumentAccess(documentId, user.id, 'view');
             const collaborators = await this.getActiveCollaborators(documentId);
 
             client.emit('active-collaborators', {
@@ -374,7 +519,7 @@ export class DocumentCollaborationGateway
             const operationResult = await this.operationalTransformService.processIncomingOperation(operation);
 
             if (!operationResult.success) {
-                const senderSocket = this.server.sockets.sockets.get(senderSocketId);
+                const senderSocket = this.getSocketById(senderSocketId);
                 senderSocket?.emit('operation-failed', {
                     operationId: operation.id,
                     error: 'Operation failed to apply',
@@ -390,7 +535,7 @@ export class DocumentCollaborationGateway
             await this.broadcastOperationResult(operationResult, sessionId, senderSocketId);
 
             // 4. Send confirmation to sender
-            const senderSocket = this.server.sockets.sockets.get(senderSocketId);
+            const senderSocket = this.getSocketById(senderSocketId);
             senderSocket?.emit('operation-confirmed', {
                 operationId: operation.id,
                 success: true,
@@ -400,7 +545,7 @@ export class DocumentCollaborationGateway
 
         } catch (error) {
             this.logger.error(`Error processing operation: ${error.message}`);
-            const senderSocket = this.server.sockets.sockets.get(senderSocketId);
+            const senderSocket = this.getSocketById(senderSocketId);
             senderSocket?.emit('operation-failed', {
                 operationId: operation.id,
                 error: error.message
@@ -564,12 +709,11 @@ export class DocumentCollaborationGateway
                 select: { id: true, fullName: true, email: true, avatarUrl: true }
             });
 
-            // 4. Enrich collaborator data with user info
             return collaborators.map(collaborator => {
                 const user = users.find(u => u.id === collaborator.userId);
                 return {
                     ...collaborator,
-                    userName: user?.fullName || 'Unknown User',
+                    userName: user?.fullName || user?.email || collaborator.userName || collaborator.userId,
                     userEmail: user?.email,
                     avatarUrl: user?.avatarUrl
                 };

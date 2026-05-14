@@ -5,7 +5,7 @@ import { LibraryResponse } from './dto/response/libraries.response';
 import { CustomHttpException } from 'src/common/exceptions/custom-http-exception';
 import { LIBRARY_MESSAGES } from './constants/library.messages';
 import { UpdateLibrariesDto } from './dto/update-libraries.dto';
-import { LibraryTypes, LibraryVisibility } from 'generated/prisma';
+import { LibraryTypes, LibraryVisibility, MembershipRole } from 'generated/prisma';
 
 @Injectable()
 export class LibrariesService {
@@ -16,11 +16,39 @@ export class LibrariesService {
     async create(data: CreateLibrariesDto): Promise<LibraryResponse> {
         const { ownerId, ...rest } = data;
 
-        return await this.prisma.libraries.create({
-            data: {
-                ...rest,
-                ownerId: ownerId,
+        return await this.prisma.$transaction(async (tx) => {
+            const library = await tx.libraries.create({
+                data: {
+                    ...rest,
+                    ownerId,
+                }
+            });
+
+            if (library.type === LibraryTypes.shared || library.type === LibraryTypes.group) {
+                await tx.libraryMemberships.upsert({
+                    where: {
+                        libraryId_userId: {
+                            libraryId: library.id,
+                            userId: ownerId
+                        }
+                    },
+                    create: {
+                        libraryId: library.id,
+                        userId: ownerId,
+                        role: MembershipRole.owner,
+                        invitedBy: ownerId,
+                        acceptedAt: new Date(),
+                        permissions: {}
+                    },
+                    update: {
+                        role: MembershipRole.owner,
+                        acceptedAt: new Date(),
+                        invitedBy: ownerId
+                    }
+                });
             }
+
+            return library;
         });
     }
 
@@ -75,7 +103,28 @@ export class LibrariesService {
 
     async getUserLibraries(userId: string): Promise<LibraryResponse[]> {
         return await this.prisma.libraries.findMany({
-            where: { ownerId: userId, isDeleted: false }
+            where: {
+                isDeleted: false,
+                OR: [
+                    { ownerId: userId },
+                    {
+                        memberships: {
+                            some: {
+                                userId,
+                                library: {
+                                    type: {
+                                        in: [LibraryTypes.shared, LibraryTypes.group]
+                                    },
+                                    isDeleted: false
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            orderBy: {
+                updatedAt: 'desc'
+            }
         });
     }
 

@@ -241,7 +241,8 @@ export class OperationTransformUtils {
                     ...baseOp,
                     content: rawOperation.content || rawOperation.text || '',
                     length: rawOperation.length || rawOperation.len || 0,
-                    formatting: rawOperation.formatting || {}
+                    formatting: rawOperation.formatting || {},
+                    attributes: rawOperation.attributes || {}
                 } as TextOperation;
 
             case OperationType.CITATION_INSERT:

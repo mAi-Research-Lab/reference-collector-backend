@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Res, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import { RoleGuard } from 'src/common/guard/role.guard';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { DocumentsService } from '../services/documents.service';
@@ -84,8 +85,8 @@ export class DocumentsController {
     @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
     @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
-    async getDocumentById(@Param('id') id: string): Promise<ResponseDto> {
-        const document = await this.documentsService.getDocument(id);
+    async getDocumentById(@User() user: any, @Param('id') id: string): Promise<ResponseDto> {
+        const document = await this.documentsService.getDocument(id, user.id);
         
         return {
             success: true,
@@ -96,14 +97,34 @@ export class DocumentsController {
         }
     }
 
+    @Get(':id/download/docx')
+    @ApiOperation({ summary: 'Download document as Word file' })
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(403, DOCUMENT_MESSAGES.USER_NOT_MEMBER)
+    @ApiErrorResponse(404, DOCUMENT_MESSAGES.DOCUMENT_NOT_FOUND)
+    async downloadDocumentAsDocx(
+        @User() user: any,
+        @Param('id') id: string,
+        @Res() res: Response
+    ): Promise<void> {
+        const result = await this.documentsService.exportDocumentAsDocx(id, user.id);
+        const encodedFilename = encodeURIComponent(result.filename);
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`);
+        res.setHeader('Content-Length', result.buffer.length.toString());
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+        res.send(result.buffer);
+    }
+
     @Put(':id')
     @ApiOperation({ summary: 'Update document by id' })
     @ApiSuccessResponse(DocumentResponse, 200, DOCUMENT_MESSAGES.DOCUMENT_UPDATED_SUCCESSFULLY)
     @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
     @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
-    async updateDocument(@Param('id') id: string, @Body() data: UpdateDocumentDto): Promise<ResponseDto> {
-        const document = await this.documentsService.updateDocument(id, data);
+    async updateDocument(@User() user: any, @Param('id') id: string, @Body() data: UpdateDocumentDto): Promise<ResponseDto> {
+        const document = await this.documentsService.updateDocument(id, user.id, data);
         
         return {
             success: true,
@@ -120,8 +141,8 @@ export class DocumentsController {
     @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
     @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
-    async deleteDocument(@Param('id') id: string): Promise<ResponseDto> {
-        const document = await this.documentsService.deleteDocument(id);
+    async deleteDocument(@User() user: any, @Param('id') id: string): Promise<ResponseDto> {
+        const document = await this.documentsService.deleteDocument(id, user.id);
         
         return {
             success: true,
@@ -138,8 +159,8 @@ export class DocumentsController {
     @ApiErrorResponse(400, COMMON_MESSAGES.INVALID_CREDENTIALS)
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
     @ApiErrorResponse(500, COMMON_MESSAGES.INTERNAL_SERVER_ERROR)
-    async publishDocument(@Param('id') id: string): Promise<ResponseDto> {
-        const document = await this.documentsService.publishDocument(id);
+    async publishDocument(@User() user: any, @Param('id') id: string): Promise<ResponseDto> {
+        const document = await this.documentsService.publishDocument(id, user.id);
         
         return {
             success: true,
