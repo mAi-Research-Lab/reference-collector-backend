@@ -84,6 +84,32 @@ export class S3StorageService implements OnModuleInit {
         return url;
     }
 
+    async downloadFile(key: string): Promise<Buffer> {
+        this.ensureConfigured();
+
+        const response = await this.s3.send(
+            new GetObjectCommand({
+                Bucket: this.bucket,
+                Key: key,
+            }),
+        );
+
+        const body = response.Body as any;
+        if (!body) {
+            return Buffer.alloc(0);
+        }
+        if (typeof body.transformToByteArray === "function") {
+            const bytes = await body.transformToByteArray();
+            return Buffer.from(bytes);
+        }
+
+        const chunks: Buffer[] = [];
+        for await (const chunk of body) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        return Buffer.concat(chunks);
+    }
+
     async deleteFile(key: string): Promise<void> {
         this.ensureConfigured();
 
