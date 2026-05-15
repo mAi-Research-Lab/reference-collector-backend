@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsNotEmpty, IsObject, IsOptional, IsString } from "class-validator";
+import { IsIn, IsNotEmpty, IsObject, IsOptional, IsString } from "class-validator";
 import { CitationStyle } from "../../enums/citation.enum";
 import { ContentDeltaDto } from "./content-delta.dto";
 import { JsonValue } from "generated/prisma/runtime/library";
@@ -53,5 +53,10 @@ export class CreateDocumentDto {
     @ApiPropertyOptional({ example: '14e56bb0-ed2f-4567-bb07-a3b2649ed80d' })
     @IsOptional()
     templateId?: string
+
+    @ApiPropertyOptional({ example: 'document', enum: ['notebook', 'document'] })
+    @IsOptional()
+    @IsIn(['notebook', 'document'])
+    documentType?: 'notebook' | 'document'
 
 }

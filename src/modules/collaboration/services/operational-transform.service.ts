@@ -37,10 +37,15 @@ export class OperationalTransformService {
             transformedOperation = this.transformOperations(operation, newOperations);
         }
 
-        const newContent = this.applyOperationToContent(document.content, transformedOperation);
+        const shouldPersistContent = this.shouldPersistDocumentContent(transformedOperation);
+        const newContent = shouldPersistContent
+            ? this.applyOperationToContent(document.content, transformedOperation)
+            : document.content;
         const newVersion = currentVersion! + 1;
 
-        await this.updateDocumentContent(operation.documentId, newContent, newVersion);
+        if (shouldPersistContent) {
+            await this.updateDocumentContent(operation.documentId, newContent, newVersion, transformedOperation);
+        }
         await this.saveOperation({ ...transformedOperation, version: newVersion });
 
         return {
@@ -73,7 +78,9 @@ export class OperationalTransformService {
 
         for (const operation of sortedOperations) {
             try {
-                const parsedOp = JSON.parse(JSON.stringify(operation.ops)) as DocumentOperation;
+                const parsedOp = typeof operation.ops === 'string'
+                    ? JSON.parse(operation.ops) as DocumentOperation
+                    : JSON.parse(JSON.stringify(operation.ops)) as DocumentOperation;
 
                 parsedOp.userId = operation.userId;
                 parsedOp.documentId = operation.documentId;
@@ -98,15 +105,17 @@ export class OperationalTransformService {
         return parsedOperations;
     }
 
-    async updateDocumentContent(documentId: string, newContent: string, newVersion: number): Promise<void> {
+    async updateDocumentContent(documentId: string, newContent: string, newVersion: number, operation?: DocumentOperation): Promise<void> {
         const document = await this.documentService.getDocument(documentId);
+        const textOperation = operation as TextOperation | undefined;
+        const nextContentDelta = textOperation?.attributes?.contentDelta ?? document.contentDelta;
 
-        await this.documentService.updateDocument(document.id,
+        await this.documentService.updateDocument(document.id, operation?.userId || document.createdBy,
             {
                 title: document.title,
                 content: newContent,
                 version: newVersion,
-                contentDelta: document.contentDelta as any,
+                contentDelta: nextContentDelta as any,
                 citationStyle: document.citationStyle,
             }
         );
@@ -121,7 +130,7 @@ export class OperationalTransformService {
             data: {
                 userId: operation.userId,
                 documentId: operation.documentId,
-                ops: JSON.stringify(operation),
+                ops: operation as any,
                 version: operation.version,
                 timestamp: operation.timestamp
             }
@@ -190,15 +199,53 @@ export class OperationalTransformService {
 
         const userCollaborator = documentCollaborators.find(collaborator => collaborator.userId === userId);
 
-        if (!userCollaborator) {
-            return false;
-        }
-
-        if (userCollaborator.role === 'owner' || userCollaborator.role === 'editor') {
+        if (userCollaborator?.role === 'owner' || userCollaborator?.role === 'editor') {
             return true;
         }
 
-        if (userCollaborator.role === 'viewer') {
+        if (userCollaborator?.role === 'viewer') {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+            return operationType === OperationType.CURSOR_MOVE;
+        }
+
+        const documentAccess = await this.prisma.documents.findUnique({
+            where: { id: documentId },
+            select: {
+                libraryId: true,
+                library: {
+                    select: {
+                        type: true
+                    }
+                }
+            }
+        });
+
+        if (!documentAccess) {
+            return false;
+        }
+
+        if (documentAccess.library.type !== 'shared' && documentAccess.library.type !== 'group') {
+            return false;
+        }
+
+        const membership = await this.prisma.libraryMemberships.findUnique({
+            where: {
+                libraryId_userId: {
+                    libraryId: documentAccess.libraryId,
+                    userId
+                }
+            }
+        });
+
+        if (!membership) {
+            return false;
+        }
+
+        if (membership.role === 'owner' || membership.role === 'admin' || membership.role === 'editor' || membership.role === 'member') {
+            return true;
+        }
+
+        if (membership.role === 'viewer') {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
             return operationType === OperationType.CURSOR_MOVE;
         }
@@ -281,14 +328,24 @@ export class OperationalTransformService {
         switch (operation.type) {
             case OperationType.TEXT_INSERT:
                 const textOp = operation as TextOperation;
+                if (textOp.attributes?.html) return textOp.attributes.html;
+                if (textOp.attributes?.delta) return currentContent;
                 return currentContent.slice(0, operation.position.offset) +
                     (textOp.content || '') +
                     currentContent.slice(operation.position.offset);
 
             case OperationType.TEXT_DELETE:
                 const deleteOp = operation as TextOperation;
+                if (deleteOp.attributes?.html) return deleteOp.attributes.html;
+                if (deleteOp.attributes?.delta) return currentContent;
                 return currentContent.slice(0, operation.position.offset) +
                     currentContent.slice(operation.position.offset + (deleteOp.length || 0));
+
+            case OperationType.TEXT_FORMAT:
+                const formatOp = operation as TextOperation;
+                if (formatOp.attributes?.html) return formatOp.attributes.html;
+                if (formatOp.attributes?.delta) return currentContent;
+                return formatOp.content ?? currentContent;
 
             case OperationType.CITATION_INSERT:
                 const citationOp = operation as CitationOperation;
@@ -304,5 +361,16 @@ export class OperationalTransformService {
             default:
                 return currentContent;
         }
+    }
+
+    private shouldPersistDocumentContent(operation: DocumentOperation): boolean {
+        if (operation.type !== OperationType.TEXT_INSERT &&
+            operation.type !== OperationType.TEXT_DELETE &&
+            operation.type !== OperationType.TEXT_FORMAT) {
+            return true;
+        }
+
+        const textOperation = operation as TextOperation;
+        return !!textOperation.attributes?.html || !!textOperation.attributes?.contentDelta || !!textOperation.attributes?.isSnapshot;
     }
 }

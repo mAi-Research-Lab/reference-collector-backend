@@ -18,6 +18,7 @@ import { PdfRetrievalModule } from './modules/pdf-retrieval/pdf-retrieval.module
 import { MailModule } from './modules/mail/mail.module';
 import { TranslateModule } from './modules/translate/translate.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
+import { AiModule } from './modules/ai/ai.module';
 import { join } from 'path';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { BootstrapService } from './common/services/bootstrap.service';
@@ -42,6 +43,7 @@ import { ConfigModule } from '@nestjs/config';
     MailModule,
     TranslateModule,
     FeedbackModule,
+    AiModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

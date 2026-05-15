@@ -1166,7 +1166,11 @@ export class CitationStylesService {
     }
 
     private sortAndFormatBibliographyEntries(entries: string[], references: any[], style: any): string[] {
-        // Sort alphabetically by first author's last name
+        const styleShortName = String(style.shortName || '').toLowerCase();
+        if (['ieee', 'vancouver', 'nature', 'science', 'cell'].includes(styleShortName)) {
+            return entries;
+        }
+
         const combined = entries.map((entry, index) => ({
             entry,
             reference: references[index],

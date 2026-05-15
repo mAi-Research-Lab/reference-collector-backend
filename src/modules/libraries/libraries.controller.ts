@@ -28,8 +28,8 @@ export class LibrariesController {
     @ApiSuccessResponse(LibraryResponse, 201, LIBRARY_MESSAGES.LIBRARY_CREATED_SUCCESSFULLY)
     @ApiErrorResponse(400, LIBRARY_MESSAGES.LIBRARY_ALREADY_EXISTS)
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
-    async create(@Body() data: CreateLibrariesDto): Promise<ResponseDto> {
-        const libraries = await this.librariesService.create(data);
+    async create(@User() user: any, @Body() data: CreateLibrariesDto): Promise<ResponseDto> {
+        const libraries = await this.librariesService.create({ ...data, ownerId: user.id });
 
         return {
             message: LIBRARY_MESSAGES.LIBRARY_CREATED_SUCCESSFULLY,

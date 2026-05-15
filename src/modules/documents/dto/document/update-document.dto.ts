@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString } from "class-validator";
+import { IsIn, IsOptional, IsString } from "class-validator";
 import { CitationStyle } from "../../enums/citation.enum";
 
 export class UpdateDocumentDto {
@@ -28,4 +28,9 @@ export class UpdateDocumentDto {
     @ApiPropertyOptional({ example: 1 })
     @IsOptional()
     version?: number
+
+    @ApiPropertyOptional({ example: 'document', enum: ['notebook', 'document'] })
+    @IsOptional()
+    @IsIn(['notebook', 'document'])
+    documentType?: 'notebook' | 'document'
 }

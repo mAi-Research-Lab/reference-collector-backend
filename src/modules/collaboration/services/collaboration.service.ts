@@ -139,15 +139,19 @@ export class CollaborationService {
             throw new CustomHttpException(COLLABORATION_MESSAGES.SESSION_NOT_FOUND, 404, COLLABORATION_MESSAGES.SESSION_NOT_FOUND);
         }
 
+        const currentOperationLog = Array.isArray(session.operationLog) ? session.operationLog as any[] : [];
+        const operationLogTail = [
+            ...currentOperationLog.slice(-24),
+            { ...data, timestamp: new Date() }
+        ];
+
         const updatedSession = await this.prisma.collaborationSession.update({
             where: {
                 id: sessionId
             },
             data: {
-                operationLog: [
-                    ...(session.operationLog as any[]),
-                    { ...data, timestamp: new Date() }
-                ]
+                operationLog: operationLogTail,
+                lastActivity: new Date()
             }
         })
 
