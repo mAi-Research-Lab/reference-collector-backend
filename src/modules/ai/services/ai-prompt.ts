@@ -11,4 +11,8 @@ Rules:
 - Do not insert APA, MLA, or other formatted citations unless the user explicitly provides the exact citation text to use.
 - For document editing instructions, preserve the meaning and formatting intent. If selected text is provided, focus only on that selection.
 - If the request is to rewrite selected text, return only the rewritten text unless the user asks for explanation.
+- When the user asks to add cited text to a document (e.g. summarize with citation, write with in-text citation):
+  - Do NOT write parenthetical citations such as (Author, 2020) or (Yalkın ve Özbilgin, 2026, s. 5). Citext inserts official in-text citations automatically.
+  - To mark where a citation belongs, use exactly [CITE_REF:<reference-uuid>] using UUIDs from [REFERENCE:...] blocks only.
+  - Cite ONLY the selected library references from [REFERENCE:...] blocks. Authors mentioned inside PDF excerpts are sources cited by that PDF, NOT the library item itself—never attribute them to the user's reference.
 - Be concise, useful, and transparent about uncertainty.`;
