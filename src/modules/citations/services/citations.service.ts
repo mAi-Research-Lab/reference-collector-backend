@@ -33,17 +33,7 @@ export class CitationsService {
 
         const sortOrder = data.documentId ? await this.getNextSortOrder(data.documentId) : 0;
 
-        let styleId = data.styleId;
-        if (!styleId) {
-            const officeDoc = await this.prisma.officeDocuments.findUnique({
-                where: { id: data.documentId }
-            });
-            if (officeDoc && officeDoc.styleId) {
-                styleId = officeDoc.styleId;
-            } else {
-                styleId = await this.getDefaultStyleId();
-            }
-        }
+        const styleId = await this.resolveCitationStyleId(data.styleId, data.documentId);
 
         try {
             let citationText: string;
@@ -518,6 +508,52 @@ export class CitationsService {
         });
 
         return (lastCitation?.sortOrder || 0) + 1;
+    }
+
+    private isUuid(value: string): boolean {
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            value.trim()
+        );
+    }
+
+    private async resolveCitationStyleId(styleHint?: string, documentId?: string): Promise<string> {
+        const hint = styleHint?.trim();
+        if (hint && this.isUuid(hint)) {
+            return hint;
+        }
+
+        if (documentId) {
+            const officeDoc = await this.prisma.officeDocuments.findUnique({
+                where: { id: documentId },
+            });
+            if (officeDoc?.styleId && this.isUuid(officeDoc.styleId)) {
+                return officeDoc.styleId;
+            }
+
+            const document = await this.prisma.documents.findUnique({
+                where: { id: documentId },
+                select: { citationStyle: true },
+            });
+            const fromDoc = document?.citationStyle?.trim();
+            if (fromDoc && this.isUuid(fromDoc)) {
+                return fromDoc;
+            }
+            if (fromDoc && !this.isUuid(fromDoc)) {
+                const byDocSlug = await this.prisma.citationStyle.findFirst({
+                    where: { shortName: fromDoc.toLowerCase() },
+                });
+                if (byDocSlug) return byDocSlug.id;
+            }
+        }
+
+        if (hint && !this.isUuid(hint)) {
+            const byShort = await this.prisma.citationStyle.findFirst({
+                where: { shortName: hint.toLowerCase() },
+            });
+            if (byShort) return byShort.id;
+        }
+
+        return this.getDefaultStyleId();
     }
 
     private async getDefaultStyleId(): Promise<string> {
