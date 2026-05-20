@@ -635,4 +635,158 @@ export class ReferencesService {
         // Default to journal article
         return 'journal_article';
     }
+
+    async checkDuplicateOpenAlex(libraryId: string, workId: string, doi?: string | null): Promise<boolean> {
+        const references = await this.prismaService.references.findMany({
+            where: { libraryId },
+            select: { metadata: true, doi: true },
+        });
+
+        const normalizedDoi = doi?.replace(/^https?:\/\/doi\.org\//i, '').trim().toLowerCase();
+
+        for (const reference of references) {
+            const metadata = reference.metadata as any;
+            const existingWorkId = metadata?.openAlex?.workId;
+            if (existingWorkId && existingWorkId === workId) {
+                return true;
+            }
+            if (normalizedDoi && reference.doi?.toLowerCase() === normalizedDoi) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    async addFromOpenAlex(dto: {
+        libraryId: string;
+        collectionId?: string;
+        workId: string;
+        workData: any;
+        addedBy?: string;
+    }): Promise<ReferencesResponse> {
+        if (!dto.addedBy) {
+            throw new CustomHttpException('User ID is required', 400, 'USER_ID_REQUIRED');
+        }
+
+        const doi = dto.workData?.doi
+            ? String(dto.workData.doi).replace(/^https?:\/\/doi\.org\//i, '').trim()
+            : null;
+
+        const isDuplicate = await this.checkDuplicateOpenAlex(dto.libraryId, dto.workId, doi);
+        if (isDuplicate) {
+            throw new CustomHttpException(
+                'This paper already exists in your library',
+                409,
+                'DUPLICATE_REFERENCE',
+            );
+        }
+
+        const authors =
+            dto.workData.authorships
+                ?.map((authorship: any) => ({
+                    name: authorship.author?.display_name || '',
+                }))
+                .filter((author: { name: string }) => author.name) || [];
+
+        const abstract = this.reconstructOpenAlexAbstract(dto.workData.abstract_inverted_index);
+
+        let url =
+            dto.workData.best_oa_location?.pdf_url ||
+            dto.workData.primary_location?.pdf_url ||
+            dto.workData.open_access?.oa_url ||
+            null;
+
+        if (!url && doi) {
+            try {
+                const crossrefPdfUrl = await this.doiResolverService.findPdfFromDoi(doi);
+                if (crossrefPdfUrl) {
+                    url = crossrefPdfUrl;
+                }
+            } catch {
+                // continue
+            }
+
+            if (!url) {
+                try {
+                    const unpaywallResult = await this.openAccessFinderService.searchUnpaywall(doi);
+                    if (unpaywallResult?.url) {
+                        url = unpaywallResult.url;
+                    }
+                } catch {
+                    // continue
+                }
+            }
+
+            if (!url) {
+                url = `https://doi.org/${doi}`;
+            }
+        }
+
+        const metadata = {
+            openAlex: {
+                workId: dto.workId,
+                openAlexId: dto.workData.id,
+                type: dto.workData.type,
+                openAccess: dto.workData.open_access,
+            },
+        };
+
+        return await this.prismaService.references.create({
+            data: {
+                libraryId: dto.libraryId,
+                collectionId: dto.collectionId || null,
+                type: this.determineReferenceTypeFromOpenAlex(dto.workData),
+                title: dto.workData.display_name || dto.workData.title || '',
+                authors: authors.length > 0 ? (authors as any) : null,
+                publication: dto.workData.primary_location?.source?.display_name || null,
+                publisher: null,
+                year: dto.workData.publication_year || null,
+                volume: dto.workData.biblio?.volume || null,
+                issue: dto.workData.biblio?.issue || null,
+                pages: this.formatOpenAlexPages(dto.workData.biblio),
+                doi,
+                isbn: null,
+                issn: null,
+                url,
+                abstractText: abstract,
+                language: null,
+                citationCount: dto.workData.cited_by_count || 0,
+                addedBy: dto.addedBy,
+                metadata: metadata as any,
+            },
+        }) as ReferencesResponse;
+    }
+
+    private reconstructOpenAlexAbstract(invertedIndex?: Record<string, number[]> | null): string | null {
+        if (!invertedIndex) return null;
+
+        const tokens: Array<[number, string]> = [];
+        for (const [word, positions] of Object.entries(invertedIndex)) {
+            for (const position of positions) {
+                tokens.push([position, word]);
+            }
+        }
+
+        if (tokens.length === 0) return null;
+
+        tokens.sort((a, b) => a[0] - b[0]);
+        return tokens.map((token) => token[1]).join(' ');
+    }
+
+    private formatOpenAlexPages(biblio?: { first_page?: string; last_page?: string } | null): string | null {
+        if (!biblio?.first_page) return null;
+        if (biblio.last_page) {
+            return `${biblio.first_page}-${biblio.last_page}`;
+        }
+        return biblio.first_page;
+    }
+
+    private determineReferenceTypeFromOpenAlex(workData: any): string {
+        const type = String(workData.type || '').toLowerCase();
+        if (type.includes('book')) return 'book';
+        if (type.includes('proceedings') || type.includes('conference')) return 'conference_paper';
+        if (type.includes('dissertation') || type.includes('thesis')) return 'thesis';
+        return 'journal_article';
+    }
 }

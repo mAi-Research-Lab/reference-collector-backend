@@ -10,6 +10,8 @@ import { ReferencesResponse } from "./dto/reference/references.response";
 import { UpdateReferenceDto } from "./dto/reference/update-reference.dto";
 import { SearchPapersDto } from "./dto/semantic-scholar/search-papers.dto";
 import { AddFromSemanticScholarDto } from "./dto/semantic-scholar/add-from-semantic-scholar.dto";
+import { AddFromOpenAlexDto } from "./dto/openalex/add-from-openalex.dto";
+import { AcademicSearchService } from "./services/academic-search.service";
 import { ApiSuccessArrayResponse, ApiSuccessResponse, ApiErrorResponse } from "src/common/decorators/api-response-wrapper.decorator";
 import { ResponseDto } from "src/common/dto/api-response.dto";
 import { COMMON_MESSAGES } from "src/common/constants/common.messages";
@@ -25,6 +27,7 @@ export class ReferencesController {
         private readonly referencesService: ReferencesService,
         private readonly semanticScholarService: SemanticScholarService,
         private readonly collectionValidationService: CollectionValidationService,
+        private readonly academicSearchService: AcademicSearchService,
     ) { }
 
     @Post('add-from-semantic-scholar')
@@ -66,6 +69,50 @@ export class ReferencesController {
             }
             throw new CustomHttpException(
                 error.message || 'Failed to add reference from Semantic Scholar',
+                500,
+                'ADD_FAILED',
+            );
+        }
+    }
+
+    @Post('add-from-openalex')
+    @ApiOperation({ summary: 'Add reference from OpenAlex to collection' })
+    @ApiSuccessResponse(ReferencesResponse, 201, 'Reference added successfully')
+    @ApiErrorResponse(400, 'Invalid request data')
+    @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
+    @ApiErrorResponse(404, 'Library or collection not found')
+    @ApiErrorResponse(409, 'Duplicate reference')
+    async addFromOpenAlex(
+        @Body() dto: AddFromOpenAlexDto,
+        @User('id') userId: string,
+    ): Promise<ResponseDto> {
+        try {
+            const isDuplicate = await this.referencesService.checkDuplicateOpenAlex(
+                dto.libraryId,
+                dto.workId,
+                dto.workData?.doi,
+            );
+
+            if (isDuplicate) {
+                throw new CustomHttpException('This paper already exists in your library', 409, 'DUPLICATE_REFERENCE');
+            }
+
+            const dtoWithUser = { ...dto, addedBy: userId };
+            const reference = await this.referencesService.addFromOpenAlex(dtoWithUser);
+
+            return {
+                message: 'Reference added successfully from OpenAlex',
+                statusCode: 201,
+                success: true,
+                timestamp: new Date().toISOString(),
+                data: reference,
+            };
+        } catch (error: any) {
+            if (error instanceof CustomHttpException) {
+                throw error;
+            }
+            throw new CustomHttpException(
+                error.message || 'Failed to add reference from OpenAlex',
                 500,
                 'ADD_FAILED',
             );
@@ -282,6 +329,37 @@ export class ReferencesController {
             timestamp: new Date().toISOString(),
             data: filteredReferences
         };
+    }
+
+    @Get('search-academic')
+    @ApiOperation({
+        summary: 'Search academic papers across Semantic Scholar and OpenAlex',
+        description: 'Unified academic search with merged, deduplicated results. PDF-available papers are prioritized.',
+    })
+    @ApiQuery({ name: 'query', required: true, description: 'Search query (paper title or keywords)' })
+    @ApiQuery({ name: 'limit', required: false, description: 'Number of results per source page (default: 20, max: 100)' })
+    @ApiQuery({ name: 'offset', required: false, description: 'Pagination offset (default: 0)' })
+    @ApiSuccessResponse(Array, 200, 'Academic papers retrieved successfully')
+    async searchAcademic(@Query() dto: SearchPapersDto): Promise<ResponseDto> {
+        try {
+            const limit = dto.limit || 20;
+            const offset = dto.offset || 0;
+            const result = await this.academicSearchService.search(dto.query, limit, offset);
+
+            return {
+                message: 'Academic papers retrieved successfully',
+                statusCode: 200,
+                success: true,
+                timestamp: new Date().toISOString(),
+                data: result,
+            };
+        } catch (error: any) {
+            throw new CustomHttpException(
+                error.message || 'Failed to search academic papers',
+                500,
+                'SEARCH_FAILED',
+            );
+        }
     }
 
     @Get('search-papers')

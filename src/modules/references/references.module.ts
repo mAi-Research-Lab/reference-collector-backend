@@ -27,6 +27,7 @@ import { LibraryValidationController } from './controller/library-validation.con
 import { DOIService } from './services/external/doi.service';
 import { SemanticScholarService } from './services/external/semantic-scholar.service';
 import { OpenAlexService } from './services/external/openalex.service';
+import { AcademicSearchService } from './services/academic-search.service';
 import { S3StorageService } from './services/s3-storage.service';
 import { UserModule } from '../user/user.module';
 import { PdfRetrievalModule } from '../pdf-retrieval/pdf-retrieval.module';
@@ -53,6 +54,7 @@ import { PdfRetrievalModule } from '../pdf-retrieval/pdf-retrieval.module';
     DOIService,
     SemanticScholarService,
     OpenAlexService,
+    AcademicSearchService,
     S3StorageService,
   ],
   controllers: [
