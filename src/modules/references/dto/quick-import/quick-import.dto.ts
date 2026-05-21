@@ -324,4 +324,12 @@ export class BibliographyFileImportDto {
     @Min(1)
     @Max(5000)
     maxEntries?: number;
+
+    @ApiPropertyOptional({
+        example: true,
+        description: 'Search and attach open-access PDFs in the background after import',
+    })
+    @IsOptional()
+    @IsBoolean()
+    attachPdfs?: boolean;
 }
