@@ -257,5 +257,95 @@ export class OpenAlexService {
 
         await this.rateLimitChain;
     }
+
+    async searchWorks(
+        query: string,
+        limit: number = 20,
+        offset: number = 0,
+    ): Promise<{ works: any[]; total: number; limit: number; offset: number; hasMore: boolean }> {
+        let cleanQuery = query.trim().replace(/\s+/g, ' ').trim();
+
+        if (!cleanQuery || cleanQuery.length < 3) {
+            throw new Error('Query too short or invalid (minimum 3 characters)');
+        }
+
+        if (cleanQuery.length > 200) {
+            cleanQuery = cleanQuery.substring(0, 200).trim();
+        }
+
+        const requestedLimit = Math.min(Math.max(1, limit), 100);
+        const requestedOffset = Math.max(0, offset);
+        const page = Math.floor(requestedOffset / requestedLimit) + 1;
+
+        this.logger.log(
+            `Searching OpenAlex works for: ${cleanQuery.substring(0, 50)}... (limit: ${requestedLimit}, offset: ${requestedOffset})`,
+        );
+
+        const endpoint = `${this.baseUrl}/works`;
+        const params = {
+            search: cleanQuery,
+            per_page: requestedLimit,
+            page,
+        };
+
+        try {
+            await this.waitForRateLimitWindow();
+
+            const response = await firstValueFrom(
+                this.httpService.get(endpoint, {
+                    params,
+                    headers: {
+                        'User-Agent': 'CITEXT/1.0 (mailto:destek@citext.ai)',
+                    },
+                    timeout: 15000,
+                }),
+            );
+
+            const results = response.data?.results;
+            if (!results || !Array.isArray(results)) {
+                return {
+                    works: [],
+                    total: 0,
+                    limit: requestedLimit,
+                    offset: requestedOffset,
+                    hasMore: false,
+                };
+            }
+
+            const total = response.data?.meta?.count ?? results.length;
+            const hasMore = requestedOffset + results.length < total;
+
+            this.logger.log(
+                `Found ${results.length} works from OpenAlex (total: ${total}, page: ${page})`,
+            );
+
+            return {
+                works: results,
+                total,
+                limit: requestedLimit,
+                offset: requestedOffset,
+                hasMore,
+            };
+        } catch (error) {
+            this.logger.error('OpenAlex search error:', error.message);
+            throw new Error(error.message || 'OpenAlex search failed');
+        }
+    }
+
+    reconstructAbstract(invertedIndex?: Record<string, number[]> | null): string | undefined {
+        if (!invertedIndex) return undefined;
+
+        const tokens: Array<[number, string]> = [];
+        for (const [word, positions] of Object.entries(invertedIndex)) {
+            for (const position of positions) {
+                tokens.push([position, word]);
+            }
+        }
+
+        if (tokens.length === 0) return undefined;
+
+        tokens.sort((a, b) => a[0] - b[0]);
+        return tokens.map((token) => token[1]).join(' ');
+    }
 }
 

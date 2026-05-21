@@ -83,7 +83,9 @@ export class AiContextService {
             for (const file of reference.Files) {
                 const pdfText = await this.extractPdfText(file.storagePath, String(file.storageProvider));
                 if (pdfText) {
-                    parts.push(`\n[PDF:${file.originalFilename};REFERENCE_ID:${reference.id};FILE_ID:${file.id}]\n${pdfText}`);
+                    parts.push(
+                        `\n[PDF:${file.originalFilename};REFERENCE_ID:${reference.id};FILE_ID:${file.id};NOTE:body may cite other works—do not treat those as this REFERENCE's authors]\n${pdfText}`,
+                    );
                 }
             }
         }
@@ -138,6 +140,7 @@ export class AiContextService {
 
         return [
             `[REFERENCE:${reference.id}]`,
+            `CITEXT_LIBRARY_ITEM: cite this UUID when attributing the attached PDF to a source. Authors below are authoritative.`,
             `Title: ${reference.title || 'Untitled'}`,
             `Type: ${reference.type || 'unknown'}`,
             reference.year ? `Year: ${reference.year}` : '',

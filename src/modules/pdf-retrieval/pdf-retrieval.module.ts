@@ -23,7 +23,8 @@ import { SnapshotService } from './services/snapshot.service';
   controllers: [PdfRetrievalController],
   exports: [
     DoiResolverService,
-    OpenAccessFinderService
+    OpenAccessFinderService,
+    PdfSearchService,
   ]
 })
 export class PdfRetrievalModule {}
