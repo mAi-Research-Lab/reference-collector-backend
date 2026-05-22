@@ -74,6 +74,8 @@ model User {
   collaborationLogs CollaborationLogs[]
 
   Feedback Feedback[]
+  SupportTickets SupportTicket[]
+  SupportTicketMessages SupportTicketMessage[]
 }
 
 enum SubscriptionStatus {
@@ -803,4 +805,63 @@ enum FeedbackStatus {
   in_progress
   resolved
   closed
+}
+
+// ========= SUPPORT TICKETS ==============
+model SupportTicket {
+  id            String           @id @default(uuid()) @db.Uuid
+  ticketNumber  String           @unique @map("ticket_number")
+  subject       String
+  description   String
+  status        TicketStatus     @default(open)
+  priority      TicketPriority   @default(medium)
+  category      TicketCategory   @default(general)
+  userId        String           @map("user_id") @db.Uuid
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isRead        Boolean          @default(false) @map("is_read")
+  resolvedAt    DateTime?        @map("resolved_at")
+  firstResponseAt DateTime?      @map("first_response_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  messages SupportTicketMessage[]
+
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  ticketId    String   @map("ticket_id") @db.Uuid
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  content     String
+  isFromUser  Boolean  @default(true) @map("is_from_user")
+  authorId    String   @map("author_id") @db.Uuid
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  isInternal  Boolean  @default(false) @map("is_internal")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("support_ticket_messages")
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  waiting
+  resolved
+  closed
+}
+
+enum TicketPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum TicketCategory {
+  general
+  technical
+  billing
+  account
+  other
 }

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Citext Proforma Fatura</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Inter, Arial, sans-serif; font-size: 12px; color: #1a1a1a; padding: 40px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 2px solid #2596be; padding-bottom: 16px; }
+    .logo-text { font-size: 28px; font-weight: 700; color: #2596be; }
+    .logo-sub { font-size: 11px; color: #666; margin-top: 4px; }
+    .invoice-meta { text-align: right; }
+    .invoice-meta h2 { font-size: 18px; color: #2596be; margin-bottom: 8px; }
+    .section { margin-bottom: 24px; }
+    .section-title { font-size: 11px; font-weight: 600; color: #2596be; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th { background: #2596be; color: white; padding: 10px 12px; text-align: left; font-size: 11px; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
+    .total-row td { font-weight: 700; font-size: 13px; }
+    .notes { background: #f0f9ff; border-left: 3px solid #2596be; padding: 12px; margin-top: 16px; font-size: 11px; color: #444; }
+    .signature { margin-top: 48px; text-align: right; }
+    .signature-line { border-top: 1px solid #333; width: 200px; margin-left: auto; padding-top: 8px; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="logo-text">Citext</div>
+      <div class="logo-sub">Reference Collector Platform</div>
+    </div>
+    <div class="invoice-meta">
+      <h2>PROFORMA FATURA</h2>
+      <p>No: {{invoiceNumber}}</p>
+      <p>Tarih: {{invoiceDate}}</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Müşteri Bilgileri</div>
+    <p><strong>{{customerName}}</strong></p>
+    <p>{{customerAddress}}</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Hizmet Detayları</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Hizmet</th>
+          <th>Dönem</th>
+          <th>Birim Fiyat</th>
+          <th>KDV %</th>
+          <th>Tutar</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{serviceName}}</td>
+          <td>{{servicePeriod}}</td>
+          <td>{{unitPrice}}</td>
+          <td>{{kdvRate}}</td>
+          <td>{{totalAmount}}</td>
+        </tr>
+        <tr class="total-row">
+          <td colspan="4" style="text-align:right">TOPLAM</td>
+          <td>{{totalAmount}}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {{#if notes}}
+  <div class="notes">{{notes}}</div>
+  {{/if}}
+
+  <div class="signature">
+    <div class="signature-line">{{signatureName}}</div>
+  </div>
+</body>
+</html>
