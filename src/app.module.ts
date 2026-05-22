@@ -19,6 +19,9 @@ import { MailModule } from './modules/mail/mail.module';
 import { TranslateModule } from './modules/translate/translate.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { AiModule } from './modules/ai/ai.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { SupportModule } from './modules/support/support.module';
+import { ProformaModule } from './modules/proforma/proforma.module';
 import { join } from 'path';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { BootstrapService } from './common/services/bootstrap.service';
@@ -44,6 +47,9 @@ import { ConfigModule } from '@nestjs/config';
     TranslateModule,
     FeedbackModule,
     AiModule,
+    AdminModule,
+    SupportModule,
+    ProformaModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

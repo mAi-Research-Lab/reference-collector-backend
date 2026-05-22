@@ -67,7 +67,7 @@ export class InstitutionController {
     @ApiErrorResponse(401, COMMON_MESSAGES.UNAUTHORIZED)
     @ApiErrorResponse(403, COMMON_MESSAGES.FORBIDDEN)
     @ApiErrorResponse(404, INSTUTION_MESSAGES.INSTITUTION_NOT_FOUND)
-    async getInstitutionById(@Body() institutionId: string): Promise<ResponseDto> {
+    async getInstitutionById(@Param('institutionId') institutionId: string): Promise<ResponseDto> {
         const institution = await this.institutionService.getInstitutionById(institutionId);
 
         return {

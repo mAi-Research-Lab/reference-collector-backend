@@ -8,6 +8,11 @@
       {
         "include": "resources/**/*",
         "outDir": "dist"
+      },
+      {
+        "include": "modules/proforma/templates/**/*",
+        "outDir": "dist/modules/proforma",
+        "watchAssets": true
       }
     ]
   }
